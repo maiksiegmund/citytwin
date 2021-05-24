@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<colorTheme id="1288" name="Visual Studio Theme" modified="2014-03-10 18:20:09" author="mezoni">
+    <searchResultIndication color="#E2E6D6" />
+    <filteredSearchResultIndication color="#E2E6D6" />
+    <occurrenceIndication color="#E2E6D6" />
+    <writeOccurrenceIndication color="#E2E6D6" />
+    <findScope color="#E2E6D6" />
+    <deletionIndication color="#000000" />
+    <sourceHoverBackground color="#E2E6D6" />
+    <singleLineComment color="#008000" italic="false" />
+    <multiLineComment color="#008000" italic="false" />
+    <commentTaskTag color="#008000" italic="false" />
+    <javadoc color="#008000" italic="false" />
+    <javadocLink color="#008000" italic="false" />
+    <javadocTag color="#0000FF" italic="false" />
+    <javadocKeyword color="#0000FF" italic="false" />
+    <class color="#2B91AF" bold="false" underline="false" strikethrough="false" />
+    <interface color="#2B91AF" />
+    <method color="#000000" />
+    <methodDeclaration color="#000000" />
+    <bracket color="#000000" />
+    <number color="#000000" />
+    <string color="#A31515" />
+    <operator color="#000000" />
+    <keyword color="#0000FF" bold="false" />
+    <annotation color="#2B91AF" />
+    <staticMethod color="#000000" />
+    <localVariable color="#000000" />
+    <localVariableDeclaration color="#000000" />
+    <field color="#000000" />
+    <staticField color="#000000" />
+    <staticFinalField color="#000000" />
+    <deprecatedMember color="#000000" underline="false" strikethrough="true" />
+    <enum color="#000000" />
+    <inheritedMethod color="#000000" />
+    <abstractMethod color="#000000" />
+    <parameterVariable color="#000000" />
+    <typeArgument color="#000000" />
+    <typeParameter color="#000000" />
+    <constant color="#000000" />
+    <background color="#FFFFFF" />
+    <currentLine color="#EEEEEE" />
+    <foreground color="#000000" />
+    <lineNumber color="#000000" />
+    <selectionBackground color="#ADD6FF" />
+    <selectionForeground color="#000000" />
+</colorTheme>
