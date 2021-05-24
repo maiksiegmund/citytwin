@@ -65,12 +65,12 @@ public class TextAnalyser {
 	private Tokenizer tokenizer;
 
 	/**
-	 * This method calculate term frequency. used apache opennlp and apache lucene
+	 * This method calculate term frequency and inverse document frequency by lucene or opennlp.
 	 * 
 	 * @param handBodyContentHandler (contains the german text)
-	 * @return Map<String, Map<String, Integer>>
+	 * @return Map<String, Map<String, Integer>> ()
 	 */
-	public Map<String, Map<String, Double>> doTfIDF(BodyContentHandler bodyContentHandler) {
+	public Map<String, Map<String, Double>> doTfIDF(final BodyContentHandler bodyContentHandler) {
 
 		RawCount lucene = new RawCount();
 		RawCount openNLP = new RawCount();
@@ -79,8 +79,8 @@ public class TextAnalyser {
 
 		try {
 
-			openNLP = rawCount(bodyContentHandler, true);
-			lucene = rawCount(bodyContentHandler, false);
+			openNLP = getRawCount(bodyContentHandler, true);
+			lucene = getRawCount(bodyContentHandler, false);
 
 			RawCount openNLPStemmed = stem(openNLP);
 			RawCount luceneStemmed = stem(lucene);
@@ -121,7 +121,7 @@ public class TextAnalyser {
 	 * @return List<String> of sentences
 	 * @throws IOException
 	 */
-	private List<String> getSentences(BodyContentHandler handBodyContentHandler) throws IOException {
+	private List<String> getSentences(final BodyContentHandler handBodyContentHandler) throws IOException {
 
 		List<String> results = new ArrayList<String>();
 		String[] sentences = sentenceDetector.sentDetect(handBodyContentHandler.toString());
@@ -140,7 +140,7 @@ public class TextAnalyser {
 	 *
 	 * @param bodyContentHandler contains german text
 	 */
-	public void testStem(BodyContentHandler bodyContentHandler) {
+	public void testStem(final BodyContentHandler bodyContentHandler) {
 
 		try {
 			String stemmedWordCistem = "";
@@ -200,13 +200,13 @@ public class TextAnalyser {
 	}
 
 	/**
-	 * This method split a sentence in a list of words.
+	 * This method split a sentence in each word.
 	 *
-	 * @param sentence contains a german sentence
-	 * @return List<String> of words in lower case and trimed
+	 * @param sentence
+	 * @returnnew reference List<String> contain words (trimed and replaced @field replacePattern)
 	 * @throws IOException
 	 */
-	private List<String> splitSentenceLucene(String sentence) throws IOException {
+	private List<String> splitSentenceLucene(final String sentence) throws IOException {
 
 		String temp = "";
 		List<String> results = new ArrayList<String>();
@@ -231,10 +231,10 @@ public class TextAnalyser {
 	/**
 	 * This method split a sentence in each word.
 	 *
-	 * @param sentence german text
-	 * @return List<String> of words in trimed and replace @field replacePattern
+	 * @param sentence 
+	 * @return new reference List<String> contain words (trimed and replaced @field replacePattern)
 	 */
-	private List<String> splitSentenceOpenNLP(String sentence) {
+	private List<String> splitSentenceOpenNLP(final String sentence) {
 
 		String temp = "";
 		List<String> results = new ArrayList<String>();
@@ -253,11 +253,11 @@ public class TextAnalyser {
 	/**
 	 * This method sort a map by value.
 	 *
-	 * @param unsorted     Map<String, Double>
-	 * @param isDescending
-	 * @return sorted Map<String, Double>
+	 * @param map Map<String, Double>
+	 * @param isDescending 
+	 * @return new reference of Map<String, Double>
 	 */
-	private Map<String, Double> sortbyValue(Map<String, Double> map, boolean isDescending) {
+	private Map<String, Double> sortbyValue(final Map<String, Double> map, boolean isDescending) {
 
 		double negation = (isDescending) ? -1.0 : 1.0;
 
@@ -290,9 +290,9 @@ public class TextAnalyser {
 	 *
 	 * @param bodyContentHandler contains a german document as plain text
 	 * @param isOpenNLP          (either OpenNLP or Lucene Tools)
-	 * @return RawCountResult
+	 * @return new reference of RawCount
 	 */
-	private RawCount rawCount(BodyContentHandler bodyContentHandler, boolean isOpenNLP) throws IOException {
+	private RawCount getRawCount(final BodyContentHandler bodyContentHandler, boolean isOpenNLP) throws IOException {
 
 		RawCount result = new RawCount();
 
@@ -324,7 +324,7 @@ public class TextAnalyser {
 	 * https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 	 *
 	 * @param RawCount
-	 * @return new reference of Map<String, Double>
+	 * @return new reference of Map<String, Double> (term, count)
 	 */
 	private Map<String, Double> termFrequency(final RawCount rawCount) {
 
@@ -339,7 +339,7 @@ public class TextAnalyser {
 	 * This method normalized a term freuency. equation = log(1+f(t,d))
 	 * https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 	 *
-	 * @param Map<String, Double>
+	 * @param Map<String, Double> (term, count)
 	 * @return new reference of Map<String, Double>
 	 */
 	private Map<String, Double> logNormalization(final Map<String, Double> map) {
@@ -351,24 +351,22 @@ public class TextAnalyser {
 	}
 
 	/**
-	 * This method normalized a term freuency. 
-	 * equation = k +( 1 - K) f(t,d) /
-	 * (max(f(t,d))) 
-	 * https://en.wikipedia.org/wiki/Tf%E2%80%93idf
+	 * This method normalized a term freuency. equation = k +( 1 - k) f(t,d) /
+	 * (max(f(t,d))) https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 	 *
-	 * @param RawCount
+	 * @param Map<String, Double> (term, count)
+	 * @param k           math term
 	 * @return new reference of Map<String, Double>
 	 */
-	private Map<String, Double> doubleNormalization(final Map<String, Double> map, double K) {
+	private Map<String, Double> doubleNormalization(final Map<String, Double> map, final double k) {
 		Map<String, Double> result = new HashMap<>(map.size());
 		Map<String, Double> sorted = sortbyValue(map, true);
 		double max = sorted.entrySet().iterator().next().getValue();
-		
-		for(String Key : map.keySet()) {
-			
+
+		for (String Key : map.keySet()) {
+			// ToDo equation
 		}
-		
-		
+
 		return result;
 	}
 
@@ -408,7 +406,7 @@ public class TextAnalyser {
 	}
 
 	/**
-	 * This inner class represent result rawcount only use here.
+	 * This inner class represent rawcount only use here. used as struct ...
 	 */
 	class RawCount {
 		public Map<String, Double> map;
