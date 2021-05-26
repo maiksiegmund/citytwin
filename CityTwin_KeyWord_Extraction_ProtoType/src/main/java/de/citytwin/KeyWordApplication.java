@@ -34,8 +34,8 @@ public class KeyWordApplication {
 			TextAnalyser textAnalyser = new TextAnalyser();
 			Map<String, Map<String, Double>> tfresults;
 
-			tfresults = textAnalyser.doTfIDF(documentConverter
-					.documentToText(new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf")));
+			tfresults = textAnalyser.calculateTfIDF(documentConverter
+					.documentToText(new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf")),true);
 //			tfresults = textAnalyser.doTfIDF(documentConverter
 //					.documentToText(new File("D:\\vms\\sharedFolder\\testdata.txt")));
 
