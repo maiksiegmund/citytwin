@@ -17,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.cxf.common.i18n.Exception;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.custom.CustomAnalyzer;
@@ -65,40 +66,45 @@ public class TextAnalyser {
 	private Tokenizer tokenizer;
 
 	/**
-	 * This method calculate term frequency and inverse document frequency by lucene or opennlp.
+	 * This method calculate term frequency and inverse document frequency by lucene
+	 * or opennlp.
 	 * 
 	 * @param handBodyContentHandler (contains the german text)
 	 * @return Map<String, Map<String, Integer>> ()
 	 */
-	public Map<String, Map<String, Double>> doTfIDF(final BodyContentHandler bodyContentHandler) {
+	public Map<String, Map<String, Double>> calculateTfIDF(final BodyContentHandler bodyContentHandler,
+			boolean withStemming) {
 
-		RawCount lucene = new RawCount();
-		RawCount openNLP = new RawCount();
+		DocumentCount lucene = new DocumentCount();
+		DocumentCount openNLP = new DocumentCount();
 
-		Map<String, Map<String, Double>> results = new HashMap<String, Map<String, Double>>();
+		Map<String, Map<String, Double>> result = new HashMap<String, Map<String, Double>>();
 
 		try {
 
 			openNLP = getRawCount(bodyContentHandler, true);
 			lucene = getRawCount(bodyContentHandler, false);
 
-			RawCount openNLPStemmed = stem(openNLP);
-			RawCount luceneStemmed = stem(lucene);
+			openNLP = (withStemming) ? stem(openNLP) : openNLP;
+			lucene = (withStemming) ? stem(lucene) : lucene;
 
-			Map<String, Double> normalizetfLuceneStemm = calculateTermFrequency(luceneStemmed);
-			Map<String, Double> normalizetfopenNLPStem = calculateTermFrequency(openNLPStemmed);
+			DocumentCount tfOpenNLP = calculateTermFrequency(openNLP);
+			DocumentCount tflucene = calculateTermFrequency(lucene);
+
+			DocumentCount idfOpenNLP = calculateSmootInverseDocumentFrequency(openNLP);
+			DocumentCount idflucene = calculateSmootInverseDocumentFrequency(lucene);
 
 		} catch (IOException exception) {
 			logger.error(exception.getMessage());
 		}
 
-		Map<String, Double> normalizetfLucene = calculateTermFrequency(lucene);
-		Map<String, Double> normalizetfopenNLP = calculateTermFrequency(openNLP);
+//		Map<String, Double> normalizetfLucene = calculateTermFrequency(rawCountlucene);
+//		Map<String, Double> normalizetfopenNLP = calculateTermFrequency(rawCountopenNLP);
+//
+//		results.put("tflucene", normalizetfLucene);
+//		results.put("tfopenNLP", normalizetfopenNLP);
 
-		results.put("tflucene", normalizetfLucene);
-		results.put("tfopenNLP", normalizetfopenNLP);
-
-		return results;
+		return result;
 
 	}
 
@@ -130,7 +136,7 @@ public class TextAnalyser {
 			logger.info(sentence);
 			results.add(sentence);
 		}
-
+		logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
 		return results;
 
 	}
@@ -203,7 +209,8 @@ public class TextAnalyser {
 	 * This method split a sentence in each word.
 	 *
 	 * @param sentence
-	 * @returnnew reference List<String> contain words (trimed and replaced @field replacePattern)
+	 * @return new reference List<String> contain words (trimed and replaced @field
+	 *         replacePattern)
 	 * @throws IOException
 	 */
 	private List<String> splitSentenceLucene(final String sentence) throws IOException {
@@ -219,10 +226,10 @@ public class TextAnalyser {
 		while (stream.incrementToken()) {
 			temp = attr.toString().trim().replaceAll(replacePattern, "");
 			if (temp.length() > minLenght) {
-				logger.info(MessageFormat.format("transform word: {0} to {1}", attr.toString(), temp));
 				results.add(temp);
 			}
 		}
+		logger.info(MessageFormat.format("sentence contains {0} words.", results.size()));
 		analyzer.close();
 		stream.close();
 		return results;
@@ -231,8 +238,9 @@ public class TextAnalyser {
 	/**
 	 * This method split a sentence in each word.
 	 *
-	 * @param sentence 
-	 * @return new reference List<String> contain words (trimed and replaced @field replacePattern)
+	 * @param sentence
+	 * @return new reference List<String> contain words (trimed and replaced @field
+	 *         replacePattern)
 	 */
 	private List<String> splitSentenceOpenNLP(final String sentence) {
 
@@ -242,19 +250,19 @@ public class TextAnalyser {
 		for (String word : sentences) {
 			temp = word.trim().replaceAll(replacePattern, "");
 			if (temp.length() > minLenght) {
-				logger.info(MessageFormat.format("transform word: {0} to {1}", word, temp));
 				results.add(temp);
 			}
 
 		}
+		logger.info(MessageFormat.format("sentence contains {0} words", results.size()));
 		return results;
 	}
 
 	/**
 	 * This method sort a map by value.
 	 *
-	 * @param map Map<String, Double>
-	 * @param isDescending 
+	 * @param map          Map<String, Double>
+	 * @param isDescending
 	 * @return new reference of Map<String, Double>
 	 */
 	private Map<String, Double> sortbyValue(final Map<String, Double> map, boolean isDescending) {
@@ -271,20 +279,6 @@ public class TextAnalyser {
 
 	}
 
-	private Map<String, Double> calculateTermFrequency(RawCount rawCount) {
-
-		Map<String, Double> results = sortbyValue(rawCount.map, true);
-		double max = results.entrySet().iterator().next().getValue();
-		double count = 0.0;
-
-		for (String key : results.keySet()) {
-			count = results.get(key);
-			results.put(key, count / max);
-		}
-
-		return results;
-	}
-
 	/**
 	 * This method split a document in sentences and in words and count theme.
 	 *
@@ -292,19 +286,13 @@ public class TextAnalyser {
 	 * @param isOpenNLP          (either OpenNLP or Lucene Tools)
 	 * @return new reference of RawCount
 	 */
-	private RawCount getRawCount(final BodyContentHandler bodyContentHandler, boolean isOpenNLP) throws IOException {
+	private DocumentCount getRawCount(final BodyContentHandler bodyContentHandler, boolean isOpenNLP)
+			throws IOException {
 
-		RawCount result = new RawCount();
+		DocumentCount result = new DocumentCount();
+		result.sentences = getSentences(bodyContentHandler);
 
-		List<String> sentences = getSentences(bodyContentHandler);
-
-		result.map = new HashMap<String, Double>();
-		result.countSentences = sentences.size();
-		result.countWords = 0;
-
-		logger.info("text in sentecens completed");
-
-		for (String sentence : sentences) {
+		for (String sentence : result.sentences) {
 			logger.info(sentence);
 			List<String> words = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
 			for (String word : words) {
@@ -316,6 +304,8 @@ public class TextAnalyser {
 				result.map.put(word, result.map.get(word) + 1.0);
 			}
 		}
+		logger.info(MessageFormat.format("document contains {0} sentences.", result.sentences.size()));
+		logger.info(MessageFormat.format("document contains {0} words.", result.countWords));
 		return result;
 	}
 
@@ -323,15 +313,21 @@ public class TextAnalyser {
 	 * This method calculate a term freuency. rawcount / countWords
 	 * https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 	 *
-	 * @param RawCount
-	 * @return new reference of Map<String, Double> (term, count)
+	 * @param DocumentCount
+	 * @return new reference of DocumentCount
 	 */
-	private Map<String, Double> termFrequency(final RawCount rawCount) {
+	private DocumentCount calculateTermFrequency(final DocumentCount documentCount) {
 
-		Map<String, Double> result = new HashMap<>(rawCount.map.size());
-		for (String key : rawCount.map.keySet()) {
-			result.put(key, rawCount.map.get(key).doubleValue() / (double) rawCount.countWords);
+		DocumentCount result = new DocumentCount();
+		result.sentences = documentCount.sentences;
+		result.countWords = documentCount.countWords;
+
+		result.map = new HashMap<>(documentCount.map.size());
+		for (String key : documentCount.map.keySet()) {
+			result.map.put(key, documentCount.map.get(key).doubleValue() / (double) documentCount.countWords);
 		}
+		result.isNormalized = false;
+		logger.info("calculate term frequency finished.");
 		return result;
 	}
 
@@ -339,14 +335,23 @@ public class TextAnalyser {
 	 * This method normalized a term freuency. equation = log(1+f(t,d))
 	 * https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 	 *
-	 * @param Map<String, Double> (term, count)
-	 * @return new reference of Map<String, Double>
+	 * @param DocumentCount
+	 * @return new reference DocumentCount
+	 * @throws IllegalArgumentException
 	 */
-	private Map<String, Double> logNormalization(final Map<String, Double> map) {
-		Map<String, Double> result = new HashMap<>(map.size());
-		for (String key : map.keySet()) {
-			result.put(key, Math.log(1.0 + map.get(key).doubleValue()));
+	private DocumentCount logNormalizationTermFrequency(final DocumentCount documentCount) {
+		if (documentCount.isNormalized) {
+			throw new IllegalArgumentException("document already normalized!");
 		}
+		DocumentCount result = new DocumentCount();
+		result.sentences = documentCount.sentences;
+		result.countWords = documentCount.countWords;
+
+		for (String key : documentCount.map.keySet()) {
+			result.map.put(key, Math.log(1.0 + documentCount.map.get(key).doubleValue()));
+		}
+		result.isNormalized = true;
+		logger.info("log normalization completed.");
 		return result;
 	}
 
@@ -356,37 +361,89 @@ public class TextAnalyser {
 	 *
 	 * @param Map<String, Double> (term, count)
 	 * @param k           math term
-	 * @return new reference of Map<String, Double>
+	 * @return new reference of DocumentCount
+	 * @throws IllegalArgumentException
 	 */
-	private Map<String, Double> doubleNormalization(final Map<String, Double> map, final double k) {
-		Map<String, Double> result = new HashMap<>(map.size());
-		Map<String, Double> sorted = sortbyValue(map, true);
+	private DocumentCount doubleNormalizationTermFrequency(final DocumentCount documentCount, final double k) {
+		if (documentCount.isNormalized) {
+			throw new IllegalArgumentException("document already normalized!");
+		}
+		if (k < 0.0 && k > 1.0) {
+			throw new IllegalArgumentException("k only in range 0.1 - 1.0");
+		}
+		double value = 0.0;
+		DocumentCount result = new DocumentCount();
+		result.sentences = documentCount.sentences;
+		result.countWords = documentCount.countWords;
+		Map<String, Double> sorted = sortbyValue(documentCount.map, true);
+
 		double max = sorted.entrySet().iterator().next().getValue();
 
-		for (String Key : map.keySet()) {
-			// ToDo equation
+		for (String key : documentCount.map.keySet()) {
+			value = k + (1.0 - k) * (documentCount.map.get(key).doubleValue() / max);
+			result.map.put(key, value);
 		}
+		result.isNormalized = true;
+		logger.info("double normalization completed.");
+		return result;
+	}
 
+	private DocumentCount calculateSmootInverseDocumentFrequency(final DocumentCount documentCount) {
+		int termCount = 0;
+		double value = 0.0;
+		DocumentCount result = new DocumentCount();
+		result.sentences = documentCount.sentences;
+		result.countWords = documentCount.countWords;
+		result.isNormalized = false;
+
+		for (String key : documentCount.map.keySet()) {
+			value = documentCount.sentences.size() / documentCount.map.get(key).doubleValue();
+			for (String sentence : documentCount.sentences) {
+				termCount += countTermInSentences(key, sentence, documentCount.isStemmed);
+			}
+			value = Math.log(value / (1.0 + (double) termCount)) + 1.0;
+			result.map.put(key, value);
+		}
+		logger.info("calculate smoot inverse document frequency completed.");
 		return result;
 	}
 
 	/**
-	 * This method stem all words in rawCount and merge the count of theme. stemmed
-	 * by @see opennlp.tools.stemmer.snowball.SnowballStemmer
+	 * This method count a term in a sentence.
 	 * 
-	 * @param rawCount
-	 * @return new reference of RawCount
+	 * @param term     example (red)
+	 * @param sentence example (The red car stop by red traffic light.)
+	 * @return int example return 2
 	 */
-	private RawCount stem(final RawCount rawCount) {
+	private int countTermInSentences(final String term, final String sentence, boolean isStemmed) {
+		int result = 0;
+		SnowballStemmer snowballStemmerOpenNLP = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
+		String temp = "";
+		for (String word : sentence.split(" ")) {
+			temp = (isStemmed) ? snowballStemmerOpenNLP.stem(word).toString() : word;
+			result = (temp == term) ? result + 1 : result;
+
+		}
+		logger.info(MessageFormat.format("{0} founded {1} times in {2}.", term, result, sentence));
+		return result;
+	}
+
+	/**
+	 * This method stem all words in documentCount and merge the count of theme.
+	 * stemmed by @see opennlp.tools.stemmer.snowball.SnowballStemmer
+	 * 
+	 * @param documentCount
+	 * @return new reference of DocumentCount
+	 */
+	private DocumentCount stem(final DocumentCount documentCount) {
 		String stemmed = "";
-		RawCount result = new RawCount();
+		DocumentCount result = new DocumentCount();
 		double oldValue = 0.0;
 		int calculateWordCount = 0;
-		result.map = new HashMap<String, Double>(rawCount.map.size());
 		SnowballStemmer snowballStemmerOpenNLP = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
-		for (String key : rawCount.map.keySet()) {
-			oldValue = rawCount.map.get(key);
-			calculateWordCount += (int) rawCount.map.get(key).intValue();
+		for (String key : documentCount.map.keySet()) {
+			oldValue = documentCount.map.get(key);
+			calculateWordCount += (int) documentCount.map.get(key).intValue();
 			stemmed = snowballStemmerOpenNLP.stem(key).toString();
 			if (!result.map.containsKey(stemmed)) {
 				result.map.put(stemmed, oldValue);
@@ -395,23 +452,66 @@ public class TextAnalyser {
 			result.map.put(stemmed, oldValue);
 		}
 
-		if (rawCount.countWords != calculateWordCount) {
-			logger.warn(MessageFormat.format("orgin wordcount: {0} new count {1}", rawCount.countSentences,
+		if (documentCount.countWords != calculateWordCount) {
+			logger.warn(MessageFormat.format("orgin wordcount: {0} new count {1}", documentCount.sentences.size(),
 					calculateWordCount));
 		}
-		result.countSentences = rawCount.countSentences;
-		result.countWords = rawCount.countWords;
-
+		result.countWords = documentCount.countWords;
+		result.isStemmed = true;
 		return result;
 	}
 
 	/**
-	 * This inner class represent rawcount only use here. used as struct ...
+	 * This method calculate tfidf. Equation = tfidf(t,d,D) = tf(t,d) * idf(t,D)
+	 * link (https://en.wikipedia.org/wiki/Tf%E2%80%93idf)
+	 * @param DocumentCount tf
+	 * @param DocumentCount idf
+	 * @return new reference of DocumentCount
 	 */
-	class RawCount {
+	private DocumentCount calculateTfIDF(DocumentCount tf, DocumentCount idf) {
+		double value = 0.0;
+		DocumentCount result = new DocumentCount();
+		result.sentences = tf.sentences;
+		result.isNormalized = tf.isNormalized;
+		result.isStemmed = tf.isStemmed;
+		result.countWords = tf.countWords;
+
+		for (String key : tf.map.keySet()) {
+			value = tf.map.get(key).doubleValue() * idf.map.get(key).doubleValue();
+			result.map.put(key, value);
+		}
+		logger.info("caculation tf idf completed");
+		return result;
+	}
+
+	/**
+	 * This inner class represent DocumentCount only use here. used as struct ...
+	 * 
+	 * field map (word, count) field countSentences field countWords field
+	 */
+	class DocumentCount {
+
+		public DocumentCount() {
+			map = new HashMap<String, Double>();
+			sentences = new ArrayList<String>();
+			countWords = 0;
+			isNormalized = false;
+			isStemmed = false;
+		}
+
+		public DocumentCount(DocumentCount documentCount) {
+			map = new HashMap<String, Double>(documentCount.map);
+			sentences = new ArrayList<String>(documentCount.sentences);
+			countWords = documentCount.countWords;
+			isNormalized = documentCount.isNormalized;
+			isStemmed = documentCount.isStemmed;
+		}
+
 		public Map<String, Double> map;
-		public int countSentences;
+		public List<String> sentences;
 		public int countWords;
+		public boolean isNormalized;
+		public boolean isStemmed;
 	}
 
 }
