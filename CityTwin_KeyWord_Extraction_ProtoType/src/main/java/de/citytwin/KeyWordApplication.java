@@ -6,6 +6,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
+import java.util.Formatter;
+import java.util.Locale;
 import java.util.Map;
 
 import org.apache.tika.sax.BodyContentHandler;
@@ -28,31 +30,33 @@ public class KeyWordApplication {
 		try {
 			StringBuilder stringBuilder = new StringBuilder();
 			DocumentConverter documentConverter = new DocumentConverter();
-			TextAnalyser textAnalyser = new TextAnalyser(true, false);
+			TextAnalyser textAnalyser = new TextAnalyser(false, false);
 			Map<String, Double> result;
 
+			//File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
+			File file = new File("D:\\vms\\sharedFolder\\auszug.txt");
+			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 			BodyContentHandler bodyContentHandler = documentConverter
-					.documentToText(new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf"));
+					.documentToText(file);
 
-//			result = textAnalyser.calculateTfIDF(bodyContentHandler);
+			result = textAnalyser.calculateTfIDF(bodyContentHandler);
 
-			result = textAnalyser.calculateTfIDF(bodyContentHandler, 8);
+//			result = textAnalyser.calculateTfIDF(bodyContentHandler, 8);
 
 //			result = textAnalyser.calculateTfIDF(
 //					documentConverter.documentToText(new File("D:\\Keyword extraction\\testdata\\60words.txt")));
 
 			for (String key : result.keySet()) {
-
-				stringBuilder.append(MessageFormat.format("{0},{1}", key, Double.valueOf(result.get(key))));
+				formatter.format("%1$25s --> %2$.4f", key, result.get(key).doubleValue());
 				stringBuilder.append("\n");
 
 //					System.out.print(MessageFormat.format("spliter: {0} --> word: {1} --> count: {2} ", spliter, word,
 //							tfresults.get(spliter).get(word)));
 //					System.out.print("\n");
 			}
-
+			
 			BufferedWriter writer = new BufferedWriter(
-					new BufferedWriter(new FileWriter("D:\\Keyword extraction\\tfidf\\result_opennlp.txt", false)));
+					new BufferedWriter(new FileWriter("D:\\Keyword extraction\\tfidf\\tfidf_" + file.getName() + ".txt" , false)));
 			writer.write(stringBuilder.toString());
 			writer.close();
 
