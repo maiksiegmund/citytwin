@@ -17,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.cxf.common.i18n.Exception;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -25,6 +26,9 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.tika.sax.BodyContentHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import opennlp.tools.postag.POSModel;
+import opennlp.tools.postag.POSTaggerME;
 import opennlp.tools.sentdetect.SentenceDetectorME;
 import opennlp.tools.sentdetect.SentenceModel;
 import opennlp.tools.stemmer.snowball.SnowballStemmer;
@@ -39,7 +43,8 @@ import opennlp.tools.tokenize.TokenizerModel;
 public class TextAnalyser {
 
 	/**
-	 * constructor loads the pre trained models de-sent.bin and de-token.bin
+	 * constructor loads the pre trained models de-sent.bin, de-token.bin and
+	 * de-pos-maxent.bin
 	 * 
 	 * @see TextAnalyser#isOpenNLP
 	 * @see TextAnalyser#withStemming
@@ -50,16 +55,18 @@ public class TextAnalyser {
 		this.isOpenNLP = isOpenNL;
 		this.withStemming = withStemming;
 
+		InputStream inputStream = getClass().getClassLoader().getResourceAsStream("de-sent.bin");
+		SentenceModel sentenceModel = new SentenceModel(inputStream);
+		sentenceDetector = new SentenceDetectorME(sentenceModel);
+		inputStream.close();
+
+		inputStream = getClass().getClassLoader().getResourceAsStream("de-pos-maxent.bin");
+		posTagger = new POSTaggerME(new POSModel(inputStream));
+		inputStream.close();
+
 		if (this.isOpenNLP) {
-
-			InputStream inputStream = getClass().getClassLoader().getResourceAsStream("de-sent.bin");
-			SentenceModel sentenceModel = new SentenceModel(inputStream);
-			sentenceDetector = new SentenceDetectorME(sentenceModel);
-			inputStream.close();
-
 			inputStream = getClass().getClassLoader().getResourceAsStream("de-token.bin");
 			TokenizerModel tokenizerModel = new TokenizerModel(inputStream);
-
 			tokenizer = new TokenizerME(tokenizerModel);
 		}
 
@@ -71,8 +78,10 @@ public class TextAnalyser {
 	private String tokenizerName = "whitespace";
 	private int minLenght = 0;
 	private String replacePattern = "[^a-zA-ZäÄüÜöÖß-]";
-	private SentenceDetectorME sentenceDetector;
-	private Tokenizer tokenizer;
+	private static SentenceDetectorME sentenceDetector;
+	private static Tokenizer tokenizer;
+	private static POSModel posModel;
+	private static POSTaggerME posTagger;
 
 	/**
 	 * This method calculate term frequency and inverse document frequency by lucene
@@ -94,11 +103,13 @@ public class TextAnalyser {
 			rawCount = getRawCount(bodyContentHandler);
 			rawCount = (withStemming) ? stem(rawCount) : rawCount;
 
-			DocumentCount tf = calculateTermFrequency(rawCount);
+//			DocumentCount tf = calculateTermFrequency(rawCount);
+			DocumentCount tf = doubleNormalizationTermFrequency(rawCount, 0.5);
 			DocumentCount idf = calculateSmootInverseDocumentFrequency(rawCount);
 
 			tfidf = calculateTfIDF(tf, idf);
-			return tfidf.map;
+
+			return sortbyValue(tfidf.map, false);
 
 		} catch (IOException exception) {
 			logger.error(exception.getMessage());
@@ -355,17 +366,22 @@ public class TextAnalyser {
 
 		DocumentCount result = new DocumentCount();
 		result.sentences = getSentences(bodyContentHandler);
-
+		
 		for (String sentence : result.sentences) {
-			logger.info(sentence);
 			List<String> words = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
+			String[] stringArray = new String[words.size()];
+			stringArray = words.toArray(stringArray);
+			String[] tags =  posTagger.tag(stringArray);
+			int tagIndex = 0;
 			for (String word : words) {
 				result.countWords++;
 				if (!result.map.containsKey(word)) {
 					result.map.put(word, 1.0);
+					result.pos.put(word, tags[tagIndex]);
 					continue;
 				}
 				result.map.put(word, result.map.get(word) + 1.0);
+				tagIndex++;
 			}
 		}
 		logger.info(MessageFormat.format("document contains {0} sentences.", result.sentences.size()));
@@ -384,6 +400,7 @@ public class TextAnalyser {
 
 		DocumentCount result = new DocumentCount();
 		result.sentences = documentCount.sentences;
+		result.pos = documentCount.pos;
 		result.countWords = documentCount.countWords;
 
 		result.map = new HashMap<>(documentCount.map.size());
@@ -408,6 +425,7 @@ public class TextAnalyser {
 			throw new IllegalArgumentException("document already normalized!");
 		}
 		DocumentCount result = new DocumentCount();
+		result.pos = documentCount.pos;
 		result.sentences = documentCount.sentences;
 		result.countWords = documentCount.countWords;
 
@@ -437,6 +455,7 @@ public class TextAnalyser {
 		}
 		double value = 0.0;
 		DocumentCount result = new DocumentCount();
+		result.pos = documentCount.pos;
 		result.sentences = documentCount.sentences;
 		result.countWords = documentCount.countWords;
 		Map<String, Double> sorted = sortbyValue(documentCount.map, true);
@@ -463,12 +482,13 @@ public class TextAnalyser {
 		int termCount = 0;
 		double value = 0.0;
 		DocumentCount result = new DocumentCount();
+		result.pos = documentCount.pos;
 		result.sentences = documentCount.sentences;
 		result.countWords = documentCount.countWords;
 		result.isNormalized = false;
 
 		for (String key : documentCount.map.keySet()) {
-			value = documentCount.sentences.size();
+			value = documentCount.map.get(key).doubleValue();
 			for (String sentence : documentCount.sentences) {
 				termCount += countTermInSentences(key, sentence);
 			}
@@ -513,6 +533,7 @@ public class TextAnalyser {
 	private DocumentCount stem(final DocumentCount documentCount) {
 		String stemmed = "";
 		DocumentCount result = new DocumentCount();
+		result.pos = documentCount.pos;
 		result.sentences = documentCount.sentences;
 		double oldValue = 0.0;
 		int calculateWordCount = 0;
@@ -547,6 +568,7 @@ public class TextAnalyser {
 	private DocumentCount calculateTfIDF(DocumentCount tf, DocumentCount idf) {
 		double value = 0.0;
 		DocumentCount result = new DocumentCount();
+		result.pos = tf.pos;
 		result.sentences = tf.sentences;
 		result.isNormalized = tf.isNormalized;
 		result.countWords = tf.countWords;
@@ -562,12 +584,20 @@ public class TextAnalyser {
 	/**
 	 * This inner class represent DocumentCount only use here. used as struct ...
 	 * 
-	 * field map (word, count) field countSentences field countWords field
+	 * @see DocumentCount#map HashMap<String, Double> (term = word), count or
+	 *      calculated result
+	 * @see DocumentCount#pos HashMap<String, Double> (term = word), part of speech
+	 *      tag
+	 * @see DocumentCount#sentences List<String> subdocuments is d_i, D is single
+	 *      Document e.g a word, pdf, txt file
+	 * @see DocumentCount#countWords in |D|
+	 * @see DocumentCount#isNormalized
 	 */
 	class DocumentCount {
 
 		public DocumentCount() {
 			map = new HashMap<String, Double>();
+			pos = new HashMap<String, String>();
 			sentences = new ArrayList<String>();
 			countWords = 0;
 			isNormalized = false;
@@ -575,6 +605,7 @@ public class TextAnalyser {
 
 		public DocumentCount(DocumentCount documentCount) {
 			map = new HashMap<String, Double>(documentCount.map);
+			pos = new HashMap<String, String>(documentCount.pos);
 			sentences = new ArrayList<String>(documentCount.sentences);
 			countWords = documentCount.countWords;
 			isNormalized = documentCount.isNormalized;
@@ -582,6 +613,7 @@ public class TextAnalyser {
 		}
 
 		public Map<String, Double> map;
+		public Map<String, String> pos;
 		public List<String> sentences;
 		public int countWords;
 		public boolean isNormalized;
