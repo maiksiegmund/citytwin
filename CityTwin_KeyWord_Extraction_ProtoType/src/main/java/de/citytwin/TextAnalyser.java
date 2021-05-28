@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Formatter;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -88,28 +89,51 @@ public class TextAnalyser {
 	 * or opennlp.
 	 * 
 	 * @param bodyContentHandler (contains the german text)
+	 * @param tagFilters,        keep and remove the rest
+	 * @param type               which normalization (NONE, DOUBLE, LOG)
 	 * @return Map<String, Map<String, Integer>>
 	 * @throws IOException
 	 */
-	public Map<String, Double> calculateTfIDF(final BodyContentHandler bodyContentHandler) throws IOException {
+	public Map<String, Double> calculateTfIDF(final BodyContentHandler bodyContentHandler,
+			final List<String> tagFilters, TextAnalyser.NormalizationType type) throws IOException {
 
-		DocumentCount tfidf = new DocumentCount();
-
-		Map<String, Double> result = new HashMap<String, Double>();
+		DocumentCount result = new DocumentCount();
 
 		try {
 			DocumentCount rawCount = new DocumentCount();
 
 			rawCount = getRawCount(bodyContentHandler);
 			rawCount = (withStemming) ? stem(rawCount) : rawCount;
-
-//			DocumentCount tf = calculateTermFrequency(rawCount);
-			DocumentCount tf = doubleNormalizationTermFrequency(rawCount, 0.5);
+			DocumentCount tf;
+			switch (type) {
+			case DOUBLE:
+				tf = doubleNormalizationTermFrequency(rawCount, 0.5);
+				break;
+			case LOG:
+				tf = logNormalizationTermFrequency(rawCount);
+				break;
+			default:
+				tf = calculateTermFrequency(rawCount);
+				break;
+			}
 			DocumentCount idf = calculateSmootInverseDocumentFrequency(rawCount);
+			result = calculateTfIDF(tf, idf);
+			if (tagFilters.size() == 0) {
+				return sortbyValue(result.map, false);
+			}
+			DocumentCount filtered = new DocumentCount();
 
-			tfidf = calculateTfIDF(tf, idf);
+			for (String tagFilter : tagFilters) {
 
-			return sortbyValue(tfidf.map, false);
+				for (String key : result.pos.keySet()) {
+					String wordPosTag = result.pos.get(key);
+					if (wordPosTag.equals(tagFilter)) {
+						filtered.map.put(key, result.map.get(key));
+						filtered.pos.put(key, tagFilter);
+					}
+				}
+			}
+			return sortbyValue(filtered.map, false);
 
 		} catch (IOException exception) {
 			logger.error(exception.getMessage());
@@ -304,7 +328,8 @@ public class TextAnalyser {
 				results.add(temp);
 			}
 		}
-		logger.info(MessageFormat.format("sentence contains {0} words.", results.size()));
+		// logger.info(MessageFormat.format("sentence contains {0} words.",
+		// results.size()));
 		analyzer.close();
 		stream.close();
 		return results;
@@ -330,7 +355,8 @@ public class TextAnalyser {
 			}
 
 		}
-		logger.info(MessageFormat.format("sentence contains {0} words", results.size()));
+		// logger.info(MessageFormat.format("sentence contains {0} words",
+		// results.size()));
 		return results;
 	}
 
@@ -366,12 +392,12 @@ public class TextAnalyser {
 
 		DocumentCount result = new DocumentCount();
 		result.sentences = getSentences(bodyContentHandler);
-		
+
 		for (String sentence : result.sentences) {
 			List<String> words = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
 			String[] stringArray = new String[words.size()];
 			stringArray = words.toArray(stringArray);
-			String[] tags =  posTagger.tag(stringArray);
+			String[] tags = posTagger.tag(stringArray);
 			int tagIndex = 0;
 			for (String word : words) {
 				result.countWords++;
@@ -384,6 +410,7 @@ public class TextAnalyser {
 				tagIndex++;
 			}
 		}
+		logger.info(MessageFormat.format("document contains {0} terms.", result.map.size()));
 		logger.info(MessageFormat.format("document contains {0} sentences.", result.sentences.size()));
 		logger.info(MessageFormat.format("document contains {0} words.", result.countWords));
 		return result;
@@ -402,10 +429,12 @@ public class TextAnalyser {
 		result.sentences = documentCount.sentences;
 		result.pos = documentCount.pos;
 		result.countWords = documentCount.countWords;
+		double value = 0.0;
 
 		result.map = new HashMap<>(documentCount.map.size());
 		for (String key : documentCount.map.keySet()) {
-			result.map.put(key, documentCount.map.get(key).doubleValue() / (double) documentCount.countWords);
+			value = documentCount.map.get(key).doubleValue() / (double) documentCount.countWords;
+			result.map.put(key, value);
 		}
 		result.isNormalized = false;
 		logger.info("calculate term frequency finished.");
@@ -430,7 +459,7 @@ public class TextAnalyser {
 		result.countWords = documentCount.countWords;
 
 		for (String key : documentCount.map.keySet()) {
-			result.map.put(key, Math.log(1.0 + documentCount.map.get(key).doubleValue()));
+			result.map.put(key, Math.log10(1.0 + documentCount.map.get(key).doubleValue()));
 		}
 		result.isNormalized = true;
 		logger.info("log normalization completed.");
@@ -479,7 +508,7 @@ public class TextAnalyser {
 	 * @throws IOException
 	 */
 	private DocumentCount calculateSmootInverseDocumentFrequency(final DocumentCount documentCount) throws IOException {
-		int termCount = 0;
+		int countSentencesWithTerm = 0;
 		double value = 0.0;
 		DocumentCount result = new DocumentCount();
 		result.pos = documentCount.pos;
@@ -487,14 +516,19 @@ public class TextAnalyser {
 		result.countWords = documentCount.countWords;
 		result.isNormalized = false;
 
+		int currentIndex = 0;
+
 		for (String key : documentCount.map.keySet()) {
 			value = documentCount.map.get(key).doubleValue();
+			logger.info(
+					MessageFormat.format("processing {0}  of {1} terms. ", ++currentIndex, documentCount.map.size()));
 			for (String sentence : documentCount.sentences) {
-				termCount += countTermInSentences(key, sentence);
+//				termCountInSentences += countTermInSentences(key, sentence);
+				countSentencesWithTerm += senetencContainsTerm(key, sentence);
 			}
-			value = Math.log(value / (1.0 + (double) termCount)) + 1.0;
+			value = Math.log10(value / (1.0 + (double) countSentencesWithTerm)) + 1.0;
 			result.map.put(key, value);
-			termCount = 0;
+			countSentencesWithTerm = 0;
 		}
 		logger.info("calculate smoot inverse document frequency completed.");
 		return result;
@@ -521,6 +555,31 @@ public class TextAnalyser {
 		}
 		logger.info(MessageFormat.format("{0} founded {1} times in {2}.", term, result, sentence));
 		return result;
+	}
+
+	/**
+	 * This method count a term in a sentence. splits by
+	 * 
+	 * @see TextAnalyser#splitSentenceOpenNLP(String sentence) or
+	 * @see TextAnalyser#splitSentenceLucene(String sentence)
+	 * @param term     example (red)
+	 * @param sentence example (The red car stop by red traffic light.)
+	 * @return int 1 or 0
+	 * @throws IOException
+	 */
+	private int senetencContainsTerm(final String term, final String sentence) throws IOException {
+
+		SnowballStemmer snowballStemmerOpenNLP = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
+		String temp = "";
+		List<String> words = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
+		for (String word : words) {
+			temp = (withStemming) ? snowballStemmerOpenNLP.stem(word).toString() : word;
+			if (term.equals(temp)) {
+				return 1;
+			}
+
+		}
+		return 0;
 	}
 
 	/**
@@ -617,6 +676,10 @@ public class TextAnalyser {
 		public List<String> sentences;
 		public int countWords;
 		public boolean isNormalized;
+	}
+
+	public static enum NormalizationType {
+		NONE, DOUBLE, LOG
 	}
 
 	class CountTerm implements Runnable {
