@@ -6,7 +6,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Formatter;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -30,16 +32,59 @@ public class KeyWordApplication {
 		try {
 			StringBuilder stringBuilder = new StringBuilder();
 			DocumentConverter documentConverter = new DocumentConverter();
-			TextAnalyser textAnalyser = new TextAnalyser(false, false);
+			TextAnalyser textAnalyser = new TextAnalyser(true, true);
 			Map<String, Double> result;
 
-			//File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
-			File file = new File("D:\\vms\\sharedFolder\\auszug.txt");
+			File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
+			//File file = new File("D:\\vms\\sharedFolder\\auszug.txt");
 			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 			BodyContentHandler bodyContentHandler = documentConverter
 					.documentToText(file);
 
-			result = textAnalyser.calculateTfIDF(bodyContentHandler);
+			List<String> tagFilters = new ArrayList<String>(); 
+			
+//			tagFilters.add("CC");
+//			tagFilters.add("CD");
+//			tagFilters.add("DT");
+//			tagFilters.add("EX");
+//			tagFilters.add("FW");
+//			tagFilters.add("IN");
+//			tagFilters.add("JJ");
+//			tagFilters.add("JJR");
+//			tagFilters.add("JJS");
+//			tagFilters.add("LS");
+//			tagFilters.add("MD");
+			tagFilters.add("NN");
+			tagFilters.add("NNS");
+			tagFilters.add("NNP");
+			tagFilters.add("NNPS");
+//			tagFilters.add("PDT");
+//			tagFilters.add("POS");
+//			tagFilters.add("PRP");
+//			tagFilters.add("PRP$");
+//			tagFilters.add("RB");
+//			tagFilters.add("RBR");
+//			tagFilters.add("RBS");
+//			tagFilters.add("RP");
+//			tagFilters.add("SYM");
+//			tagFilters.add("TO");
+//			tagFilters.add("UH");
+//			tagFilters.add("VB");
+//			tagFilters.add("VBD");
+//			tagFilters.add("VBG");
+//			tagFilters.add("VBN");
+//			tagFilters.add("VBP");
+//			tagFilters.add("VBZ");
+//			tagFilters.add("WDT");
+//			tagFilters.add("WP");
+//			tagFilters.add("WP$");
+//			tagFilters.add("WRB");
+				
+			
+				
+			
+			
+			result = textAnalyser.calculateTfIDF(bodyContentHandler, tagFilters , TextAnalyser.NormalizationType.LOG);
 
 //			result = textAnalyser.calculateTfIDF(bodyContentHandler, 8);
 
@@ -47,7 +92,7 @@ public class KeyWordApplication {
 //					documentConverter.documentToText(new File("D:\\Keyword extraction\\testdata\\60words.txt")));
 
 			for (String key : result.keySet()) {
-				formatter.format("%1$25s --> %2$.4f", key, result.get(key).doubleValue());
+				formatter.format("%1$25s --> %2$.10f", key, result.get(key).doubleValue());
 				stringBuilder.append("\n");
 
 //					System.out.print(MessageFormat.format("spliter: {0} --> word: {1} --> count: {2} ", spliter, word,
