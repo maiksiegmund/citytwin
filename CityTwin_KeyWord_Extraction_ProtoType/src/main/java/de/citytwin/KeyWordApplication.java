@@ -36,13 +36,12 @@ public class KeyWordApplication {
 			Map<String, Double> result;
 
 			File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
-			//File file = new File("D:\\vms\\sharedFolder\\auszug.txt");
+			// File file = new File("D:\\vms\\sharedFolder\\auszug.txt");
 			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-			BodyContentHandler bodyContentHandler = documentConverter
-					.documentToText(file);
+			BodyContentHandler bodyContentHandler = documentConverter.documentToText(file);
 
-			List<String> tagFilters = new ArrayList<String>(); 
-			
+			List<String> tagFilters = new ArrayList<String>();
+
 //			tagFilters.add("CC");
 //			tagFilters.add("CD");
 //			tagFilters.add("DT");
@@ -79,12 +78,8 @@ public class KeyWordApplication {
 //			tagFilters.add("WP");
 //			tagFilters.add("WP$");
 //			tagFilters.add("WRB");
-				
-			
-				
-			
-			
-			result = textAnalyser.calculateTfIDF(bodyContentHandler, tagFilters , TextAnalyser.NormalizationType.LOG);
+
+			result = textAnalyser.calculateTfIDF(bodyContentHandler, tagFilters, TextAnalyser.NormalizationType.LOG);
 
 //			result = textAnalyser.calculateTfIDF(bodyContentHandler, 8);
 
@@ -99,9 +94,9 @@ public class KeyWordApplication {
 //							tfresults.get(spliter).get(word)));
 //					System.out.print("\n");
 			}
-			
-			BufferedWriter writer = new BufferedWriter(
-					new BufferedWriter(new FileWriter("D:\\Keyword extraction\\tfidf\\tfidf_" + file.getName() + ".txt" , false)));
+
+			BufferedWriter writer = new BufferedWriter(new BufferedWriter(
+					new FileWriter("D:\\Keyword extraction\\tfidf\\tfidf_" + file.getName() + ".txt", false)));
 			writer.write(stringBuilder.toString());
 			writer.close();
 
