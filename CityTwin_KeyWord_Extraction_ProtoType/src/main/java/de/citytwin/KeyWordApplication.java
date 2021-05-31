@@ -11,8 +11,10 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.tika.sax.BodyContentHandler;
+import org.javatuples.Quartet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,11 +34,11 @@ public class KeyWordApplication {
 		try {
 			StringBuilder stringBuilder = new StringBuilder();
 			DocumentConverter documentConverter = new DocumentConverter();
-			TextAnalyser textAnalyser = new TextAnalyser(true, true);
-			Map<String, Double> result;
+			TextAnalyser textAnalyser = new TextAnalyser(false, false);
+			Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
 
 			File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
-			// File file = new File("D:\\vms\\sharedFolder\\auszug.txt");
+//			 File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
 			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 			BodyContentHandler bodyContentHandler = documentConverter.documentToText(file);
 
@@ -52,7 +54,7 @@ public class KeyWordApplication {
 //			tagFilters.add("JJR");
 //			tagFilters.add("JJS");
 //			tagFilters.add("LS");
-//			tagFilters.add("MD");
+			tagFilters.add("MD");
 			tagFilters.add("NN");
 			tagFilters.add("NNS");
 			tagFilters.add("NNP");
@@ -80,14 +82,11 @@ public class KeyWordApplication {
 //			tagFilters.add("WRB");
 
 			result = textAnalyser.calculateTfIDF(bodyContentHandler, tagFilters, TextAnalyser.NormalizationType.LOG);
-
-//			result = textAnalyser.calculateTfIDF(bodyContentHandler, 8);
-
-//			result = textAnalyser.calculateTfIDF(
-//					documentConverter.documentToText(new File("D:\\Keyword extraction\\testdata\\60words.txt")));
+			Quartet<Integer, Double, String, Set<Integer>> quartet = null;
 
 			for (String key : result.keySet()) {
-				formatter.format("%1$25s --> %2$.10f", key, result.get(key).doubleValue());
+				quartet = result.get(key);
+				formatter.format("%1$25s --> %2$.10f", key, quartet.getValue1().doubleValue());
 				stringBuilder.append("\n");
 
 //					System.out.print(MessageFormat.format("spliter: {0} --> word: {1} --> count: {2} ", spliter, word,
@@ -101,6 +100,7 @@ public class KeyWordApplication {
 			writer.close();
 
 		} catch (Exception e) {
+			e.printStackTrace();
 			logger.error(e.getMessage());
 
 		}
