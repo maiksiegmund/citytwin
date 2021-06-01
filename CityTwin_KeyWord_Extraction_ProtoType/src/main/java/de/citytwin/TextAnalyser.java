@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
+import java.nio.charset.Charset;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -190,13 +191,13 @@ public class TextAnalyser {
 	 * or opennlp.
 	 * 
 	 * @param bodyContentHandler {@link BodyContentHandler}
-	 * @param tagFilters,        {@code List<String>}
+	 * @param tagFilters,        {@link List<String>}
 	 * @param type               {@link TextAnalyser#NormalizationType}
-	 * @return new reference of {@link DocumentCount}
+	 * @return new reference of  {@link DocumentCount}
 	 * @throws IOException
 	 */
 	public Map<String, Quartet<Integer, Double, String, Set<Integer>>> calculateTfIDF(
-			final BodyContentHandler bodyContentHandler, final List<String> tagFilters,
+			final byte[] buffers, final List<String> tagFilters,
 			TextAnalyser.NormalizationType type) throws IOException {
 
 		DocumentCount result = new DocumentCount();
@@ -355,7 +356,7 @@ public class TextAnalyser {
 	 * @param bodyContentHandler {@link BodyContentHandler}
 	 * @return new reference of {@link DocumentCount}
 	 */
-	private DocumentCount getRawCount(final BodyContentHandler bodyContentHandler) throws IOException {
+	private DocumentCount getRawCount(final byte[] buffers) throws IOException {
 
 		int sentenceIndex = 0;
 		DocumentCount result = new DocumentCount();
@@ -402,9 +403,14 @@ public class TextAnalyser {
 	 * @return {@code List<String>}
 	 * @throws IOException
 	 */
-	private List<String> getSentences(final BodyContentHandler bodyContentHandler) throws IOException {
+	private List<String> getSentences(final byte[] buffer) throws IOException {
 
 		List<String> results = new ArrayList<String>();
+		
+		
+		
+		String test = new String(buffer, Charset.defaultCharset());
+		
 		String[] sentences = sentenceDetector.sentDetect(bodyContentHandler.toString());
 		for (String sentence : sentences) {
 			results.add(sentence);
