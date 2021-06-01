@@ -1,8 +1,10 @@
 package de.citytwin;
 
 import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -22,7 +24,6 @@ import org.xml.sax.SAXException;
 
 import org.apache.tika.parser.pdf.*;
 
-
 public class DocumentConverter {
 
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -33,7 +34,7 @@ public class DocumentConverter {
 	 * @param file {@link File}
 	 * @return {@link BodyContentHandler}
 	 */
-	public BodyContentHandler documentToTextOld(File file) {
+	public BodyContentHandler documentToBodyContentHandler(File file) {
 		BodyContentHandler handler = new BodyContentHandler(Integer.MAX_VALUE);
 		AutoDetectParser parser = new AutoDetectParser();
 		Metadata metadata = new Metadata();
@@ -61,36 +62,24 @@ public class DocumentConverter {
 		return handler;
 
 	}
-	public byte[] documentToText(File file) {
-		ByteArrayOutputStream outPutStream = new ByteArrayOutputStream();
-		BodyContentHandler handler = new BodyContentHandler(outPutStream);
-		AutoDetectParser parser = new AutoDetectParser();
-		Metadata metadata = new Metadata();
+	/**
+	 * This method save bodyContentHandler to txt file
+	 * 
+	 * @param bodyContentHandler
+	 * @param destination	
+	 * @return {@link ParseContext}
+	 */
+	public void saveAsTextFile(final BodyContentHandler bodyContentHandler, final String destination) {
+
 		try {
-			ParseContext parseContext = prepareParserContext(file);
-			FileInputStream fileInputStream = new FileInputStream(file);
-			InputStream stream = fileInputStream;
-			logger.info(MessageFormat.format("parse file: {0}", file.getAbsoluteFile()));
-			parser.parse(stream, handler, metadata, parseContext);
-
-		} catch (SAXException exception) {
-			logger.error(exception.getMessage());
-
-		} catch (TikaException exception) {
-			logger.error(exception.getMessage());
-
+			BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
+			writer.write(bodyContentHandler.toString());
+			writer.close();
 		} catch (IOException exception) {
 			logger.error(exception.getMessage());
-
-		} catch (Exception exception) {
-			logger.error(exception.getMessage());
-
 		}
 
-		return outPutStream.toByteArray();
-
 	}
-	
 
 	/**
 	 * This method returns a configured parsercontext by file type

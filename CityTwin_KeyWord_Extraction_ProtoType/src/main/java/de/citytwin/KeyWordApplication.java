@@ -40,48 +40,11 @@ public class KeyWordApplication {
 			File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
 //			 File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
 			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-			BodyContentHandler bodyContentHandler = documentConverter.documentToText(file);
+			BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
+			//documentConverter.saveAsTextFile(bodyContentHandler, "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
 
-			List<String> tagFilters = new ArrayList<String>();
-
-//			tagFilters.add("CC");
-//			tagFilters.add("CD");
-//			tagFilters.add("DT");
-//			tagFilters.add("EX");
-//			tagFilters.add("FW");
-//			tagFilters.add("IN");
-//			tagFilters.add("JJ");
-//			tagFilters.add("JJR");
-//			tagFilters.add("JJS");
-//			tagFilters.add("LS");
-			tagFilters.add("MD");
-			tagFilters.add("NN");
-			tagFilters.add("NNS");
-			tagFilters.add("NNP");
-			tagFilters.add("NNPS");
-//			tagFilters.add("PDT");
-//			tagFilters.add("POS");
-//			tagFilters.add("PRP");
-//			tagFilters.add("PRP$");
-//			tagFilters.add("RB");
-//			tagFilters.add("RBR");
-//			tagFilters.add("RBS");
-//			tagFilters.add("RP");
-//			tagFilters.add("SYM");
-//			tagFilters.add("TO");
-//			tagFilters.add("UH");
-//			tagFilters.add("VB");
-//			tagFilters.add("VBD");
-//			tagFilters.add("VBG");
-//			tagFilters.add("VBN");
-//			tagFilters.add("VBP");
-//			tagFilters.add("VBZ");
-//			tagFilters.add("WDT");
-//			tagFilters.add("WP");
-//			tagFilters.add("WP$");
-//			tagFilters.add("WRB");
-
-			result = textAnalyser.calculateTfIDF(bodyContentHandler, tagFilters, TextAnalyser.NormalizationType.LOG);
+	
+			result = textAnalyser.calculateTfIDF(bodyContentHandler, KeyWordApplication.getTagFilters(), TextAnalyser.NormalizationType.LOG);
 			Quartet<Integer, Double, String, Set<Integer>> quartet = null;
 
 			for (String key : result.keySet()) {
@@ -113,13 +76,58 @@ public class KeyWordApplication {
 		try {
 			textAnalyser = new TextAnalyser(true, true);
 			textAnalyser.testStem(documentConverter
-					.documentToText(new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf")));
+					.documentToBodyContentHandler(new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf")));
 		} catch (IOException exception) {
 			// TODO Auto-generated catch block
 			exception.printStackTrace();
 		}
 		Map<String, Map<String, Double>> tfresults;
 
+	}
+	
+	public static List<String> getTagFilters() {
+		
+		List<String> tagFilters = new ArrayList<String>();
+
+//		tagFilters.add("CC");
+//		tagFilters.add("CD");
+//		tagFilters.add("DT");
+//		tagFilters.add("EX");
+//		tagFilters.add("FW");
+//		tagFilters.add("IN");
+//		tagFilters.add("JJ");
+//		tagFilters.add("JJR");
+//		tagFilters.add("JJS");
+//		tagFilters.add("LS");
+		tagFilters.add("MD");
+		tagFilters.add("NN");
+		tagFilters.add("NNS");
+		tagFilters.add("NNP");
+		tagFilters.add("NNPS");
+//		tagFilters.add("PDT");
+//		tagFilters.add("POS");
+//		tagFilters.add("PRP");
+//		tagFilters.add("PRP$");
+//		tagFilters.add("RB");
+//		tagFilters.add("RBR");
+//		tagFilters.add("RBS");
+//		tagFilters.add("RP");
+//		tagFilters.add("SYM");
+//		tagFilters.add("TO");
+//		tagFilters.add("UH");
+//		tagFilters.add("VB");
+//		tagFilters.add("VBD");
+//		tagFilters.add("VBG");
+//		tagFilters.add("VBN");
+//		tagFilters.add("VBP");
+//		tagFilters.add("VBZ");
+//		tagFilters.add("WDT");
+//		tagFilters.add("WP");
+//		tagFilters.add("WP$");
+//		tagFilters.add("WRB");
+		
+		return tagFilters;
+		
 	}
 
 }

@@ -1,6 +1,7 @@
 package de.citytwin;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -193,11 +194,11 @@ public class TextAnalyser {
 	 * @param bodyContentHandler {@link BodyContentHandler}
 	 * @param tagFilters,        {@link List<String>}
 	 * @param type               {@link TextAnalyser#NormalizationType}
-	 * @return new reference of  {@link DocumentCount}
+	 * @return new reference of {@link DocumentCount}
 	 * @throws IOException
 	 */
 	public Map<String, Quartet<Integer, Double, String, Set<Integer>>> calculateTfIDF(
-			final byte[] buffers, final List<String> tagFilters,
+			final BodyContentHandler bodyContentHandler, final List<String> tagFilters,
 			TextAnalyser.NormalizationType type) throws IOException {
 
 		DocumentCount result = new DocumentCount();
@@ -337,7 +338,7 @@ public class TextAnalyser {
 		for (String term : documentCount.terms.keySet()) {
 
 			quartet = documentCount.terms.get(term);
-			value = k + (1.0 - k) * ((double) quartet.getValue0() / (double)max.getValue0());
+			value = k + (1.0 - k) * ((double) quartet.getValue0() / (double) max.getValue0());
 			quartet = quartet.setAt1(value);
 			result.terms.put(term, quartet);
 		}
@@ -356,7 +357,7 @@ public class TextAnalyser {
 	 * @param bodyContentHandler {@link BodyContentHandler}
 	 * @return new reference of {@link DocumentCount}
 	 */
-	private DocumentCount getRawCount(final byte[] buffers) throws IOException {
+	private DocumentCount getRawCount(BodyContentHandler bodyContentHandler) throws IOException {
 
 		int sentenceIndex = 0;
 		DocumentCount result = new DocumentCount();
@@ -403,14 +404,10 @@ public class TextAnalyser {
 	 * @return {@code List<String>}
 	 * @throws IOException
 	 */
-	private List<String> getSentences(final byte[] buffer) throws IOException {
+	private List<String> getSentences(BodyContentHandler bodyContentHandler) throws IOException {
 
-		List<String> results = new ArrayList<String>();
-		
-		
-		
-		String test = new String(buffer, Charset.defaultCharset());
-		
+		List<String> results = new ArrayList<>();
+
 		String[] sentences = sentenceDetector.sentDetect(bodyContentHandler.toString());
 		for (String sentence : sentences) {
 			results.add(sentence);
@@ -447,7 +444,7 @@ public class TextAnalyser {
 
 		for (String term : documentCount.terms.keySet()) {
 			quartet = documentCount.terms.get(term);
-			quartet = quartet.setAt1(Math.log10(1.0 + (double)quartet.getValue0()));
+			quartet = quartet.setAt1(Math.log10(1.0 + (double) quartet.getValue0()));
 			result.terms.put(term, quartet);
 		}
 		result.isNormalized = true;
@@ -565,11 +562,12 @@ public class TextAnalyser {
 	}
 
 	/**
-	 * This method stem all words in documentCount and merge the count of theme. <br>
+	 * This method stem all words in documentCount and merge the count of theme.
+	 * <br>
 	 * stemmed by {@link opennlp.tools.stemmer.snowball.SnowballStemmer}
 	 * 
 	 * @param documentCount
-	 * @return new reference of {@link DocumentCount} 
+	 * @return new reference of {@link DocumentCount}
 	 */
 	private DocumentCount stem(final DocumentCount documentCount) {
 		String stemmed = "";
@@ -667,6 +665,24 @@ public class TextAnalyser {
 
 	public boolean withStemming() {
 		return withStemming;
+	}
+
+	public void testWriteSentenesToFile(final String destination, final List<String> sentences) {
+		try {
+			StringBuilder stringBuilder = new StringBuilder();
+
+			for (String sentence : sentences) {
+				stringBuilder.append(sentence);
+				stringBuilder
+						.append("################################################################################\n");
+			}
+
+			BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
+			writer.write(stringBuilder.toString());
+			writer.close();
+		} catch (IOException exception) {
+			logger.error(exception.getMessage());
+		}
 	}
 
 }
