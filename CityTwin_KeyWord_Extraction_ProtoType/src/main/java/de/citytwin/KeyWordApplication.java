@@ -25,7 +25,8 @@ public class KeyWordApplication {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 
-		runtf();
+		//runtf();
+		test();
 
 	}
 
@@ -42,9 +43,11 @@ public class KeyWordApplication {
 			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 			BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
 			//documentConverter.saveAsTextFile(bodyContentHandler, "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
-
+			
+			List<String> txtContents = new ArrayList<String>();
+			txtContents.add(bodyContentHandler.toString());
 	
-			result = textAnalyser.calculateTfIDF(bodyContentHandler, KeyWordApplication.getTagFilters(), TextAnalyser.NormalizationType.LOG);
+			result = textAnalyser.calculateTfIDF(txtContents, KeyWordApplication.getTagFilters(), TextAnalyser.NormalizationType.LOG);
 			Quartet<Integer, Double, String, Set<Integer>> quartet = null;
 
 			for (String key : result.keySet()) {
@@ -71,17 +74,21 @@ public class KeyWordApplication {
 	}
 
 	public static void test() {
+		
+		
 		DocumentConverter documentConverter = new DocumentConverter();
-		TextAnalyser textAnalyser;
+		File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
+		BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
 		try {
-			textAnalyser = new TextAnalyser(true, true);
-			textAnalyser.testStem(documentConverter
-					.documentToBodyContentHandler(new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf")));
+			TextCleaner textCleaner = new TextCleaner(bodyContentHandler);
+			
+			writeSentenesToFile(textCleaner.getSentences(), "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
 		} catch (IOException exception) {
 			// TODO Auto-generated catch block
-			exception.printStackTrace();
+			logger.error(exception.getMessage());
 		}
-		Map<String, Map<String, Double>> tfresults;
+		
+		
 
 	}
 	
@@ -130,4 +137,22 @@ public class KeyWordApplication {
 		
 	}
 
+	public static void writeSentenesToFile(final List<String> sentences, final String destination) {
+		try {
+			StringBuilder stringBuilder = new StringBuilder();
+
+			for (String sentence : sentences) {
+				stringBuilder.append(sentence);
+				stringBuilder
+						.append("################################################################################\n");
+			}
+
+			BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
+			writer.write(stringBuilder.toString());
+			writer.close();
+		} catch (IOException exception) {
+			logger.error(exception.getMessage());
+		}
+	}
+	
 }

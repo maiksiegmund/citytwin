@@ -85,7 +85,6 @@ public class TextAnalyser {
 		NONE, DOUBLE, LOG
 	}
 
-	private static SentenceDetectorME sentenceDetector;
 	private static Tokenizer tokenizer;
 	private static POSTaggerME posTagger;
 	private final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -111,12 +110,7 @@ public class TextAnalyser {
 		this.isOpenNLP = isOpenNL;
 		this.withStemming = withStemming;
 
-		InputStream inputStream = getClass().getClassLoader().getResourceAsStream("de-sent.bin");
-		SentenceModel sentenceModel = new SentenceModel(inputStream);
-		sentenceDetector = new SentenceDetectorME(sentenceModel);
-		inputStream.close();
-
-		inputStream = getClass().getClassLoader().getResourceAsStream("de-pos-maxent.bin");
+		InputStream inputStream = getClass().getClassLoader().getResourceAsStream("de-pos-maxent.bin");
 		posTagger = new POSTaggerME(new POSModel(inputStream));
 		inputStream.close();
 
@@ -188,17 +182,19 @@ public class TextAnalyser {
 	}
 
 	/**
-	 * This method calculate term frequency and inverse document frequency by lucene
-	 * or opennlp.
+	 * This method calculate term frequency and inverse document frequency <br>
+	 * by apache lucene or apache opennlp. <br> 
+	 * sentences is  textcorpus <br>
+	 * tagfilters wich pos tags return 
 	 * 
-	 * @param bodyContentHandler {@link BodyContentHandler}
-	 * @param tagFilters,        {@link List<String>}
+	 * @param sentences       	 {@code List<String>}
+	 * @param tagFilters         {@code List<String>}
 	 * @param type               {@link TextAnalyser#NormalizationType}
-	 * @return new reference of {@link DocumentCount}
+	 * @return new reference of  {@link DocumentCount}
 	 * @throws IOException
 	 */
 	public Map<String, Quartet<Integer, Double, String, Set<Integer>>> calculateTfIDF(
-			final BodyContentHandler bodyContentHandler, final List<String> tagFilters,
+			final List<String> sentences, final List<String> tagFilters,
 			TextAnalyser.NormalizationType type) throws IOException {
 
 		DocumentCount result = new DocumentCount();
@@ -206,7 +202,7 @@ public class TextAnalyser {
 		try {
 			DocumentCount rawCount = new DocumentCount();
 
-			rawCount = getRawCount(bodyContentHandler);
+			rawCount = getRawCount(sentences);
 			rawCount = (withStemming) ? stem(rawCount) : rawCount;
 			DocumentCount tf = calculateTermFrequency(rawCount);
 			switch (type) {
@@ -354,14 +350,14 @@ public class TextAnalyser {
 	/**
 	 * This method split a document in sentences and in words and count theme.
 	 *
-	 * @param bodyContentHandler {@link BodyContentHandler}
+	 * @param sentences       	{@code List<String>}
 	 * @return new reference of {@link DocumentCount}
 	 */
-	private DocumentCount getRawCount(BodyContentHandler bodyContentHandler) throws IOException {
+	private DocumentCount getRawCount(final List<String> sentences) throws IOException {
 
 		int sentenceIndex = 0;
 		DocumentCount result = new DocumentCount();
-		result.sentences = getSentences(bodyContentHandler);
+		result.sentences = sentences;
 
 		for (String sentence : result.sentences) {
 			List<String> words = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
@@ -395,26 +391,6 @@ public class TextAnalyser {
 		logger.info(MessageFormat.format("document contains {0} sentences.", result.sentences.size()));
 		logger.info(MessageFormat.format("document contains {0} words.", result.countWords));
 		return result;
-	}
-
-	/**
-	 * This method split a text in sentences. Based on german sentences model.
-	 *
-	 * @param bodyContentHandler {@link BodyContentHandler}
-	 * @return {@code List<String>}
-	 * @throws IOException
-	 */
-	private List<String> getSentences(BodyContentHandler bodyContentHandler) throws IOException {
-
-		List<String> results = new ArrayList<>();
-
-		String[] sentences = sentenceDetector.sentDetect(bodyContentHandler.toString());
-		for (String sentence : sentences) {
-			results.add(sentence);
-		}
-		logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
-		return results;
-
 	}
 
 	public boolean isOpenNLP() {
@@ -602,9 +578,9 @@ public class TextAnalyser {
 	/**
 	 * This method tests different stemmers (german) and store the result in a file
 	 *
-	 * @param bodyContentHandler contains german text
+	 * @param sentences {@code List<String>}
 	 */
-	public void testStem(final BodyContentHandler bodyContentHandler) {
+	public void testStem(final List<String> sentences) {
 
 		try {
 			String stemmedWordCistem = "";
@@ -612,7 +588,6 @@ public class TextAnalyser {
 
 			StringBuilder stringBuilder = new StringBuilder();
 			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-			List<String> sentences = getSentences(bodyContentHandler);
 			List<String> opennlp = new ArrayList<>();
 			List<String> lucene = new ArrayList<>();
 
@@ -667,22 +642,6 @@ public class TextAnalyser {
 		return withStemming;
 	}
 
-	public void testWriteSentenesToFile(final String destination, final List<String> sentences) {
-		try {
-			StringBuilder stringBuilder = new StringBuilder();
-
-			for (String sentence : sentences) {
-				stringBuilder.append(sentence);
-				stringBuilder
-						.append("################################################################################\n");
-			}
-
-			BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
-			writer.write(stringBuilder.toString());
-			writer.close();
-		} catch (IOException exception) {
-			logger.error(exception.getMessage());
-		}
-	}
+	
 
 }
