@@ -25,8 +25,8 @@ public class KeyWordApplication {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 
-		//runtf();
-		test();
+		runtf();
+		// test();
 
 	}
 
@@ -35,24 +35,30 @@ public class KeyWordApplication {
 		try {
 			StringBuilder stringBuilder = new StringBuilder();
 			DocumentConverter documentConverter = new DocumentConverter();
-			TextAnalyser textAnalyser = new TextAnalyser(false, false);
+			TextAnalyser textAnalyser = new TextAnalyser(false, true);
 			Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
 
 			File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
 //			 File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
 			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 			BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
-			//documentConverter.saveAsTextFile(bodyContentHandler, "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
-			
-			List<String> txtContents = new ArrayList<String>();
-			txtContents.add(bodyContentHandler.toString());
-	
-			result = textAnalyser.calculateTfIDF(txtContents, KeyWordApplication.getTagFilters(), TextAnalyser.NormalizationType.LOG);
+			// documentConverter.saveAsTextFile(bodyContentHandler,
+			// "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
+
+			result = textAnalyser.calculateTFIDF(bodyContentHandler, KeyWordApplication.getTagFilters(),
+					TextAnalyser.NormalizationType.LOG);
 			Quartet<Integer, Double, String, Set<Integer>> quartet = null;
 
+			formatter.format("%1$25s --> %2$5s --> %3$15s --> %4$10s --> %5$15s", "term", "count", "TFIDF Score",
+					"Pos TAG", "Sent Index\n");
 			for (String key : result.keySet()) {
 				quartet = result.get(key);
-				formatter.format("%1$25s --> %2$.10f", key, quartet.getValue1().doubleValue());
+				String sentenceIndies = "";
+				for (Integer index : quartet.getValue3()) {
+					sentenceIndies += index.toString() + ", ";
+				}
+				formatter.format("%1$25s --> %2$5s --> %3$.13f --> %4$10s --> %5$s", key, quartet.getValue0().toString(), quartet.getValue1().doubleValue(),
+						quartet.getValue2(), sentenceIndies);
 				stringBuilder.append("\n");
 
 //					System.out.print(MessageFormat.format("spliter: {0} --> word: {1} --> count: {2} ", spliter, word,
@@ -74,26 +80,25 @@ public class KeyWordApplication {
 	}
 
 	public static void test() {
-		
-		
-		DocumentConverter documentConverter = new DocumentConverter();
-		File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
-		BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
+
+//		DocumentConverter documentConverter = new DocumentConverter();
+//		File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
+//		BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
 		try {
-			TextCleaner textCleaner = new TextCleaner(bodyContentHandler);
-			
-			writeSentenesToFile(textCleaner.getSentences(), "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
+			TextCleaner textCleaner = new TextCleaner(null);
+			textCleaner.test();
+
+			writeSentenesToFile(textCleaner.getSentences(),
+					"D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
 		} catch (IOException exception) {
 			// TODO Auto-generated catch block
 			logger.error(exception.getMessage());
 		}
-		
-		
 
 	}
-	
+
 	public static List<String> getTagFilters() {
-		
+
 		List<String> tagFilters = new ArrayList<String>();
 
 //		tagFilters.add("CC");
@@ -132,9 +137,9 @@ public class KeyWordApplication {
 //		tagFilters.add("WP");
 //		tagFilters.add("WP$");
 //		tagFilters.add("WRB");
-		
+
 		return tagFilters;
-		
+
 	}
 
 	public static void writeSentenesToFile(final List<String> sentences, final String destination) {
@@ -154,5 +159,5 @@ public class KeyWordApplication {
 			logger.error(exception.getMessage());
 		}
 	}
-	
+
 }
