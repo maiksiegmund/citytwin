@@ -40,7 +40,7 @@ public class KeyWordApplication {
 			Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
 
 			File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
-//			 File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
+//		 File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
 			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 			BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
 			// documentConverter.saveAsTextFile(bodyContentHandler,
@@ -106,6 +106,7 @@ public class KeyWordApplication {
 		}
 
 	}
+	
 
 	public static void test() {
 

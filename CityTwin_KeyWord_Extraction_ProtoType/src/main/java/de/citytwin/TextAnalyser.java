@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -675,6 +677,18 @@ public class TextAnalyser {
 			}
 		}
 
+		return count;
+	}
+
+	public int countWordCharacters(String text) {
+
+		String regex = "\\w+";
+		final Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
+		final Matcher matcher = pattern.matcher(text);
+		int count = 0;
+		while (matcher.find()) {
+			count++;
+		}
 		return count;
 	}
 
