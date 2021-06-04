@@ -100,7 +100,7 @@ public class TextAnalyser {
 	 * de-sent.bin, de-token.bin and de-pos-maxent.bin
 	 * <p>
 	 *
-	 * @param isOpenNLP    {@code true} or {@code false}
+	 * @param isOpenNLP    {@code true} use opennlp or {@code false} use lucene
 	 * @param withStemming {@code true} or {@code false}
 	 * @throws IOException
 	 */
@@ -652,8 +652,30 @@ public class TextAnalyser {
 
 	}
 
+	public List<String> testGetSentences(BodyContentHandler bodyContentHandler) {
+		try {
+			return spliteBodyContentToSencences(bodyContentHandler);
+		} catch (IOException exception) {
+			// TODO Auto-generated catch block
+			exception.printStackTrace();
+		}
+		return new ArrayList<String>();
+	}
+
 	public boolean withStemming() {
 		return withStemming;
+	}
+
+	public int CountNewLine(String text) {
+		int count = 0;
+
+		for (int index = 0; index < text.length(); ++index) {
+			if (text.toCharArray()[index] == '\n') {
+				count++;
+			}
+		}
+
+		return count;
 	}
 
 }

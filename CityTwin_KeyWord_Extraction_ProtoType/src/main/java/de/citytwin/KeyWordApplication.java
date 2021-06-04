@@ -25,8 +25,9 @@ public class KeyWordApplication {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 
-		runtf();
+		//runtf();
 		// test();
+		testNewLineCount();
 
 	}
 
@@ -35,7 +36,7 @@ public class KeyWordApplication {
 		try {
 			StringBuilder stringBuilder = new StringBuilder();
 			DocumentConverter documentConverter = new DocumentConverter();
-			TextAnalyser textAnalyser = new TextAnalyser(false, true);
+			TextAnalyser textAnalyser = new TextAnalyser(false, false);
 			Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
 
 			File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
@@ -57,8 +58,9 @@ public class KeyWordApplication {
 				for (Integer index : quartet.getValue3()) {
 					sentenceIndies += index.toString() + ", ";
 				}
-				formatter.format("%1$25s --> %2$5s --> %3$.13f --> %4$10s --> %5$s", key, quartet.getValue0().toString(), quartet.getValue1().doubleValue(),
-						quartet.getValue2(), sentenceIndies);
+				formatter.format("%1$25s --> %2$5s --> %3$.13f --> %4$10s --> %5$s", key,
+						quartet.getValue0().toString(), quartet.getValue1().doubleValue(), quartet.getValue2(),
+						sentenceIndies);
 				stringBuilder.append("\n");
 
 //					System.out.print(MessageFormat.format("spliter: {0} --> word: {1} --> count: {2} ", spliter, word,
@@ -67,7 +69,7 @@ public class KeyWordApplication {
 			}
 
 			BufferedWriter writer = new BufferedWriter(new BufferedWriter(
-					new FileWriter("D:\\Keyword extraction\\tfidf\\tfidf_" + file.getName() + ".txt", false)));
+					new FileWriter("D:\\Keyword extraction\\tfidf\\tfidf_" + file.getName() + "_lucene.txt", false)));
 			writer.write(stringBuilder.toString());
 			writer.close();
 
@@ -77,6 +79,32 @@ public class KeyWordApplication {
 
 		}
 		return;
+	}
+
+	public static void testNewLineCount() {
+
+		DocumentConverter documentConverter = new DocumentConverter();
+		File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
+		BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
+
+		try {
+			Integer count = 0;
+			Integer index = 0;
+			TextAnalyser textAnalyser = new TextAnalyser(false, false);
+			List<String> sentences = textAnalyser.testGetSentences(bodyContentHandler);
+			for (String sentence : sentences) {
+				count = textAnalyser.CountNewLine(sentence);
+				System.out.println("newline count: " + count.toString() + " index " + index.toString());
+				if (count < 5)
+					System.out.println(sentence);
+				index++;	
+			}
+
+		} catch (IOException exception) {
+			// TODO Auto-generated catch block
+			exception.printStackTrace();
+		}
+
 	}
 
 	public static void test() {
