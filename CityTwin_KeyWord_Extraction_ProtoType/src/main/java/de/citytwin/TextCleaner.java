@@ -1,7 +1,5 @@
 package de.citytwin;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
@@ -9,9 +7,6 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.apache.tika.sax.BodyContentHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,14 +14,10 @@ import org.slf4j.LoggerFactory;
 import opennlp.tools.sentdetect.SentenceDetectorME;
 import opennlp.tools.sentdetect.SentenceModel;
 
-import edu.stanford.nlp.*;
-import edu.stanford.nlp.coref.CorefProperties;
 import edu.stanford.nlp.ling.CoreAnnotations;
-import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation;
 import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
-import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
 import edu.stanford.nlp.util.CoreMap;
 
 public class TextCleaner {
@@ -93,7 +84,7 @@ public class TextCleaner {
 
 			for (String part : parts) {
 				temp = part.replace(pattern, "");
-				if (!temp.isEmpty() && !temp.isBlank())
+				if (!temp.trim().isEmpty())
 					results.add(temp);
 			}
 

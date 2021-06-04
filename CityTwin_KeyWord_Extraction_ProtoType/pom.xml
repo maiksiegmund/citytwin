@@ -5,6 +5,13 @@
 	<groupId>CityTwin_KeyWord_Extraction_ProtoType</groupId>
 	<artifactId>CityTwin_KeyWord_Extraction_ProtoType</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+
+	<properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+    </properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -38,4 +45,14 @@
 			<classifier>models-german</classifier>
 		</dependency>
 	</dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.0</version>
+            </plugin>
+        </plugins>
+     </build>
+
 </project>
