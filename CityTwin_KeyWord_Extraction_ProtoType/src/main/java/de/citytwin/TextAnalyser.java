@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -92,6 +93,7 @@ public class TextAnalyser {
 	private final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private int minLenght = 0;
 	private String replacePattern = "[^a-zA-ZäÄüÜöÖß-]";
+	private Set<String> stopwords = new HashSet<String>();
 
 	private String tokenizerName = "whitespace";
 
@@ -116,7 +118,8 @@ public class TextAnalyser {
 		sentenceDetector = new SentenceDetectorME(sentenceModel);
 		inputStream.close();
 
-		inputStream = getClass().getClassLoader().getResourceAsStream("de-pos-maxent.bin");
+//		inputStream = getClass().getClassLoader().getResourceAsStream("de-pos-maxent.bin");
+		inputStream = getClass().getClassLoader().getResourceAsStream("de-pos-perceptron.bin");
 		posTagger = new POSTaggerME(new POSModel(inputStream));
 		inputStream.close();
 
@@ -126,6 +129,13 @@ public class TextAnalyser {
 			tokenizer = new TokenizerME(tokenizerModel);
 		}
 
+		inputStream = getClass().getClassLoader().getResourceAsStream("stopswords_de.txt");
+		Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");
+
+		while (scanner.hasNext()) {
+			stopwords.add(scanner.next());
+		}
+		inputStream.close();
 	}
 
 	/**
@@ -151,39 +161,12 @@ public class TextAnalyser {
 			quartet = documentCount.terms.get(term);
 			logger.info(
 					MessageFormat.format("processing {0} of {1} terms. ", ++currentIndex, documentCount.terms.size()));
-			value = Math.log10(quartet.getValue1() / (1.0 + quartet.getValue3().size())) + 1.0;
+			value = Math.log10((double) documentCount.sentences.size() / (double) quartet.getValue3().size());
 			quartet = quartet.setAt1(value);
 			result.terms.put(term, quartet);
 
 		}
 		logger.info("calculate smoot inverse document frequency completed.");
-		return result;
-	}
-
-	/**
-	 * This method calculate a term freuency. tf(term) = rawcount / countWords <br>
-	 *
-	 * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation
-	 *      on wikipedia</a>
-	 *
-	 * @param DocumentCount
-	 * @return new reference of {@link DocumentCount}
-	 */
-	private DocumentCount calculateTF(final DocumentCount documentCount) {
-
-		DocumentCount result = new DocumentCount();
-		result.sentences = documentCount.sentences;
-		result.countWords = documentCount.countWords;
-
-		Quartet<Integer, Double, String, Set<Integer>> quartet = null;
-
-		for (String term : documentCount.terms.keySet()) {
-			quartet = documentCount.terms.get(term);
-			quartet = quartet.setAt1((double) quartet.getValue0() / (double) documentCount.countWords);
-			result.terms.put(term, quartet);
-		}
-		result.isNormalized = false;
-		logger.info("calculate term frequency finished.");
 		return result;
 	}
 
@@ -194,7 +177,7 @@ public class TextAnalyser {
 	 * tagfilters wich pos tags return
 	 *
 	 * @param bodyContentHandler {@line BodyContentHandler}
-	 * @param tagFilters         {@code List<String>}
+	 * @param tagFilters         {@code List<String> } @Nullable
 	 * @param type               {@link TextAnalyser#NormalizationType}
 	 * @return new reference of {@link DocumentCount}
 	 * @throws IOException
@@ -206,11 +189,11 @@ public class TextAnalyser {
 		DocumentCount result = new DocumentCount();
 
 		try {
-			DocumentCount rawCount = new DocumentCount();
-
+			DocumentCount rawCount = null;
+			DocumentCount tf = null;
 			rawCount = getRawCount(bodyContentHandler);
 			rawCount = (withStemming) ? stem(rawCount) : rawCount;
-			DocumentCount tf = calculateTF(rawCount);
+			tf = calculateTF(rawCount);
 			switch (type) {
 			case DOUBLE:
 				tf = doubleNormalizationTermFrequency(tf, 0.5);
@@ -224,7 +207,7 @@ public class TextAnalyser {
 			}
 			DocumentCount idf = calculateIDF(tf);
 			result = calculateTFIDF(tf, idf);
-			if (tagFilters.size() == 0) {
+			if (tagFilters == null || tagFilters.size() == 0) {
 				return sortbyValue(result.terms, true);
 			}
 
@@ -354,48 +337,53 @@ public class TextAnalyser {
 	}
 
 	/**
-	 * This method split a document in sentences and in words and count theme.
+	 * This method calculate term frequency of a text. used the stopwords
+	 * 
+	 * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation
+	 *      on wikipedia</a>
 	 *
 	 * @param bodyContentHandler {@link BodyContentHandler}
 	 * @return new reference of {@link DocumentCount}
 	 */
-	private DocumentCount getRawCount(final BodyContentHandler bodyContentHandler) throws IOException {
+	private DocumentCount calculateTF(final DocumentCount documentCount) throws IOException {
 
-		int sentenceIndex = 0;
 		DocumentCount result = new DocumentCount();
-		result.sentences = spliteBodyContentToSencences(bodyContentHandler);
+		result.sentences = documentCount.sentences;
+		result.isNormalized = documentCount.isNormalized;
+		result.countWords = documentCount.countWords;
 
-		for (String sentence : result.sentences) {
-			List<String> words = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
-			String[] stringArray = new String[words.size()];
-			stringArray = words.toArray(stringArray);
-			String[] tags = posTagger.tag(stringArray);
-			int tagIndex = 0;
+		Map<String, Integer> countOfTermInSentence = new HashMap<String, Integer>();
+		Quartet<Integer, Double, String, Set<Integer>> quartet = null;
+		Integer count = 0;
+		for (String sentence : documentCount.sentences) {
+			List<String> terms = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
 
-			for (String word : words) {
-				result.countWords++;
+			terms = filterByStopWords(terms);
+			int countTermsInSentence = terms.size();
 
-				Set<Integer> sentenceIndies = new HashSet<>();
-				Quartet<Integer, Double, String, Set<Integer>> quartet = Quartet.with(1, 0.0, tags[tagIndex],
-						sentenceIndies);
+			// use the stopwordist calculate tf
+			for (String term : terms) {
 
-				if (!result.terms.containsKey(word)) {
-					result.terms.put(word, quartet);
-					quartet.getValue3().add(sentenceIndex);
+				if (!countOfTermInSentence.containsKey(term)) {
+					countOfTermInSentence.put(term, 1);
 					continue;
 				}
-				quartet = result.terms.get(word);
-				quartet = quartet.setAt0(quartet.getValue0() + 1);
-				quartet.getValue3().add(sentenceIndex);
-				result.terms.put(word, quartet);
-				tagIndex++;
+				countOfTermInSentence.put(term, countOfTermInSentence.get(term) + 1);
+			}
+			
+			// calculate tf score
+			for (String term : terms) {
+				quartet = documentCount.terms.get(term);
+				count++;
+				logger.info(count.toString());
+				quartet = quartet.setAt1((double) countOfTermInSentence.get(term) / (double) countTermsInSentence);
+				result.terms.put(term, quartet);
 			}
 
-			sentenceIndex++;
+			countOfTermInSentence.clear();
 		}
-		logger.info(MessageFormat.format("document contains {0} terms.", result.terms.size()));
-		logger.info(MessageFormat.format("document contains {0} sentences.", result.sentences.size()));
-		logger.info(MessageFormat.format("document contains {0} words.", result.countWords));
+		logger.info("calculate term frequency finished.");
+		result.isNormalized = false;
 		return result;
 	}
 
@@ -690,6 +678,80 @@ public class TextAnalyser {
 			count++;
 		}
 		return count;
+	}
+
+	/**
+	 * This method calculate the raw count and set the pos tag of each term. <br>
+	 * and stemmedterms and all sentences by
+	 * {@link opennlp.tools.stemmer.snowball.SnowballStemmer}
+	 *
+	 * @param bodyContentHandler {@link BodyContentHandler}
+	 * @return new reference of {@link DocumentCount}
+	 */
+	private DocumentCount getRawCount(BodyContentHandler bodyContentHandler) throws IOException {
+
+		int sentenceIndex = 0;
+		DocumentCount result = new DocumentCount();
+		List<String> sentences = spliteBodyContentToSencences(bodyContentHandler);
+		List<String> sentencesStemmed = new ArrayList<String>();
+		String tempWord = "";
+		SnowballStemmer snowballStemmerOpenNLP = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
+		StringBuilder stringBuilder = new StringBuilder();
+
+		for (String sentence : sentences) {
+			List<String> words = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
+			String[] stringArray = new String[words.size()];
+			stringArray = words.toArray(stringArray);
+			String[] tags = posTagger.tag(stringArray);
+			int tagIndex = 0;
+			for (String word : words) {
+				result.countWords++;
+				tempWord = word;
+				if (withStemming)
+				{
+					tempWord = snowballStemmerOpenNLP.stem(tempWord).toString();
+					stringBuilder.append( tempWord + " ");
+				}
+					
+
+				Set<Integer> sentenceIndies = new HashSet<>();
+				Quartet<Integer, Double, String, Set<Integer>> quartet = Quartet.with(1, 0.0, tags[tagIndex],
+						sentenceIndies);
+
+				if (!result.terms.containsKey(tempWord)) {
+					result.terms.put(tempWord, quartet);
+					quartet.getValue3().add(sentenceIndex);
+					continue;
+				}
+				quartet = result.terms.get(tempWord);
+				quartet = quartet.setAt0(quartet.getValue0() + 1);
+				quartet.getValue3().add(sentenceIndex);
+				result.terms.put(tempWord, quartet);
+				tagIndex++;
+			}
+			if (withStemming)
+				sentencesStemmed.add(stringBuilder.toString() + ".");
+
+			stringBuilder.delete(0, stringBuilder.length());
+			sentenceIndex++;
+		}
+		result.sentences = (withStemming) ? sentencesStemmed : sentences;
+		logger.info(MessageFormat.format("document contains {0} terms.", result.terms.size()));
+		logger.info(MessageFormat.format("document contains {0} sentences.", result.sentences.size()));
+		logger.info(MessageFormat.format("document contains {0} words.", result.countWords));
+
+		return result;
+	}
+
+	private List<String> filterByStopWords(List<String> terms) {
+		List<String> results = new ArrayList<String>();
+		for (String term : terms) {
+			if (!stopwords.contains(term.toLowerCase())) {
+				results.add(term);
+			}
+		}
+		return results;
+
 	}
 
 }

@@ -25,9 +25,9 @@ public class KeyWordApplication {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 
-		//runtf();
+		runtf();
 		// test();
-		testNewLineCount();
+		// testNewLineCount();
 
 	}
 
@@ -36,18 +36,18 @@ public class KeyWordApplication {
 		try {
 			StringBuilder stringBuilder = new StringBuilder();
 			DocumentConverter documentConverter = new DocumentConverter();
-			TextAnalyser textAnalyser = new TextAnalyser(false, false);
+			TextAnalyser textAnalyser = new TextAnalyser(false, true);
 			Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
 
 			File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
-//		 File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
+//			File file = new File("D:\\vms\\sharedFolder\\testdata_german_tableofContent.txt");
 			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 			BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
 			// documentConverter.saveAsTextFile(bodyContentHandler,
 			// "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
 
-			result = textAnalyser.calculateTFIDF(bodyContentHandler, KeyWordApplication.getTagFilters(),
-					TextAnalyser.NormalizationType.LOG);
+			result = textAnalyser.calculateTFIDF(bodyContentHandler, null,
+					TextAnalyser.NormalizationType.NONE);
 			Quartet<Integer, Double, String, Set<Integer>> quartet = null;
 
 			formatter.format("%1$25s --> %2$5s --> %3$15s --> %4$10s --> %5$15s", "term", "count", "TFIDF Score",
@@ -97,7 +97,7 @@ public class KeyWordApplication {
 				System.out.println("newline count: " + count.toString() + " index " + index.toString());
 				if (count < 5)
 					System.out.println(sentence);
-				index++;	
+				index++;
 			}
 
 		} catch (IOException exception) {
@@ -106,7 +106,6 @@ public class KeyWordApplication {
 		}
 
 	}
-	
 
 	public static void test() {
 
