@@ -62,20 +62,20 @@ public class TextAnalyser {
 		public int countWords;
 
 		public boolean isNormalized;
-		public List<String> sentences;
+		public Map<Integer, List<String>> sentences;
 		// term, count, calculation, , postag, sentenceindex
 		public Map<String, Quartet<Integer, Double, String, Set<Integer>>> terms;
 
 		public DocumentCount() {
 			terms = new HashMap<String, Quartet<Integer, Double, String, Set<Integer>>>();
-			sentences = new ArrayList<String>();
+			sentences = new HashMap<Integer, List<String>>();
 			countWords = 0;
 			isNormalized = false;
 		}
 
 		public DocumentCount(DocumentCount documentCount) {
 			terms = new HashMap<String, Quartet<Integer, Double, String, Set<Integer>>>(documentCount.terms);
-			sentences = new ArrayList<String>(documentCount.sentences);
+			sentences = new HashMap<Integer, List<String>>(documentCount.sentences);
 			countWords = documentCount.countWords;
 			isNormalized = documentCount.isNormalized;
 
@@ -90,10 +90,11 @@ public class TextAnalyser {
 	private static SentenceDetectorME sentenceDetector;
 	private static Tokenizer tokenizer;
 	private boolean isOpenNLP = false;
+	private boolean withStopwordFilter = false;
 	private final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private int minLenght = 0;
 	private String replacePattern = "[^a-zA-ZäÄüÜöÖß-]";
-	private Set<String> stopwords = new HashSet<String>();
+	private static Set<String> stopwords = new HashSet<String>();
 
 	private String tokenizerName = "whitespace";
 
@@ -108,7 +109,7 @@ public class TextAnalyser {
 	 * @param withStemming {@code true} or {@code false}
 	 * @throws IOException
 	 */
-	public TextAnalyser(boolean isOpenNLP, boolean withStemming) throws IOException {
+	public TextAnalyser() throws IOException {
 
 		this.isOpenNLP = isOpenNLP;
 		this.withStemming = withStemming;
@@ -136,6 +137,7 @@ public class TextAnalyser {
 			stopwords.add(scanner.next());
 		}
 		inputStream.close();
+		scanner.close();
 	}
 
 	/**
@@ -189,10 +191,9 @@ public class TextAnalyser {
 		DocumentCount result = new DocumentCount();
 
 		try {
-			DocumentCount rawCount = null;
+			DocumentCount rawCount = prepareText(bodyContentHandler);
+			rawCount = (withStemming) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
 			DocumentCount tf = null;
-			rawCount = getRawCount(bodyContentHandler);
-			rawCount = (withStemming) ? stem(rawCount) : rawCount;
 			tf = calculateTF(rawCount);
 			switch (type) {
 			case DOUBLE:
@@ -354,11 +355,8 @@ public class TextAnalyser {
 
 		Map<String, Integer> countOfTermInSentence = new HashMap<String, Integer>();
 		Quartet<Integer, Double, String, Set<Integer>> quartet = null;
-		Integer count = 0;
-		for (String sentence : documentCount.sentences) {
-			List<String> terms = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
-
-			terms = filterByStopWords(terms);
+		for (Integer index : documentCount.sentences.keySet()) {
+			List<String> terms = documentCount.sentences.get(index);
 			int countTermsInSentence = terms.size();
 
 			// use the stopwordist calculate tf
@@ -370,12 +368,9 @@ public class TextAnalyser {
 				}
 				countOfTermInSentence.put(term, countOfTermInSentence.get(term) + 1);
 			}
-			
 			// calculate tf score
 			for (String term : terms) {
 				quartet = documentCount.terms.get(term);
-				count++;
-				logger.info(count.toString());
 				quartet = quartet.setAt1((double) countOfTermInSentence.get(term) / (double) countTermsInSentence);
 				result.terms.put(term, quartet);
 			}
@@ -544,102 +539,34 @@ public class TextAnalyser {
 	}
 
 	/**
-	 * This method stem all words in documentCount and merge the count of theme.
-	 * <br>
-	 * stemmed by {@link opennlp.tools.stemmer.snowball.SnowballStemmer}
-	 *
+	 * This method stem all terms in {@link DocumentCount#sentences}.
+	 * <p>
+	 * stemmed by {@link opennlp.tools.stemmer.snowball.SnowballStemmer} <br>
+	 * 
 	 * @param documentCount
 	 * @return new reference of {@link DocumentCount}
 	 */
-	private DocumentCount stem(final DocumentCount documentCount) {
-		String stemmed = "";
+	private DocumentCount getstemmedRawCount(final DocumentCount documentCount) throws IOException {
+
 		DocumentCount result = new DocumentCount();
-		result.sentences = documentCount.sentences;
-		int calculateWordCount = 0;
-		Set<Integer> sentenceIndies = new HashSet<>();
-		Quartet<Integer, Double, String, Set<Integer>> quartet = Quartet.with(0, 0.0, "", sentenceIndies);
-
 		SnowballStemmer snowballStemmerOpenNLP = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
-		for (String term : documentCount.terms.keySet()) {
-			quartet = documentCount.terms.get(term);
-			calculateWordCount = quartet.getValue0();
-			stemmed = snowballStemmerOpenNLP.stem(term).toString();
-			if (!result.terms.containsKey(stemmed)) {
-				result.terms.put(stemmed, quartet);
-				continue;
-			}
-			calculateWordCount = quartet.getValue0().intValue();
-			quartet = documentCount.terms.get(term);
-			quartet = quartet.setAt0(calculateWordCount + quartet.getValue0().intValue());
-			quartet.getValue3().addAll(quartet.getValue3());
-			result.terms.put(stemmed, quartet);
+		String stemmed = "";
 
+		for (Integer index : documentCount.sentences.keySet()) {
+			List<String> terms = documentCount.sentences.get(index);
+			List<String> stemmedterms = new ArrayList<String>(terms.size());
+			for (String term : terms) {
+				stemmed = snowballStemmerOpenNLP.stem(term).toString();
+				stemmedterms.add(stemmed);
+			}
+			result.sentences.put(index, stemmedterms);
 		}
+
+		result.isNormalized = documentCount.isNormalized;
 		result.countWords = documentCount.countWords;
-		return result;
-	}
+		result.terms = result.terms;
 
-	/**
-	 * This method tests different stemmers (german) and store the result in a file
-	 *
-	 * @param sentences {@code List<String>}
-	 */
-	public void testStem(final List<String> sentences) {
-
-		try {
-			String stemmedWordCistem = "";
-			String stemmedWordOpenNLP = "";
-
-			StringBuilder stringBuilder = new StringBuilder();
-			Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-			List<String> opennlp = new ArrayList<>();
-			List<String> lucene = new ArrayList<>();
-
-			SnowballStemmer snowballStemmerOpenNLP = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
-
-			for (String sentence : sentences) {
-
-				opennlp.addAll(splitSentenceOpenNLP(sentence));
-				lucene.addAll(splitSentenceLucene(sentence));
-
-			}
-
-			formatter.format("%1$25s --> %2$25s --> %3$25s --> %4$25s \n", "orgin", "Cistem", "snowball", "opennlp");
-			for (String word : opennlp) {
-
-				stemmedWordOpenNLP = snowballStemmerOpenNLP.stem(word).toString();
-				stemmedWordCistem = Cistem.stem(word);
-				formatter.format("%1$25s --> %2$25s --> %3$25s \n", word, stemmedWordCistem, stemmedWordOpenNLP);
-
-			}
-			BufferedWriter writer = new BufferedWriter(
-					new BufferedWriter(new FileWriter("D:\\Keyword extraction\\tfidf\\OpenNLP_stemming.txt", false)));
-			writer.write(stringBuilder.toString());
-			writer.flush();
-			writer.close();
-			stringBuilder.delete(0, stringBuilder.length());
-
-			formatter.format("%1$25s --> %2$25s --> %3$25s \n", "orgin", "Cistem", "opennlp");
-			for (String word : lucene) {
-
-				stemmedWordOpenNLP = snowballStemmerOpenNLP.stem(word).toString();
-				stemmedWordCistem = Cistem.stem(word);
-				formatter.format("%1$25s --> %2$25s --> %3$25s -->\n", word, stemmedWordCistem, stemmedWordOpenNLP);
-
-			}
-			writer = new BufferedWriter(
-					new BufferedWriter(new FileWriter("D:\\Keyword extraction\\tfidf\\Lucene_stemming.txt", false)));
-			writer.write(stringBuilder.toString());
-			writer.flush();
-			writer.close();
-			formatter.close();
-			stringBuilder.delete(0, stringBuilder.length());
-
-		} catch (IOException exception) {
-
-			exception.printStackTrace();
-		}
-
+		return getRawCount(result);
 	}
 
 	public List<String> testGetSentences(BodyContentHandler bodyContentHandler) {
@@ -652,8 +579,24 @@ public class TextAnalyser {
 		return new ArrayList<String>();
 	}
 
-	public boolean withStemming() {
-		return withStemming;
+	public TextAnalyser withStemming() {
+		this.withStemming = true;
+		return this;
+	}
+
+	public TextAnalyser withStopwordFilter() {
+		this.withStopwordFilter = true;
+		return this;
+	}
+
+	public TextAnalyser withOpenNLP() {
+		this.isOpenNLP = true;
+		return this;
+	}
+
+	public TextAnalyser withLucene() {
+		this.isOpenNLP = false;
+		return this;
 	}
 
 	public int CountNewLine(String text) {
@@ -682,60 +625,43 @@ public class TextAnalyser {
 
 	/**
 	 * This method calculate the raw count and set the pos tag of each term. <br>
-	 * and stemmedterms and all sentences by
 	 * {@link opennlp.tools.stemmer.snowball.SnowballStemmer}
 	 *
 	 * @param bodyContentHandler {@link BodyContentHandler}
 	 * @return new reference of {@link DocumentCount}
 	 */
-	private DocumentCount getRawCount(BodyContentHandler bodyContentHandler) throws IOException {
+	private DocumentCount getRawCount(DocumentCount documentCount) throws IOException {
 
 		int sentenceIndex = 0;
 		DocumentCount result = new DocumentCount();
-		List<String> sentences = spliteBodyContentToSencences(bodyContentHandler);
-		List<String> sentencesStemmed = new ArrayList<String>();
-		String tempWord = "";
-		SnowballStemmer snowballStemmerOpenNLP = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
-		StringBuilder stringBuilder = new StringBuilder();
+		Quartet<Integer, Double, String, Set<Integer>> quartet = null;
+		int tagIndex = 0;
 
-		for (String sentence : sentences) {
-			List<String> words = (isOpenNLP) ? splitSentenceOpenNLP(sentence) : splitSentenceLucene(sentence);
-			String[] stringArray = new String[words.size()];
-			stringArray = words.toArray(stringArray);
+		for (Integer index : documentCount.sentences.keySet()) {
+			List<String> terms = documentCount.sentences.get(index);
+			String[] stringArray = new String[terms.size()];
+			stringArray = terms.toArray(stringArray);
 			String[] tags = posTagger.tag(stringArray);
-			int tagIndex = 0;
-			for (String word : words) {
+
+			for (String term : terms) {
 				result.countWords++;
-				tempWord = word;
-				if (withStemming)
-				{
-					tempWord = snowballStemmerOpenNLP.stem(tempWord).toString();
-					stringBuilder.append( tempWord + " ");
-				}
-					
-
-				Set<Integer> sentenceIndies = new HashSet<>();
-				Quartet<Integer, Double, String, Set<Integer>> quartet = Quartet.with(1, 0.0, tags[tagIndex],
-						sentenceIndies);
-
-				if (!result.terms.containsKey(tempWord)) {
-					result.terms.put(tempWord, quartet);
+				quartet = Quartet.with(1, 0.0, tags[tagIndex], new HashSet<Integer>());
+				tagIndex++;
+				if (!result.terms.containsKey(term)) {
+					result.terms.put(term, quartet);
 					quartet.getValue3().add(sentenceIndex);
 					continue;
 				}
-				quartet = result.terms.get(tempWord);
+
 				quartet = quartet.setAt0(quartet.getValue0() + 1);
 				quartet.getValue3().add(sentenceIndex);
-				result.terms.put(tempWord, quartet);
-				tagIndex++;
+				result.terms.put(term, quartet);
 			}
-			if (withStemming)
-				sentencesStemmed.add(stringBuilder.toString() + ".");
-
-			stringBuilder.delete(0, stringBuilder.length());
 			sentenceIndex++;
+			tagIndex = 0;
 		}
-		result.sentences = (withStemming) ? sentencesStemmed : sentences;
+		result.sentences = documentCount.sentences;
+		result.isNormalized = documentCount.isNormalized;
 		logger.info(MessageFormat.format("document contains {0} terms.", result.terms.size()));
 		logger.info(MessageFormat.format("document contains {0} sentences.", result.sentences.size()));
 		logger.info(MessageFormat.format("document contains {0} words.", result.countWords));
@@ -743,6 +669,14 @@ public class TextAnalyser {
 		return result;
 	}
 
+	/**
+	 * This method remove terms they are are in the stopwords list.
+	 * <p>
+	 * {@link TextAnalyser#stopwords}
+	 *
+	 * @param terms {@code List<String>}
+	 * @return new reference of {@code List<String>} filtered
+	 */
 	private List<String> filterByStopWords(List<String> terms) {
 		List<String> results = new ArrayList<String>();
 		for (String term : terms) {
@@ -751,6 +685,34 @@ public class TextAnalyser {
 			}
 		}
 		return results;
+
+	}
+
+	/**
+	 * This method prepare the raw text into sentences <br>
+	 * split by apache opennlp or apache lucene
+	 * <p>
+	 * and use a stopword filter
+	 *
+	 * @param bodyContentHandler {@link BodyContentHandler}
+	 * @return new reference of {@link DocumentCount}
+	 */
+	private DocumentCount prepareText(BodyContentHandler bodyContentHandler) throws IOException {
+
+		DocumentCount result = new DocumentCount();
+		int count = 0;
+		List<String> sentences = spliteBodyContentToSencences(bodyContentHandler);
+		List<String> terms = null;
+		for (int index = 0; index < sentences.size(); ++index) {
+			terms = (isOpenNLP) ? splitSentenceOpenNLP(sentences.get(index))
+					: splitSentenceLucene(sentences.get(index));
+			terms = (withStopwordFilter) ? filterByStopWords(terms) : terms;
+			result.sentences.put(index, terms);
+			count += terms.size();
+		}
+		result.countWords = count;
+		result.isNormalized = false;
+		return result;
 
 	}
 

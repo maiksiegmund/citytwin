@@ -36,7 +36,7 @@ public class KeyWordApplication {
 		try {
 			StringBuilder stringBuilder = new StringBuilder();
 			DocumentConverter documentConverter = new DocumentConverter();
-			TextAnalyser textAnalyser = new TextAnalyser(false, true);
+			TextAnalyser textAnalyser = new TextAnalyser().withLucene();
 			Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
 
 			File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
@@ -46,8 +46,7 @@ public class KeyWordApplication {
 			// documentConverter.saveAsTextFile(bodyContentHandler,
 			// "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
 
-			result = textAnalyser.calculateTFIDF(bodyContentHandler, null,
-					TextAnalyser.NormalizationType.NONE);
+			result = textAnalyser.calculateTFIDF(bodyContentHandler, null, TextAnalyser.NormalizationType.NONE);
 			Quartet<Integer, Double, String, Set<Integer>> quartet = null;
 
 			formatter.format("%1$25s --> %2$5s --> %3$15s --> %4$10s --> %5$15s", "term", "count", "TFIDF Score",
@@ -90,7 +89,7 @@ public class KeyWordApplication {
 		try {
 			Integer count = 0;
 			Integer index = 0;
-			TextAnalyser textAnalyser = new TextAnalyser(false, false);
+			TextAnalyser textAnalyser = new TextAnalyser();
 			List<String> sentences = textAnalyser.testGetSentences(bodyContentHandler);
 			for (String sentence : sentences) {
 				count = textAnalyser.CountNewLine(sentence);
