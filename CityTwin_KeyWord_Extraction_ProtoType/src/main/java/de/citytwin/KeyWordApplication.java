@@ -6,6 +6,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Formatter;
 import java.util.List;
@@ -25,9 +28,8 @@ public class KeyWordApplication {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 
-		runTFIDF();
-
-
+//		runTFIDF();
+		getResults();
 	}
 
 	public static void runTFIDF() {
@@ -80,6 +82,95 @@ public class KeyWordApplication {
 		return;
 	}
 
+	public static StringBuilder calculationTFIDF(List<File> files, TFIDFTextAnalyser tfidfTextAnalyser,
+			List<String> posTags, String description) {
+		StringBuilder stringBuilder = new StringBuilder();
+		Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+		BodyContentHandler bodyContentHandler = null;
+		DocumentConverter documentConverter = new DocumentConverter();
+		Map<String, Quartet<Integer, Double, String, Set<Integer>>> results = null;
+		Quartet<Integer, Double, String, Set<Integer>> quartet = null;
+
+		try {
+
+			for (File file : files) {
+				bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
+				LocalDateTime startTime = LocalDateTime.now();
+				results = tfidfTextAnalyser.calculateTFIDF(bodyContentHandler, posTags,
+						TFIDFTextAnalyser.NormalizationType.NONE);
+				LocalDateTime endTime = LocalDateTime.now();
+				// caption
+				formatter.format("#file: %1$34s", file.getName() + "\n");
+				formatter.format("#start %1$34s --> %2$10s --> %3$15s --> %4$10s --> %5$s", "term", "count", "TFIDF Score",
+						"PosTAG", "SentenceIndex \n");
+				for (String key : results.keySet()) {
+					quartet = results.get(key);
+					String sentenceIndies = "";
+					int count = 0;
+					for (Integer index : quartet.getValue3()) {
+						if (count < 10) {
+							sentenceIndies += index.toString() + ",";
+						}
+						else {
+							sentenceIndies += "...";
+							break;
+						}
+						count++;
+					}
+					formatter.format("%1$35s ### %2$10s ### %3$.15f ### %4$10s ### %5$s", key,
+							quartet.getValue0().toString(), quartet.getValue1().doubleValue(), quartet.getValue2(),
+							sentenceIndies);
+					stringBuilder.append("\n");
+				}
+				stringBuilder.append("#end duration calculated td idf: "
+						+ String.valueOf(startTime.until(endTime, ChronoUnit.MINUTES)) + " min(s) " + description
+						+ " \n");
+			}
+			formatter.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return stringBuilder;
+
+	}
+
+	public static void getResults() {
+		try {
+			String[] descriptions = { 
+//					"Lucene ", 
+//					"Lucene + Stemming ", 
+					"Lucene + Stemming + Stopwordfilter ",
+//					"opennlp ", 
+//					"opennlp + Stemming ", 
+					"opennlp + Stopwordfilter " 
+					};
+			TFIDFTextAnalyser[] textAnalysers = { 
+//					new TFIDFTextAnalyser().withLucene(),
+//					new TFIDFTextAnalyser().withLucene().withStemming(),
+					new TFIDFTextAnalyser().withLucene().withStemming().withStopwordFilter(),
+//					new TFIDFTextAnalyser().withOpenNLP(), 
+//					new TFIDFTextAnalyser().withOpenNLP().withStemming(),
+					new TFIDFTextAnalyser().withOpenNLP().withStopwordFilter() };
+			StringBuilder stringBuilder = new StringBuilder();
+
+			for (int index = 0; index < textAnalysers.length; index++) {
+				stringBuilder.append(KeyWordApplication.calculationTFIDF(getFiles(), textAnalysers[index], null,
+						descriptions[index]));
+			}
+
+			BufferedWriter writer = new BufferedWriter(
+					new BufferedWriter(new FileWriter("D:\\Keyword extraction\\tfidf\\tfidf_result.txt", false)));
+			writer.write(stringBuilder.toString());
+			writer.close();
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
 	public static List<String> getTagFilters() {
 
 		List<String> tagFilters = new ArrayList<String>();
@@ -122,6 +213,25 @@ public class KeyWordApplication {
 //		tagFilters.add("WRB");
 
 		return tagFilters;
+
+	}
+
+	public static List<File> getFiles() {
+
+		String directory = "D:\\vms\\sharedFolder\\";
+
+		List<File> results = new ArrayList();
+		results.add(new File(directory + "festsetzungbegruendung-xvii-50aa.pdf"));
+//		results.add(new File(directory + "Angebotsmassnahmen_2017.pdf"));
+//		results.add(new File(directory + "beg4b-042.pdf"));
+//		results.add(new File(directory + "Bekanntmachungstext.pdf"));
+		results.add(new File(directory + "FNP Bericht 2020.pdf"));
+//		results.add(new File(directory + "Strategie-Stadtlandschaft-Berlin.pdf"));
+		results.add(new File(directory + "biologische_vielfalt_strategie.pdf"));
+//		results.add(new File(directory + "modell_baulandentwicklung.docx"));
+		results.add(new File(directory + "Charta Stadtgrün.docx"));
+
+		return results;
 
 	}
 

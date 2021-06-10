@@ -102,7 +102,8 @@ public class TFIDFTextAnalyser {
 
 	private final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private int minLenght = 0;
+	private int minLenght = 2;
+	private int maxNewLines = 10;
 	private String cleaningPattern = "[^a-zA-ZäÄüÜöÖß-]";
 
 	private String tokenizerName = "whitespace";
@@ -562,7 +563,9 @@ public class TFIDFTextAnalyser {
 	}
 
 	/**
-	 * This method split textcorpus in each senteces by opennlp
+	 * This method split textcorpus in each senteces by opennlp <p>
+	 * remove newline pattern {@code "-\n"} and <p>
+	 * newline threshold is {@link TFIDFTextAnalyser#maxNewLines}
 	 * <p>
 	 *
 	 * @param bodyContentHandler
@@ -572,13 +575,36 @@ public class TFIDFTextAnalyser {
 	private List<String> spliteBodyContentToSencences(BodyContentHandler bodyContentHandler) throws IOException {
 
 		List<String> results = new ArrayList<>();
-
+		String temp = "";
 		String[] sentences = sentenceDetector.sentDetect(bodyContentHandler.toString());
+		// remove hyponated tags -\n
 		for (String sentence : sentences) {
-			results.add(sentence);
+			// table of content contains many newlines, simple approach the remove them
+			if (countNewLines(sentence) < maxNewLines ) {
+				temp = sentence.replaceAll("-\n", "");
+				results.add(temp);
+			}
+			
 		}
 		logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
 		return results;
+	}
+	/**
+	 * This count new lines in a sentence, 
+	 * <p>
+	 *
+	 * @param sentence
+	 * @return {@code List<String>}
+	 * @throws IOException
+	 */
+	private int countNewLines(String sentence) {
+		char[] chars = sentence.toCharArray();
+		int count = 0;
+		for (char ch : chars) {
+			if (ch == '\n')
+				count++;
+		}
+		return count;
 	}
 
 	/**
