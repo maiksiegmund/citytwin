@@ -39,7 +39,7 @@ public class TextCleaner {
         SentenceModel sentenceModel = new SentenceModel(inputStream);
         sentenceDetector = new SentenceDetectorME(sentenceModel);
         inputStream.close();
-        this.bodyContentHandler = bodyContentHandler;
+        TextCleaner.bodyContentHandler = bodyContentHandler;
 
     }
 
