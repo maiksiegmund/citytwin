@@ -19,7 +19,7 @@ import org.javatuples.Quartet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class KeyWordApplication {
+public class KeywordApplication {
 
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -168,7 +168,7 @@ public class KeyWordApplication {
             StringBuilder stringBuilder = new StringBuilder();
 
             for (int index = 0; index < textAnalysers.length; index++) {
-                stringBuilder.append(KeyWordApplication.calculationTFIDF(getFiles(),
+                stringBuilder.append(KeywordApplication.calculationTFIDF(getFiles(),
                         textAnalysers[index],
                         null,
                         descriptions[index]));
