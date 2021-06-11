@@ -88,8 +88,9 @@ public class KeywordApplication {
         return;
     }
 
-    public static StringBuilder calculationTFIDF(List<File> files, TFIDFTextAnalyser tfidfTextAnalyser,
+    public static StringBuilder calculateTFIDF(List<File> files, TFIDFTextAnalyser tfidfTextAnalyser,
             List<String> posTags, String description) {
+
         StringBuilder stringBuilder = new StringBuilder();
         Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
         BodyContentHandler bodyContentHandler = null;
@@ -100,6 +101,7 @@ public class KeywordApplication {
         try {
 
             for (File file : files) {
+
                 bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
                 LocalDateTime startTime = LocalDateTime.now();
                 results = tfidfTextAnalyser.calculateTFIDF(bodyContentHandler,
@@ -114,6 +116,7 @@ public class KeywordApplication {
                         "TFIDF Score",
                         "PosTAG",
                         "SentenceIndex \n");
+
                 for (String key : results.keySet()) {
                     quartet = results.get(key);
                     String sentenceIndies = "";
@@ -139,17 +142,22 @@ public class KeywordApplication {
                         + String.valueOf(startTime.until(endTime, ChronoUnit.MINUTES)) + " min(s) " + description
                         + " \n");
             }
+
             formatter.close();
+
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
+
         return stringBuilder;
 
     }
 
     public static void getResults() {
+
         try {
+
             String[] descriptions = {
                 // "Lucene ",
                 // "Lucene + Stemming ",
@@ -158,6 +166,7 @@ public class KeywordApplication {
                 // "opennlp + Stemming ",
                 "opennlp + Stopwordfilter "
             };
+
             TFIDFTextAnalyser[] textAnalysers = {
                 // new TFIDFTextAnalyser().withLucene(),
                 // new TFIDFTextAnalyser().withLucene().withStemming(),
@@ -168,7 +177,7 @@ public class KeywordApplication {
             StringBuilder stringBuilder = new StringBuilder();
 
             for (int index = 0; index < textAnalysers.length; index++) {
-                stringBuilder.append(KeywordApplication.calculationTFIDF(getFiles(),
+                stringBuilder.append(KeywordApplication.calculateTFIDF(getFiles(),
                         textAnalysers[index],
                         null,
                         descriptions[index]));
@@ -250,8 +259,10 @@ public class KeywordApplication {
 
     }
 
-    public static void writeSentenesToFile(final List<String> sentences, final String destination) {
+    public static void writeSentencesToFile(final List<String> sentences, final String destination) {
+
         try {
+
             StringBuilder stringBuilder = new StringBuilder();
 
             for (String sentence : sentences) {
@@ -263,9 +274,11 @@ public class KeywordApplication {
             BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
             writer.write(stringBuilder.toString());
             writer.close();
+
         } catch (IOException exception) {
             logger.error(exception.getMessage());
         }
+
     }
 
 }
