@@ -32,9 +32,11 @@ public class DocumentConverter {
      * @return {@link BodyContentHandler}
      */
     public BodyContentHandler documentToBodyContentHandler(File file) {
+
         BodyContentHandler handler = new BodyContentHandler(Integer.MAX_VALUE);
         AutoDetectParser parser = new AutoDetectParser();
         Metadata metadata = new Metadata();
+
         try {
             ParseContext parseContext = prepareParserContext(file);
             FileInputStream fileInputStream = new FileInputStream(file);
@@ -43,16 +45,16 @@ public class DocumentConverter {
             parser.parse(stream, handler, metadata, parseContext);
 
         } catch (SAXException exception) {
-            logger.error(exception.getMessage());
+            logger.error(exception.getMessage(), exception);
 
         } catch (TikaException exception) {
-            logger.error(exception.getMessage());
+            logger.error(exception.getMessage(), exception);
 
         } catch (IOException exception) {
-            logger.error(exception.getMessage());
+            logger.error(exception.getMessage(), exception);
 
         } catch (Exception exception) {
-            logger.error(exception.getMessage());
+            logger.error(exception.getMessage(), exception);
 
         }
 
