@@ -33,6 +33,7 @@ public class KeywordApplication {
     public static void runTFIDF() {
 
         try {
+
             StringBuilder stringBuilder = new StringBuilder();
             DocumentConverter documentConverter = new DocumentConverter();
             TFIDFTextAnalyser tFIDFTextAnalyser = new TFIDFTextAnalyser().withOpenNLP();
@@ -56,12 +57,15 @@ public class KeywordApplication {
                     "TFIDF Score",
                     "Pos TAG",
                     "Sent Index\n");
+
             for (String key : result.keySet()) {
+
                 quartet = result.get(key);
                 String sentenceIndies = "";
                 for (Integer index : quartet.getValue3()) {
                     sentenceIndies += index.toString() + ", ";
                 }
+
                 formatter.format("%1$35s --> %2$5s --> %3$.13f --> %4$10s --> %5$s",
                         key,
                         quartet.getValue0().toString(),
@@ -81,11 +85,9 @@ public class KeywordApplication {
             writer.close();
 
         } catch (Exception e) {
-            e.printStackTrace();
-            logger.error(e.getMessage());
-
+            logger.error(e.getMessage(), e);
         }
-        return;
+
     }
 
     public static StringBuilder calculateTFIDF(List<File> files, TFIDFTextAnalyser tfidfTextAnalyser,
@@ -118,18 +120,23 @@ public class KeywordApplication {
                         "SentenceIndex \n");
 
                 for (String key : results.keySet()) {
+
                     quartet = results.get(key);
                     String sentenceIndies = "";
                     int count = 0;
+
                     for (Integer index : quartet.getValue3()) {
+
                         if (count < 10) {
                             sentenceIndies += index.toString() + ",";
                         } else {
                             sentenceIndies += "...";
                             break;
                         }
+
                         count++;
                     }
+
                     formatter.format("%1$35s ### %2$10s ### %3$.15f ### %4$10s ### %5$s",
                             key,
                             quartet.getValue0().toString(),
@@ -138,6 +145,7 @@ public class KeywordApplication {
                             sentenceIndies);
                     stringBuilder.append("\n");
                 }
+
                 stringBuilder.append("#end duration calculated td idf: "
                         + String.valueOf(startTime.until(endTime, ChronoUnit.MINUTES)) + " min(s) " + description
                         + " \n");
@@ -146,8 +154,7 @@ public class KeywordApplication {
             formatter.close();
 
         } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error(e.getMessage(), e);
         }
 
         return stringBuilder;
@@ -189,8 +196,7 @@ public class KeywordApplication {
             writer.close();
 
         } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error(e.getMessage(), e);
         }
 
     }
@@ -276,7 +282,7 @@ public class KeywordApplication {
             writer.close();
 
         } catch (IOException exception) {
-            logger.error(exception.getMessage());
+            logger.error(exception.getMessage(), exception);
         }
 
     }
