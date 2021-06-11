@@ -23,6 +23,8 @@ public class KeywordApplication {
 
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+    private static final String OUTPUT_FOLDER = "output";
+
     public static void main(String[] args) {
 
         // runTFIDF();
@@ -38,10 +40,10 @@ public class KeywordApplication {
             TFIDFTextAnalyser tFIDFTextAnalyser = new TFIDFTextAnalyser().withOpenNLP();
             Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
 
-            File file = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
+            File inputFile = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
             // File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
             Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-            BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
+            BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(inputFile);
             // documentConverter.saveAsTextFile(bodyContentHandler,
             // "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
 
@@ -78,8 +80,11 @@ public class KeywordApplication {
                 // System.out.print("\n");
             }
 
+            File outputFolder = getOutputFolder("tfidf");
+            File file = new File(outputFolder, "tfidf_" + inputFile.getName() + "_opennlp.txt");
+
             BufferedWriter writer = new BufferedWriter(new BufferedWriter(
-                    new FileWriter("D:\\Keyword extraction\\tfidf\\tfidf_" + file.getName() + "_opennlp.txt", false)));
+                    new FileWriter(file, false)));
             writer.write(stringBuilder.toString());
             writer.close();
 
@@ -189,8 +194,11 @@ public class KeywordApplication {
                         descriptions[index]));
             }
 
+            File outputFolder = getOutputFolder("tfidf");
+            File file = new File(outputFolder, "tfidf_result.txt");
+
             BufferedWriter writer = new BufferedWriter(
-                    new BufferedWriter(new FileWriter("D:\\Keyword extraction\\tfidf\\tfidf_result.txt", false)));
+                    new BufferedWriter(new FileWriter(file, false)));
             writer.write(stringBuilder.toString());
             writer.close();
 
@@ -198,6 +206,21 @@ public class KeywordApplication {
             logger.error(e.getMessage(), e);
         }
 
+    }
+
+    private static File getOutputFolder(String subfolderName) throws IOException {
+
+        File folder = new File(OUTPUT_FOLDER + "/" + subfolderName + "/");
+
+        if (!folder.exists()) {
+            boolean created = folder.mkdirs();
+
+            if (!created) {
+                throw new IOException("Ordner konnte nicht erstellt werden!");
+            }
+        }
+
+        return folder;
     }
 
     public static List<String> getTagFilters() {
