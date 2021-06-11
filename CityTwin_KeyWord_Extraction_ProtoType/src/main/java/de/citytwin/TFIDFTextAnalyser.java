@@ -16,6 +16,8 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
+
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.custom.CustomAnalyzer;
@@ -209,7 +211,7 @@ public class TFIDFTextAnalyser {
      * @throws IOException
      */
     public Map<String, Quartet<Integer, Double, String, Set<Integer>>> calculateTFIDF(
-            final BodyContentHandler bodyContentHandler, final List<String> tagFilters,
+            final BodyContentHandler bodyContentHandler, @Nullable final List<String> tagFilters,
             TFIDFTextAnalyser.NormalizationType type) throws IOException {
 
         DocumentCount result = new DocumentCount();
