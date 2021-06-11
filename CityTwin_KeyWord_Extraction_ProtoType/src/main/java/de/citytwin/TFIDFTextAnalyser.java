@@ -214,45 +214,41 @@ public class TFIDFTextAnalyser {
 
         DocumentCount result = new DocumentCount();
 
-        try {
-            DocumentCount rawCount = prepareText(bodyContentHandler);
-            rawCount = (withStemming) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
-            DocumentCount tf = null;
-            tf = calculateTF(rawCount);
-            switch(type) {
-                case DOUBLE:
-                    tf = doubleNormalizationTermFrequency(tf, 0.5);
-                    break;
-                case LOG:
-                    tf = logNormalizationTermFrequency(tf);
-                    break;
-                case NONE:
-                default:
-                    break;
-            }
-            DocumentCount idf = calculateIDF(tf);
-            result = calculateTFIDF(tf, idf);
-            if (tagFilters == null || tagFilters.size() == 0) {
-                return sortbyValue(result.terms, true);
-            }
+        DocumentCount rawCount = prepareText(bodyContentHandler);
+        rawCount = (withStemming) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
+        DocumentCount tf = null;
+        tf = calculateTF(rawCount);
+        switch(type) {
+            case DOUBLE:
+                tf = doubleNormalizationTermFrequency(tf, 0.5);
+                break;
+            case LOG:
+                tf = logNormalizationTermFrequency(tf);
+                break;
+            case NONE:
+            default:
+                break;
+        }
+        DocumentCount idf = calculateIDF(tf);
+        result = calculateTFIDF(tf, idf);
+        if (tagFilters == null || tagFilters.size() == 0) {
+            return sortbyValue(result.terms, true);
+        }
 
-            Map<String, Quartet<Integer, Double, String, Set<Integer>>> filterd = new HashMap<>();
+        Map<String, Quartet<Integer, Double, String, Set<Integer>>> filterd = new HashMap<>();
 
-            for (String tagFilter : tagFilters) {
-                for (String term : result.terms.keySet()) {
-                    String wordPosTag = result.terms.get(term).getValue2();
-                    if (wordPosTag.equals(tagFilter)) {
-                        filterd.put(term, result.terms.get(term));
+        for (String tagFilter : tagFilters) {
+            for (String term : result.terms.keySet()) {
+                String wordPosTag = result.terms.get(term).getValue2();
+                if (wordPosTag.equals(tagFilter)) {
+                    filterd.put(term, result.terms.get(term));
 
-                    }
                 }
             }
-            return sortbyValue(filterd, true);
-
-        } catch (IOException exception) {
-            logger.error(exception.getMessage());
-            throw exception;
         }
+
+        return sortbyValue(filterd, true);
+
     }
 
     /**
