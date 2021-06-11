@@ -24,7 +24,6 @@ public class KeywordApplication {
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static void main(String[] args) {
-        // TODO Auto-generated method stub
 
         // runTFIDF();
         getResults();
