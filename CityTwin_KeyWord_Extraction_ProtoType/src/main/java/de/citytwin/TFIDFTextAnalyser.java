@@ -91,22 +91,21 @@ public class TFIDFTextAnalyser {
     }
 
     private static boolean isInitialzied = false;
-    private static boolean isOpenNLP = false;
     private static POSTaggerME posTagger;
     private static SentenceDetectorME sentenceDetector;
     private static Set<String> stopwords = new HashSet<String>();
     private static Tokenizer tokenizer;
-    private static boolean withStopWordFilter = false;
+    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private boolean withStopWordFilter = false;
+    private boolean isOpenNLP = false;
+    private boolean withStemming = false;
 
     private int minLenght = 2;
     private int maxNewLines = 10;
+
     private String cleaningPattern = "[^a-zA-ZäÄüÜöÖß-]";
-
     private String tokenizerName = "whitespace";
-
-    private boolean withStemming = false;
 
     /**
      * constructor with <b> VERY SIMPLE</b> fluent pattern, no plausibility check
@@ -120,8 +119,9 @@ public class TFIDFTextAnalyser {
      */
     public TFIDFTextAnalyser() throws IOException {
 
-        if (!isInitialzied)
+        if (!isInitialzied) {
             initialize();
+        }
     }
 
     /**
@@ -205,7 +205,7 @@ public class TFIDFTextAnalyser {
      *
      * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
      * @param bodyContentHandler {@link BodyContentHandler}
-     * @param tagFilters {@code List<String> } @Nullable
+     * @param tagFilters {@code List<String> }
      * @param type {@link TFIDFTextAnalyser#NormalizationType}
      * @return new reference of {@link Map}
      * @throws IOException
@@ -280,6 +280,25 @@ public class TFIDFTextAnalyser {
         }
         logger.info("caculation tf idf completed");
         return result;
+    }
+
+    /**
+     * This count new lines in a sentence,
+     * <p>
+     *
+     * @param sentence
+     * @return {@code List<String>}
+     * @throws IOException
+     */
+    private int countNewLines(String sentence) {
+        char[] chars = sentence.toCharArray();
+        int count = 0;
+        for (char ch : chars) {
+            if (ch == '\n') {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
@@ -419,6 +438,8 @@ public class TFIDFTextAnalyser {
     /**
      * This method initialize the opennlp components and the stopword list
      * <p>
+     * each intance of {@code TFIDFTextAnalyser} use equal models and stopword list
+     * <p>
      * {@link TFIDFTextAnalyser#posTagger}
      * <p>
      * {@link TFIDFTextAnalyser#sentenceDetector}
@@ -428,7 +449,6 @@ public class TFIDFTextAnalyser {
      * {@link TFIDFTextAnalyser#stopwords}
      * <p>
      *
-     * @return new reference of {@link DocumentCount}
      * @throws IOException
      */
     private void initialize() throws IOException {
@@ -575,24 +595,6 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This count new lines in a sentence,
-     * <p>
-     *
-     * @param sentence
-     * @return {@code List<String>}
-     * @throws IOException
-     */
-    private int countNewLines(String sentence) {
-        char[] chars = sentence.toCharArray();
-        int count = 0;
-        for (char ch : chars) {
-            if (ch == '\n')
-                count++;
-        }
-        return count;
-    }
-
-    /**
      * This method split sentences in each terms
      *
      * @param sentence
@@ -651,7 +653,7 @@ public class TFIDFTextAnalyser {
      * @return new reference of {@link TFIDFTextAnalyser}
      */
     public TFIDFTextAnalyser withLucene() {
-        TFIDFTextAnalyser.isOpenNLP = false;
+        this.isOpenNLP = false;
         return this;
     }
 
@@ -661,7 +663,7 @@ public class TFIDFTextAnalyser {
      * @return new reference of {@link TFIDFTextAnalyser}
      */
     public TFIDFTextAnalyser withOpenNLP() {
-        TFIDFTextAnalyser.isOpenNLP = true;
+        this.isOpenNLP = true;
         return this;
     }
 
@@ -676,12 +678,12 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * remove occurre stopwords from textcorpus
+     * remove occurred stopwords from textcorpus
      *
      * @return new reference of {@link TFIDFTextAnalyser}
      */
     public TFIDFTextAnalyser withStopwordFilter() {
-        TFIDFTextAnalyser.withStopWordFilter = true;
+        this.withStopWordFilter = true;
         return this;
     }
 

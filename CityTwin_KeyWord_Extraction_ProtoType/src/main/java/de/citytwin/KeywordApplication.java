@@ -25,75 +25,6 @@ public class KeywordApplication {
 
     private static final String OUTPUT_FOLDER = "output";
 
-    public static void main(String[] args) {
-
-        // runTFIDF();
-        getResults();
-    }
-
-    public static void runTFIDF() {
-
-        try {
-
-            StringBuilder stringBuilder = new StringBuilder();
-            DocumentConverter documentConverter = new DocumentConverter();
-            TFIDFTextAnalyser tFIDFTextAnalyser = new TFIDFTextAnalyser().withOpenNLP();
-            Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
-
-            File inputFile = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
-            // File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
-            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-            BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(inputFile);
-            // documentConverter.saveAsTextFile(bodyContentHandler,
-            // "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
-
-            result = tFIDFTextAnalyser.calculateTFIDF(bodyContentHandler,
-                    null,
-                    TFIDFTextAnalyser.NormalizationType.DOUBLE);
-            Quartet<Integer, Double, String, Set<Integer>> quartet = null;
-
-            formatter.format("%1$35s --> %2$5s --> %3$15s --> %4$10s --> %5$15s",
-                    "term",
-                    "count",
-                    "TFIDF Score",
-                    "Pos TAG",
-                    "Sent Index\n");
-
-            for (String key : result.keySet()) {
-
-                quartet = result.get(key);
-                String sentenceIndies = "";
-                for (Integer index : quartet.getValue3()) {
-                    sentenceIndies += index.toString() + ", ";
-                }
-
-                formatter.format("%1$35s --> %2$5s --> %3$.13f --> %4$10s --> %5$s",
-                        key,
-                        quartet.getValue0().toString(),
-                        quartet.getValue1().doubleValue(),
-                        quartet.getValue2(),
-                        sentenceIndies);
-                stringBuilder.append("\n");
-
-                // System.out.print(MessageFormat.format("spliter: {0} --> word: {1} --> count: {2} ", spliter, word,
-                // tfresults.get(spliter).get(word)));
-                // System.out.print("\n");
-            }
-
-            File outputFolder = getOutputFolder("tfidf");
-            File file = new File(outputFolder, "tfidf_" + inputFile.getName() + "_opennlp.txt");
-
-            BufferedWriter writer = new BufferedWriter(new BufferedWriter(
-                    new FileWriter(file, false)));
-            writer.write(stringBuilder.toString());
-            writer.close();
-
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-        }
-
-    }
-
     public static StringBuilder calculateTFIDF(List<File> files, TFIDFTextAnalyser tfidfTextAnalyser,
             List<String> posTags, String description) {
 
@@ -157,12 +88,46 @@ public class KeywordApplication {
 
             formatter.close();
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
 
         return stringBuilder;
 
+    }
+
+    public static List<File> getFiles() {
+
+        String directory = "D:\\vms\\sharedFolder\\";
+
+        List<File> results = new ArrayList<File>();
+        results.add(new File(directory + "festsetzungbegruendung-xvii-50aa.pdf"));
+        // results.add(new File(directory + "Angebotsmassnahmen_2017.pdf"));
+        // results.add(new File(directory + "beg4b-042.pdf"));
+        // results.add(new File(directory + "Bekanntmachungstext.pdf"));
+        results.add(new File(directory + "FNP Bericht 2020.pdf"));
+        // results.add(new File(directory + "Strategie-Stadtlandschaft-Berlin.pdf"));
+        results.add(new File(directory + "biologische_vielfalt_strategie.pdf"));
+        // results.add(new File(directory + "modell_baulandentwicklung.docx"));
+        results.add(new File(directory + "Charta Stadtgrün.docx"));
+
+        return results;
+
+    }
+
+    private static File getOutputFolder(String subfolderName) throws IOException {
+
+        File folder = new File(OUTPUT_FOLDER + "/" + subfolderName + "/");
+
+        if (!folder.exists()) {
+            boolean created = folder.mkdirs();
+
+            if (!created) {
+                throw new IOException("Ordner konnte nicht erstellt werden!");
+            }
+        }
+
+        return folder;
     }
 
     public static void getResults() {
@@ -187,11 +152,15 @@ public class KeywordApplication {
                 new TFIDFTextAnalyser().withOpenNLP().withStopwordFilter() };
             StringBuilder stringBuilder = new StringBuilder();
 
-            for (int index = 0; index < textAnalysers.length; index++) {
-                stringBuilder.append(KeywordApplication.calculateTFIDF(getFiles(),
-                        textAnalysers[index],
-                        null,
-                        descriptions[index]));
+            try {
+                for (int index = 0; index < textAnalysers.length; index++) {
+                    stringBuilder.append(KeywordApplication.calculateTFIDF(getFiles(),
+                            textAnalysers[index],
+                            null,
+                            descriptions[index]));
+                }
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
             }
 
             File outputFolder = getOutputFolder("tfidf");
@@ -206,21 +175,6 @@ public class KeywordApplication {
             logger.error(e.getMessage(), e);
         }
 
-    }
-
-    private static File getOutputFolder(String subfolderName) throws IOException {
-
-        File folder = new File(OUTPUT_FOLDER + "/" + subfolderName + "/");
-
-        if (!folder.exists()) {
-            boolean created = folder.mkdirs();
-
-            if (!created) {
-                throw new IOException("Ordner konnte nicht erstellt werden!");
-            }
-        }
-
-        return folder;
     }
 
     public static List<String> getTagFilters() {
@@ -268,22 +222,73 @@ public class KeywordApplication {
 
     }
 
-    public static List<File> getFiles() {
+    public static void main(String[] args) {
 
-        String directory = "D:\\vms\\sharedFolder\\";
+        // runTFIDF();
+        getResults();
+    }
 
-        List<File> results = new ArrayList<File>();
-        results.add(new File(directory + "festsetzungbegruendung-xvii-50aa.pdf"));
-        // results.add(new File(directory + "Angebotsmassnahmen_2017.pdf"));
-        // results.add(new File(directory + "beg4b-042.pdf"));
-        // results.add(new File(directory + "Bekanntmachungstext.pdf"));
-        results.add(new File(directory + "FNP Bericht 2020.pdf"));
-        // results.add(new File(directory + "Strategie-Stadtlandschaft-Berlin.pdf"));
-        results.add(new File(directory + "biologische_vielfalt_strategie.pdf"));
-        // results.add(new File(directory + "modell_baulandentwicklung.docx"));
-        results.add(new File(directory + "Charta Stadtgrün.docx"));
+    public static void runTFIDF() {
 
-        return results;
+        try {
+
+            StringBuilder stringBuilder = new StringBuilder();
+            DocumentConverter documentConverter = new DocumentConverter();
+            TFIDFTextAnalyser tFIDFTextAnalyser = new TFIDFTextAnalyser().withOpenNLP();
+            Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
+
+            File inputFile = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
+            // File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
+            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+            BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(inputFile);
+            // documentConverter.saveAsTextFile(bodyContentHandler,
+            // "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
+
+            result = tFIDFTextAnalyser.calculateTFIDF(bodyContentHandler,
+                    null,
+                    TFIDFTextAnalyser.NormalizationType.DOUBLE);
+            Quartet<Integer, Double, String, Set<Integer>> quartet = null;
+
+            formatter.format("%1$35s --> %2$5s --> %3$15s --> %4$10s --> %5$15s",
+                    "term",
+                    "count",
+                    "TFIDF Score",
+                    "Pos TAG",
+                    "Sent Index\n");
+
+            for (String key : result.keySet()) {
+
+                quartet = result.get(key);
+                String sentenceIndies = "";
+                for (Integer index : quartet.getValue3()) {
+                    sentenceIndies += index.toString() + ", ";
+                }
+
+                formatter.format("%1$35s --> %2$5s --> %3$.13f --> %4$10s --> %5$s",
+                        key,
+                        quartet.getValue0().toString(),
+                        quartet.getValue1().doubleValue(),
+                        quartet.getValue2(),
+                        sentenceIndies);
+                stringBuilder.append("\n");
+
+                // System.out.print(MessageFormat.format("spliter: {0} --> word: {1} --> count: {2} ", spliter, word,
+                // tfresults.get(spliter).get(word)));
+                // System.out.print("\n");
+            }
+
+            File outputFolder = getOutputFolder("tfidf");
+            File file = new File(outputFolder, "tfidf_" + inputFile.getName() + "_opennlp.txt");
+            formatter.close();
+            BufferedWriter writer = new BufferedWriter(new BufferedWriter(
+                    new FileWriter(file, false)));
+            writer.write(stringBuilder.toString());
+
+            writer.close();
+
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
 
     }
 

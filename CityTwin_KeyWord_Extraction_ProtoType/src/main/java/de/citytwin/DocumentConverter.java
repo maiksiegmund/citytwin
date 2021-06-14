@@ -14,12 +14,11 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.microsoft.OfficeParserConfig;
+import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
-
-import org.apache.tika.parser.pdf.*;
 
 public class DocumentConverter {
 
@@ -29,94 +28,27 @@ public class DocumentConverter {
      * This method convert a file to plain text. used apache tika
      *
      * @param file {@link File}
-     * @return {@link BodyContentHandler}
+     * @return new reference of {@link BodyContentHandler}
+     * @throws SAXException, TikaException, IOException, Exception
      */
-    public BodyContentHandler documentToBodyContentHandler(File file) {
-
+    public BodyContentHandler documentToBodyContentHandler(File file) throws SAXException, TikaException, IOException, Exception {
         BodyContentHandler handler = new BodyContentHandler(Integer.MAX_VALUE);
         AutoDetectParser parser = new AutoDetectParser();
         Metadata metadata = new Metadata();
-
-        try {
-            ParseContext parseContext = prepareParserContext(file);
-            FileInputStream fileInputStream = new FileInputStream(file);
-            InputStream stream = fileInputStream;
-            logger.info(MessageFormat.format("parse file: {0}", file.getAbsoluteFile()));
-            parser.parse(stream, handler, metadata, parseContext);
-
-        } catch (SAXException exception) {
-            logger.error(exception.getMessage(), exception);
-
-        } catch (TikaException exception) {
-            logger.error(exception.getMessage(), exception);
-
-        } catch (IOException exception) {
-            logger.error(exception.getMessage(), exception);
-
-        } catch (Exception exception) {
-            logger.error(exception.getMessage(), exception);
-
-        }
-
+        ParseContext parseContext = prepareParserContext(file);
+        FileInputStream fileInputStream = new FileInputStream(file);
+        InputStream stream = fileInputStream;
+        logger.info(MessageFormat.format("parse file: {0}", file.getAbsoluteFile()));
+        parser.parse(stream, handler, metadata, parseContext);
         return handler;
-
-    }
-
-    /**
-     * This method save bodyContentHandler to txt file
-     *
-     * @param bodyContentHandler
-     * @param destination
-     * @return {@link ParseContext}
-     */
-    public void saveAsTextFile(final BodyContentHandler bodyContentHandler, final String destination) {
-
-        try {
-            BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
-            writer.write(bodyContentHandler.toString());
-            writer.close();
-        } catch (IOException exception) {
-            logger.error(exception.getMessage());
-        }
-
-    }
-
-    /**
-     * This method returns a configured parsercontext by file type
-     *
-     * @param file {@link File}
-     * @return {@link ParseContext}
-     */
-    private ParseContext prepareParserContext(File file) {
-
-        String fileType = file.getName();
-        int indexOfDot = fileType.lastIndexOf(".");
-        fileType = fileType.substring(indexOfDot);
-        ParseContext parseContext = new ParseContext();
-        if (fileType.contains("xls")) {
-            parseContext.set(OfficeParserConfig.class, getOfficeParserConfig());
-        }
-        if (fileType.contains("doc")) {
-            parseContext.set(OfficeParserConfig.class, getOfficeParserConfig());
-        }
-        if (fileType.contains("ppt")) {
-            parseContext.set(OfficeParserConfig.class, getOfficeParserConfig());
-        }
-        if (fileType.contains("pdf")) {
-            parseContext.set(PDFParserConfig.class, getPfdParserConfig());
-        }
-
-        return parseContext;
-
     }
 
     /**
      * This method returns a configured OfficeParserConfig
      *
-     * @return {@link OfficeParserConfig}
+     * @return new reference of {@link OfficeParserConfig}
      */
     private OfficeParserConfig getOfficeParserConfig() {
-
         OfficeParserConfig config = new OfficeParserConfig();
         config.setConcatenatePhoneticRuns(true);
         config.setDateOverrideFormat("dd.mm.yyyy");
@@ -130,18 +62,15 @@ public class DocumentConverter {
         config.setIncludeSlideNotes(false);
         config.setUseSAXDocxExtractor(true);
         config.setUseSAXPptxExtractor(true);
-
         return config;
-
     }
 
     /**
      * This method returns a configured OfficeParserConfig
      *
-     * @return {@link OfficeParserConfig}
+     * @return new reference of {@link OfficeParserConfig}
      */
     private PDFParserConfig getPfdParserConfig() {
-
         PDFParserConfig config = new PDFParserConfig();
         // AccessChecker accessChecker = new AccessChecker();
         // config.setAccessChecker(null);
@@ -161,9 +90,46 @@ public class DocumentConverter {
         config.setOcrStrategy(PDFParserConfig.OCR_STRATEGY.NO_OCR);
         config.setSortByPosition(true);
         config.setSuppressDuplicateOverlappingText(true);
-
         return config;
+    }
 
+    /**
+     * This method returns a configured parsercontext choose by file type
+     *
+     * @param file {@link File}
+     * @return new reference of {@link ParseContext}
+     */
+    private ParseContext prepareParserContext(File file) {
+        String fileType = file.getName();
+        int indexOfDot = fileType.lastIndexOf(".");
+        fileType = fileType.substring(indexOfDot);
+        ParseContext parseContext = new ParseContext();
+        if (fileType.contains("xls")) {
+            parseContext.set(OfficeParserConfig.class, getOfficeParserConfig());
+        }
+        if (fileType.contains("doc")) {
+            parseContext.set(OfficeParserConfig.class, getOfficeParserConfig());
+        }
+        if (fileType.contains("ppt")) {
+            parseContext.set(OfficeParserConfig.class, getOfficeParserConfig());
+        }
+        if (fileType.contains("pdf")) {
+            parseContext.set(PDFParserConfig.class, getPfdParserConfig());
+        }
+        return parseContext;
+    }
+
+    /**
+     * This method save bodyContentHandler to file
+     *
+     * @param bodyContentHandler
+     * @param destination
+     * @throwIOException
+     */
+    public void saveAsTextFile(final BodyContentHandler bodyContentHandler, final String destination) throws IOException {
+        BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
+        writer.write(bodyContentHandler.toString());
+        writer.close();
     }
 
 }
