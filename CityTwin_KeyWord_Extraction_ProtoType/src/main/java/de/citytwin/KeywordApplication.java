@@ -24,6 +24,7 @@ public class KeywordApplication {
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private static final String OUTPUT_FOLDER = "output";
+    private static final String INPUT_FOLDER = "D:\\vms\\\\sharedFolder\\";
 
     public static StringBuilder calculateTFIDF(List<File> files, TFIDFTextAnalyser tfidfTextAnalyser,
             List<String> posTags, String description) {
@@ -225,7 +226,8 @@ public class KeywordApplication {
     public static void main(String[] args) {
 
         // runTFIDF();
-        getResults();
+        //getResults();
+        runTextRank();
     }
 
     public static void runTFIDF() {
@@ -314,4 +316,20 @@ public class KeywordApplication {
 
     }
 
+    public static void runTextRank() {
+
+        try {
+            File file = new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf");
+            DocumentConverter documentConverter = new DocumentConverter();
+            BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
+            String text =bodyContentHandler.toString();
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser();
+            textRankAnalyser.getTextRank(text);
+
+
+        } catch (Exception exception) {
+            // TODO Auto-generated catch block
+            exception.printStackTrace();
+        }
+    }
 }
