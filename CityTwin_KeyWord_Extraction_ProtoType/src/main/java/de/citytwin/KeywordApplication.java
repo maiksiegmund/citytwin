@@ -323,8 +323,7 @@ public class KeywordApplication {
             DocumentConverter documentConverter = new DocumentConverter();
             BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
             String text =bodyContentHandler.toString();
-            TextRankAnalyser textRankAnalyser = new TextRankAnalyser();
-            textRankAnalyser.getTextRank(text);
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser(4);
 
 
         } catch (Exception exception) {
