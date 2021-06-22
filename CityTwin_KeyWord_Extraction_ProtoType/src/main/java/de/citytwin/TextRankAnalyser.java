@@ -22,7 +22,7 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.tika.sax.BodyContentHandler;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.DirectedMultigraph;
+import org.jgrapht.graph.SimpleDirectedGraph;
 import org.jgrapht.traverse.DepthFirstIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,8 +84,9 @@ public class TextRankAnalyser {
             int size = graph.vertexSet().size();
             int countOut = 0;
             int index = 0;
+            double initializeValue = 0.0d;
             String term = "";
-            Double[][] matrix = new Double[size][size];
+            matrix = new Double[size][size];
             Iterator<String> iterator = new DepthFirstIterator<>(graph);
             Set<DefaultEdge> edges = null;
 
@@ -97,7 +98,7 @@ public class TextRankAnalyser {
                 term = iterator.next();
                 Double[] row = new Double[size];
                 for (int i = 0; i < row.length; i++) {
-                    row[i] = 0.0d;
+                    row[i] = initializeValue;
                 }
                 values.put(term, row);
                 indexOfTerm.put(term, index++);
@@ -265,7 +266,8 @@ public class TextRankAnalyser {
      * @return
      */
     private Graph<String, DefaultEdge> buildGraph(List<List<String>> senetences) {
-        Graph<String, DefaultEdge> result = new DirectedMultigraph<>(DefaultEdge.class);
+//                Graph<String, DefaultEdge> result = new DirectedMultigraph<>(DefaultEdge.class);
+        Graph<String, DefaultEdge> result = new SimpleDirectedGraph<>(DefaultEdge.class);
         Set<String> terms = new HashSet<>();
         String[] wordwindow = new String[windowsSize]; // holds vertices
         String[] wordPair = new String[2];
@@ -459,7 +461,7 @@ public class TextRankAnalyser {
     public void runTextRank(BodyContentHandler bodyContentHandler) throws IOException {
 
         Graph<String, DefaultEdge> graph = buildGraph(transformText(bodyContentHandler));
-        // printGraph(graph);
+        printGraph(graph);
         initializeNatrix(graph);
 
     }
