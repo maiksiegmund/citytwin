@@ -6,9 +6,11 @@ import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 
@@ -20,7 +22,7 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.tika.sax.BodyContentHandler;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.Pseudograph;
+import org.jgrapht.graph.DirectedMultigraph;
 import org.jgrapht.traverse.DepthFirstIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +39,98 @@ import opennlp.tools.sentdetect.SentenceModel;
  */
 public class TextRankAnalyser {
 
+    public class TextRankMatrix {
+
+        public final transient Graph<String, DefaultEdge> graph;
+
+        private Map<String, Integer> indexOfTerm;
+
+        private Double[][] matrix;
+        private Map<String, Double[]> values;
+
+        /**
+         * Konstruktor.
+         *
+         * @param graph
+         */
+        public TextRankMatrix(Graph<String, DefaultEdge> graph) {
+            super();
+            this.graph = graph;
+            initialize();
+        }
+
+        public Map<String, Integer> getIndexOfTerm() {
+            return indexOfTerm;
+        }
+
+        public Double[][] getMatrix() {
+            return matrix;
+        }
+
+        private String getTarget(DefaultEdge edge) {
+            // return "(" + source + " : " + target + ")";
+            String temp = edge.toString();
+            int start = temp.indexOf(" : ") + " : ".length();
+            int end = temp.indexOf(")");
+            temp = temp.substring(start, end);
+            return temp;
+        }
+
+        public Map<String, Double[]> getValues() {
+            return values;
+        }
+
+        private void initialize() {
+            int size = graph.vertexSet().size();
+            int countOut = 0;
+            int index = 0;
+            String term = "";
+            Double[][] matrix = new Double[size][size];
+            Iterator<String> iterator = new DepthFirstIterator<>(graph);
+            Set<DefaultEdge> edges = null;
+
+            values = new HashMap<String, Double[]>(size);
+            indexOfTerm = new HashMap<String, Integer>(size);
+
+            // fill with default 0
+            while (iterator.hasNext()) {
+                term = iterator.next();
+                Double[] row = new Double[size];
+                for (int i = 0; i < row.length; i++) {
+                    row[i] = 0.0d;
+                }
+                values.put(term, row);
+                indexOfTerm.put(term, index++);
+
+            }
+            index = 0;
+            // calculate out edges
+            iterator = new DepthFirstIterator<>(graph);
+            while (iterator.hasNext()) {
+                term = iterator.next();
+                edges = graph.outgoingEdgesOf(term);
+                Double[] tempArray = values.get(term);
+                for (DefaultEdge edge : edges) {
+                    // sinnlos
+                    int tempIndex = indexOfTerm.get(getTarget(edge));
+                    tempArray[tempIndex] = (1 / (double)edges.size());
+                }
+            }
+
+            // set simple matrix
+            index = 0;
+            for (String key : values.keySet()) {
+                matrix[index++] = values.get(key);
+            }
+
+        }
+
+    }
+
     private static boolean isInitialzied = false;
     private static POSTaggerME posTagger = null;
     private static Set<String> stopwords = new HashSet<String>();
+
     /** Aktuelle Versionsinformation */
     private static final String VERSION = "$Revision: 1.00 $";
 
@@ -143,9 +234,9 @@ public class TextRankAnalyser {
     }
 
     private String language = "german";
-
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
     private transient final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
     private SentenceDetectorME sentenceDetector = null;
 
     private int windowsSize = 4;
@@ -174,8 +265,7 @@ public class TextRankAnalyser {
      * @return
      */
     private Graph<String, DefaultEdge> buildGraph(List<List<String>> senetences) {
-        Graph<String, DefaultEdge> result = new Pseudograph<>(DefaultEdge.class);
-
+        Graph<String, DefaultEdge> result = new DirectedMultigraph<>(DefaultEdge.class);
         Set<String> terms = new HashSet<>();
         String[] wordwindow = new String[windowsSize]; // holds vertices
         String[] wordPair = new String[2];
@@ -206,6 +296,11 @@ public class TextRankAnalyser {
 
         logger.info(MessageFormat.format("graph completed contains {0} nodes .", result.vertexSet().size()));
         return result;
+    }
+
+    private void calculateScore(Graph<String, DefaultEdge> graph, Double d, int iterations) {
+        Map<String, Double> results = new HashMap<String, Double>(graph.vertexSet().size());
+
     }
 
     /**
@@ -339,13 +434,24 @@ public class TextRankAnalyser {
 
     }
 
+    /**
+     * @return {@code Double[][]} N X N
+     */
+    private Double[][] initializeNatrix(Graph<String, DefaultEdge> graph) {
+
+        TextRankMatrix matrix = new TextRankMatrix(graph);
+
+        return matrix.getMatrix();
+
+    }
+
     public void printGraph(Graph<String, DefaultEdge> graph) {
         Iterator<String> iterator = new DepthFirstIterator<>(graph);
 
         while (iterator.hasNext()) {
             String term = iterator.next();
             System.out.println(
-                    MessageFormat.format(" in {0} --> \"{1}\" --> {2} out.", graph.incomingEdgesOf(term).size(), term, graph.outgoingEdgesOf(term).size()));
+                    MessageFormat.format(" in {0} --> \"{1}\" --> {2} out.", graph.incomingEdgesOf(term), term, graph.outgoingEdgesOf(term)));
 
         }
     }
@@ -353,7 +459,8 @@ public class TextRankAnalyser {
     public void runTextRank(BodyContentHandler bodyContentHandler) throws IOException {
 
         Graph<String, DefaultEdge> graph = buildGraph(transformText(bodyContentHandler));
-        printGraph(graph);
+        // printGraph(graph);
+        initializeNatrix(graph);
 
     }
 

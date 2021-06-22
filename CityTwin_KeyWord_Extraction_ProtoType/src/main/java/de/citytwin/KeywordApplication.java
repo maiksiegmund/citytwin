@@ -320,7 +320,7 @@ public class KeywordApplication {
 
         try {
 //            File file = new File(INPUT_FOLDER + "testdata_german_simple.txt");
-            File file = new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf");
+            File file = new File(INPUT_FOLDER + "simple_testdata_german.txt");
             DocumentConverter documentConverter = new DocumentConverter();
             BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
             String text =bodyContentHandler.toString();
