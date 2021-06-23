@@ -6,10 +6,12 @@ import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Formatter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
@@ -44,7 +46,6 @@ public class TextRankAnalyser {
         public final transient Graph<String, DefaultEdge> graph;
 
         private Map<String, Integer> indexOfTerm;
-
         private Double[][] matrix;
         private Map<String, Double[]> values;
 
@@ -101,9 +102,12 @@ public class TextRankAnalyser {
                     row[i] = initializeValue;
                 }
                 values.put(term, row);
-                indexOfTerm.put(term, index++);
-
             }
+            // set index
+            for (String key : values.keySet()) {
+                indexOfTerm.put(key, index++);
+            }
+
             index = 0;
             // calculate out edges
             iterator = new DepthFirstIterator<>(graph);
@@ -121,7 +125,7 @@ public class TextRankAnalyser {
             // set simple matrix
             index = 0;
             for (String key : values.keySet()) {
-                matrix[index++] = values.get(key);
+                matrix[indexOfTerm.get(key)] = values.get(key);
             }
 
         }
@@ -252,10 +256,6 @@ public class TextRankAnalyser {
             initialize();
         }
         this.windowsSize = windowsSize;
-        // https://www.slideshare.net/shubi194/textrank-bringing-order-into-texts
-        // https://jgrapht.org/guide/UserOverview#graph-generation
-        // https://prakhartechviz.blogspot.com/2019/03/textrank-bringing-order-to-text.html?m=0
-        // https://towardsdatascience.com/textrank-for-keyword-extraction-by-python-c0bae21bcec0
     }
 
     /**
@@ -266,7 +266,7 @@ public class TextRankAnalyser {
      * @return
      */
     private Graph<String, DefaultEdge> buildGraph(List<List<String>> senetences) {
-//                Graph<String, DefaultEdge> result = new DirectedMultigraph<>(DefaultEdge.class);
+        // Graph<String, DefaultEdge> result = new DirectedMultigraph<>(DefaultEdge.class);
         Graph<String, DefaultEdge> result = new SimpleDirectedGraph<>(DefaultEdge.class);
         Set<String> terms = new HashSet<>();
         String[] wordwindow = new String[windowsSize]; // holds vertices
@@ -288,7 +288,10 @@ public class TextRankAnalyser {
 
                 for (int windowIndex = 0; windowIndex < windowsSize; ++windowIndex) {
                     for (int slidingWindowIndex = windowIndex + 1; slidingWindowIndex < windowsSize; ++slidingWindowIndex) {
-                        result.addEdge(wordwindow[windowIndex], wordwindow[slidingWindowIndex]);
+                        // avoid graph circles, sometimes heading and sentence start with same term and where combine,
+                        if (!wordwindow[windowIndex].equals(wordwindow[slidingWindowIndex])) {
+                            result.addEdge(wordwindow[windowIndex], wordwindow[slidingWindowIndex]);
+                        }
                     }
                 }
                 slidingWordIndex++;
@@ -296,13 +299,36 @@ public class TextRankAnalyser {
             slidingWordIndex = 0;
         }
 
-        logger.info(MessageFormat.format("graph completed contains {0} nodes .", result.vertexSet().size()));
+        logger.info(MessageFormat.format("graph completed contains {0} nodes.", result.vertexSet().size()));
         return result;
     }
 
-    private void calculateScore(Graph<String, DefaultEdge> graph, Double d, int iterations) {
-        Map<String, Double> results = new HashMap<String, Double>(graph.vertexSet().size());
+    private Map<String, Double> calculateScore(Graph<String, DefaultEdge> graph, Double d, int iteration) {
+        TextRankMatrix matrix = new TextRankMatrix(graph);
+        Map<String, Double> results = new HashMap<String, Double>(matrix.getValues().size());
+        Double[] columnVector = new Double[matrix.getValues().size()];
+        Double[] rowVector = null;
+        Double value = 0.0d;
+        int index = 0;
+        for (int i = 0; i < columnVector.length; i++) {
+            columnVector[i] = 1.0d;
+        }
 
+        for (int currentInteration = 0; currentInteration < iteration; currentInteration++) {
+            index = 0;
+            for (String key : matrix.values.keySet()) {
+                rowVector = matrix.values.get(key);
+                value = scalarProduct(rowVector, columnVector);
+                columnVector[index++] = (1 - d) + d * (value);
+
+            }
+        }
+        index = 0;
+        for (String key : matrix.values.keySet()) {
+            results.put(key, columnVector[index++]);
+        }
+
+        return results;
     }
 
     /**
@@ -447,22 +473,82 @@ public class TextRankAnalyser {
 
     }
 
+    /**
+     * this method, prints a graph in a console
+     * <p>
+     * node: ... <br>
+     * in [(...)] <br>
+     * out[(...)]
+     *
+     * @param graph
+     */
     public void printGraph(Graph<String, DefaultEdge> graph) {
         Iterator<String> iterator = new DepthFirstIterator<>(graph);
 
         while (iterator.hasNext()) {
             String term = iterator.next();
+            System.out.println("node: " + term);
             System.out.println(
-                    MessageFormat.format(" in {0} --> \"{1}\" --> {2} out.", graph.incomingEdgesOf(term), term, graph.outgoingEdgesOf(term)));
+                    MessageFormat.format(" in {0}", graph.incomingEdgesOf(term)));
+            System.out.println(MessageFormat.format("out {0}", graph.outgoingEdgesOf(term)));
 
         }
+    }
+
+    /**
+     * this method, prints a matrix in a console
+     *
+     * @param textRankMatrix
+     * @return matrix
+     */
+    public void printMatrix(final TextRankMatrix textRankMatrix) {
+
+        int length = 13;
+        StringBuilder stringBuilder = new StringBuilder();
+        Formatter field = new Formatter(stringBuilder, Locale.GERMAN);
+        field.format(" %1$13s |", "");
+        String temp = "";
+        // heading caption
+        for (String key : textRankMatrix.values.keySet()) {
+            temp = (key.length() > length) ? key.substring(0, length) : key;
+            field.format(" %1$13s |", temp);
+        }
+        stringBuilder.append("\n");
+        // rows
+        for (String key : textRankMatrix.values.keySet()) {
+            temp = (key.length() > length) ? key.substring(0, length) : key;
+            Double[] array = textRankMatrix.values.get(key);
+            field.format(" %1$13s |", temp);
+            for (int i = 0; i < array.length; i++) {
+                field.format(" %1$.11f |", array[i]);
+            }
+            stringBuilder.append("\n");
+        }
+        System.out.println(stringBuilder.toString());
     }
 
     public void runTextRank(BodyContentHandler bodyContentHandler) throws IOException {
 
         Graph<String, DefaultEdge> graph = buildGraph(transformText(bodyContentHandler));
-        printGraph(graph);
-        initializeNatrix(graph);
+        // printGraph(graph);
+        // initializeNatrix(graph);
+        // TextRankMatrix matrix = new TextRankMatrix(graph);
+        // printMatrix(matrix);
+        Map<String, Double> scores = calculateScore(graph, 0.85d, 20);
+        // todo sort
+
+        for (String key : scores.keySet()) {
+            System.out.println(MessageFormat.format("term: {0} score: {1}.", key, scores.get(key)));
+        }
+    }
+
+    private Double scalarProduct(final Double[] rowVector, final Double[] columnVector) {
+        Double result = 0.0d;
+        for (int row = 0; row < rowVector.length; row++) {
+            result += rowVector[row] * columnVector[row];
+        }
+
+        return result;
 
     }
 
@@ -480,11 +566,13 @@ public class TextRankAnalyser {
     }
 
     /**
-     * this method transform a text in a List of sentences, Each sentences contains a list of terms.
+     * this method transform a text in a List of sentences, each sentences contains a list of terms.
      * <p>
      * filtered by pos tags {@link TextRankAnalyser#getTagFilters()}
      * <p>
      * filtered by stopwordlist {@link TextRankAnalyser#stopwords}
+     * <p>
+     * {@code if (filteredSentences.size() >= windowsSize) {results.add(filteredSentences);} }
      *
      * @param bodyContentHandler
      * @return
@@ -503,6 +591,7 @@ public class TextRankAnalyser {
             if (filteredSentences.size() >= windowsSize) {
                 results.add(filteredSentences);
             }
+
         }
         return results;
 

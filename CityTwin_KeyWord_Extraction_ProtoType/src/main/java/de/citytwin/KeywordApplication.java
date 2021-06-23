@@ -226,7 +226,7 @@ public class KeywordApplication {
     public static void main(String[] args) {
 
         // runTFIDF();
-        //getResults();
+        // getResults();
         runTextRank();
     }
 
@@ -319,14 +319,14 @@ public class KeywordApplication {
     public static void runTextRank() {
 
         try {
-//            File file = new File(INPUT_FOLDER + "testdata_german_simple.txt");
-            File file = new File(INPUT_FOLDER + "testdata_german_simple.txt");
+            // File file = new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf");
+            File file = new File(INPUT_FOLDER + "Anschreiben FH Erfurt Bewerbung.pdf");
+            // File file = new File(INPUT_FOLDER + "testdata_german_simple.txt");
             DocumentConverter documentConverter = new DocumentConverter();
             BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
-            String text =bodyContentHandler.toString();
-            TextRankAnalyser textRankAnalyser = new TextRankAnalyser(3);
+            String text = bodyContentHandler.toString();
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser(4);
             textRankAnalyser.runTextRank(bodyContentHandler);
-
 
         } catch (Exception exception) {
             // TODO Auto-generated catch block
