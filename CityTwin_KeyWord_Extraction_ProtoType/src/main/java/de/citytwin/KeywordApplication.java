@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.text.MessageFormat;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -320,13 +321,19 @@ public class KeywordApplication {
 
         try {
             // File file = new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf");
-            File file = new File(INPUT_FOLDER + "Anschreiben FH Erfurt Bewerbung.pdf");
-            // File file = new File(INPUT_FOLDER + "testdata_german_simple.txt");
+            // File file = new File(INPUT_FOLDER + "Anschreiben FH Erfurt Bewerbung.pdf");
+            File file = new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf");
             DocumentConverter documentConverter = new DocumentConverter();
             BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
-            String text = bodyContentHandler.toString();
-            TextRankAnalyser textRankAnalyser = new TextRankAnalyser(4);
-            textRankAnalyser.runTextRank(bodyContentHandler);
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser();
+
+            Map<String, Double> result = textRankAnalyser.calculateTextRank(bodyContentHandler, 5, 35);
+
+            String matrix = textRankAnalyser.matrixToString();
+
+            for (String key : result.keySet()) {
+                System.out.println(MessageFormat.format("term: {0} score: {1}.", key, result.get(key)));
+            }
 
         } catch (Exception exception) {
             // TODO Auto-generated catch block
