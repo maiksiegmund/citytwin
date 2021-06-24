@@ -47,7 +47,7 @@ import opennlp.tools.sentdetect.SentenceModel;
 public class TextRankAnalyser {
 
     /**
-     * This inner class represent textrankmatrix only use here. used as struct ... contains a graph and there adjazenzmatrix
+     * This inner class represent textrankmatrix only use here. used as struct ... contains a graph and there adjazenz matrix
      *
      * @author ma6284si, FH Erfurt
      * @version $Revision: 1.0 $
@@ -80,7 +80,7 @@ public class TextRankAnalyser {
         }
 
         /**
-         * @return {@code Double[][]} simple adjazenzmatrix
+         * @return {@code Double[][]} simple adjazenz matrix
          */
         public Double[][] getMatrix() {
             return matrix;
@@ -100,16 +100,16 @@ public class TextRankAnalyser {
         }
 
         /**
-         * @return {@code Map<String, Double[]> } adjazenzmatrix
+         * @return {@code Map<String, Double[]> } adjazenz matrix
          */
         public Map<String, Double[]> getValues() {
             return values;
         }
 
         /**
-         * this method initialize the classfields <br>
+         * this method initialize the class fields <br>
          * {@link TextRankMatrix#values} (adjazenzmatrix) {@code Map<String, Double[]> } (term : rowVector ) <br>
-         * {@link TextRankMatrix#matrix} simple adjazenzmatrix {@code Double[][]} <br>
+         * {@link TextRankMatrix#matrix} simple adjazenz matrix {@code Double[][]} <br>
          * {@link TextRankMatrix#indexOfTerm} mapping rowVector[] to term
          */
         private void initialize() {
@@ -298,11 +298,8 @@ public class TextRankAnalyser {
     private Graph<String, DefaultEdge> buildGraph(List<List<String>> senetences, int wordWindowsSize) {
         // Graph<String, DefaultEdge> result = new DirectedMultigraph<>(DefaultEdge.class);
         Graph<String, DefaultEdge> result = new SimpleDirectedGraph<>(DefaultEdge.class);
-        Set<String> terms = new HashSet<>();
         String[] wordwindow = new String[wordWindowsSize]; // holds vertices
-        String[] wordPair = new String[2];
         String vertex = "";
-        boolean addVertex = false;
         int slidingWordIndex = 0;
 
         for (List<String> sentence : senetences) {
@@ -394,7 +391,7 @@ public class TextRankAnalyser {
      *
      * @param termsWithPosTags
      * @param posTags {@link TextRankAnalyser#getPosTags()}
-     * @return new refernce of {@code List<String>}
+     * @return new reference of {@code List<String>}
      */
     private List<String> filterByPosTags(List<Pair<String, String>> termsWithPosTags, List<String> posTags) {
         List<String> results = new ArrayList<String>();
@@ -521,6 +518,7 @@ public class TextRankAnalyser {
             formatter.format("  in: %1s", graph.incomingEdgesOf(term));
             formatter.format(" out: %1s", graph.outgoingEdgesOf(term));
         }
+        formatter.close();
         return stringBuilder.toString();
 
     }
@@ -591,6 +589,7 @@ public class TextRankAnalyser {
             }
             stringBuilder.append("\n");
         }
+        field.close();
         return stringBuilder.toString();
     }
 
