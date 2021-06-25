@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.text.MessageFormat;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -326,14 +325,31 @@ public class KeywordApplication {
             DocumentConverter documentConverter = new DocumentConverter();
             BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
             TextRankAnalyser textRankAnalyser = new TextRankAnalyser();
+            StringBuilder stringBuilder = new StringBuilder();
+            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+
+            formatter.format("%1$35s --> %2$s10",
+                    "term",
+                    "score");
+            stringBuilder.append("\n");
 
             Map<String, Double> result = textRankAnalyser.calculateTextRank(bodyContentHandler, 5, 35);
 
-            String matrix = textRankAnalyser.matrixToString();
-
             for (String key : result.keySet()) {
-                System.out.println(MessageFormat.format("term: {0} score: {1}.", key, result.get(key)));
+                formatter.format("%1$35s --> %2$.13f",
+                        key,
+                        result.get(key));
+                stringBuilder.append("\n");
+
             }
+
+            File outputFolder = getOutputFolder("textRank");
+            File outputFile = new File(outputFolder, "textRank_results.txt");
+
+            BufferedWriter writer = new BufferedWriter(new BufferedWriter(
+                    new FileWriter(outputFile, false)));
+            writer.write(stringBuilder.toString());
+            writer.close();
 
         } catch (Exception exception) {
             // TODO Auto-generated catch block
