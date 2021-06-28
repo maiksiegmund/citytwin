@@ -24,23 +24,26 @@ public class DocumentConverter {
 
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    /**
-     * This method convert a file to plain text. used apache tika
-     *
-     * @param file {@link File}
-     * @return new reference of {@link BodyContentHandler}
-     * @throws SAXException, TikaException, IOException, Exception
-     */
-    public BodyContentHandler documentToBodyContentHandler(File file) throws SAXException, TikaException, IOException, Exception {
-        BodyContentHandler handler = new BodyContentHandler(Integer.MAX_VALUE);
-        AutoDetectParser parser = new AutoDetectParser();
-        Metadata metadata = new Metadata();
-        ParseContext parseContext = prepareParserContext(file);
-        FileInputStream fileInputStream = new FileInputStream(file);
-        InputStream stream = fileInputStream;
-        logger.info(MessageFormat.format("parse file: {0}", file.getAbsoluteFile()));
-        parser.parse(stream, handler, metadata, parseContext);
-        return handler;
+    private BodyContentHandler bodyContentHandler = null;
+    private AutoDetectParser autoDetectParser = null;
+    private Metadata metadata = null;
+    ParseContext parseContext = null;
+
+    public DocumentConverter(final File file) throws SAXException, TikaException, IOException, Exception {
+        setTikaComponents(file);
+    }
+
+    public BodyContentHandler getBodyContentHandler() {
+        return bodyContentHandler;
+    }
+
+    public String getDocumentTitle() {
+        return metadata.get("title");
+
+    }
+
+    public Metadata getMetaData() {
+        return metadata;
     }
 
     /**
@@ -130,6 +133,26 @@ public class DocumentConverter {
         BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
         writer.write(bodyContentHandler.toString());
         writer.close();
+    }
+
+    /**
+     * This method convert a file to plain text. used apache tika
+     *
+     * @param file {@link File}
+     * @return new reference of {@link BodyContentHandler}
+     * @throws SAXException, TikaException, IOException, Exception
+     */
+    private BodyContentHandler setTikaComponents(final File file) throws SAXException, TikaException, IOException, Exception {
+        this.bodyContentHandler = new BodyContentHandler(Integer.MAX_VALUE);
+        this.autoDetectParser = new AutoDetectParser();
+        this.metadata = new Metadata();
+        this.parseContext = prepareParserContext(file);
+        FileInputStream fileInputStream = new FileInputStream(file);
+        InputStream stream = fileInputStream;
+        logger.info(MessageFormat.format("parse file: {0}", file.getAbsoluteFile()));
+        autoDetectParser.parse(stream, bodyContentHandler, metadata, parseContext);
+        stream.close();
+        return bodyContentHandler;
     }
 
 }

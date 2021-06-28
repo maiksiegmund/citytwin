@@ -6,14 +6,15 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Formatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.sax.BodyContentHandler;
 import org.javatuples.Quartet;
 import org.slf4j.Logger;
@@ -24,72 +25,85 @@ public class KeywordApplication {
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private static final String OUTPUT_FOLDER = "output";
-    private static final String INPUT_FOLDER = "D:\\vms\\\\sharedFolder\\";
+    private static final String INPUT_FOLDER = "D:\\vms\\sharedFolder\\";
 
-    public static StringBuilder calculateTFIDF(List<File> files, TFIDFTextAnalyser tfidfTextAnalyser,
-            List<String> posTags, String description) {
+    /**
+     * this method calculate textRank score an return theme in a stringbuilder
+     *
+     * @param file
+     * @return new reference of {@code StringBuilder}
+     */
+    private static StringBuilder calculateTextRank(File file) {
+
+        StringBuilder stringBuilder = new StringBuilder();
+        try {
+            DocumentConverter documentConverter = new DocumentConverter(file);
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
+            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+
+            formatter.format("%1$35s --> %2$s11",
+                    "term",
+                    "score");
+            stringBuilder.append("\n");
+
+            Map<String, Double> result = textRankAnalyser.calculateTextRank(bodyContentHandler, 5, 35);
+
+            for (String key : result.keySet()) {
+                formatter.format("%1$35s --> %2$.13f",
+                        key,
+                        result.get(key));
+                stringBuilder.append("\n");
+
+            }
+            return stringBuilder;
+
+        } catch (Exception exception) {
+
+            logger.error(exception.getMessage(), exception);
+        }
+        return stringBuilder;
+    }
+
+    /**
+     * this method calculate tfidf score an return theme in a stringbuilder
+     *
+     * @param {@code File}
+     * @param {@code TFIDFTextAnalyser}
+     * @return {@code StringBuilder}
+     */
+    private static StringBuilder calculateTFIDF(File file, TFIDFTextAnalyser tfidfTextAnalyser) {
 
         StringBuilder stringBuilder = new StringBuilder();
         Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
         BodyContentHandler bodyContentHandler = null;
-        DocumentConverter documentConverter = new DocumentConverter();
+
         Map<String, Quartet<Integer, Double, String, Set<Integer>>> results = null;
         Quartet<Integer, Double, String, Set<Integer>> quartet = null;
 
         try {
 
-            for (File file : files) {
+            DocumentConverter documentConverter = new DocumentConverter(file);
+            bodyContentHandler = documentConverter.getBodyContentHandler();
+            results = tfidfTextAnalyser.calculateTFIDF(bodyContentHandler,
+                    GermanTextProcessing.getPosTagList(),
+                    TFIDFTextAnalyser.NormalizationType.NONE);
+            LocalDateTime endTime = LocalDateTime.now();
+            // caption
+            formatter.format(" %1$35s --> %2$11s", "term", "TFIDF Score");
+            stringBuilder.append("\n");
 
-                bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
-                LocalDateTime startTime = LocalDateTime.now();
-                results = tfidfTextAnalyser.calculateTFIDF(bodyContentHandler,
-                        posTags,
-                        TFIDFTextAnalyser.NormalizationType.NONE);
-                LocalDateTime endTime = LocalDateTime.now();
-                // caption
-                formatter.format("#file: %1$34s", file.getName() + "\n");
-                formatter.format("#start %1$34s --> %2$10s --> %3$15s --> %4$10s --> %5$s",
-                        "term",
-                        "count",
-                        "TFIDF Score",
-                        "PosTAG",
-                        "SentenceIndex \n");
-
-                for (String key : results.keySet()) {
-
-                    quartet = results.get(key);
-                    String sentenceIndies = "";
-                    int count = 0;
-
-                    for (Integer index : quartet.getValue3()) {
-
-                        if (count < 10) {
-                            sentenceIndies += index.toString() + ",";
-                        } else {
-                            sentenceIndies += "...";
-                            break;
-                        }
-
-                        count++;
-                    }
-
-                    formatter.format("%1$35s ### %2$10s ### %3$.15f ### %4$10s ### %5$s",
-                            key,
-                            quartet.getValue0().toString(),
-                            quartet.getValue1().doubleValue(),
-                            quartet.getValue2(),
-                            sentenceIndies);
-                    stringBuilder.append("\n");
-                }
-
-                stringBuilder.append("#end duration calculated td idf: "
-                        + String.valueOf(startTime.until(endTime, ChronoUnit.MINUTES)) + " min(s) " + description
-                        + " \n");
+            for (String key : results.keySet()) {
+                quartet = results.get(key);
+                formatter.format("%1$35s --> %2$11f", key, quartet.getValue1().doubleValue());
+                stringBuilder.append("\n");
             }
-
             formatter.close();
+        }
 
-        } catch (Exception e) {
+        catch (
+
+        Exception e) {
             logger.error(e.getMessage(), e);
         }
 
@@ -97,25 +111,106 @@ public class KeywordApplication {
 
     }
 
-    public static List<File> getFiles() {
+    // todo fix result merge
+    public static void combineResult(int max) {
 
-        String directory = "D:\\vms\\sharedFolder\\";
+        for (File file : getFiles()) {
+            try {
+                StringBuilder stringBuilder = new StringBuilder();
+                Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+                TFIDFTextAnalyser tdTfidfTextAnalyser = new TFIDFTextAnalyser().withOpenNLP().withStopwordFilter();
+                TextRankAnalyser textRankAnalyser = new TextRankAnalyser();
+                DocumentConverter documentConverter = new DocumentConverter(file);
+                BodyContentHandler bobBodyContentHandler = documentConverter.getBodyContentHandler();
+
+                Map<String, Quartet<Integer, Double, String, Set<Integer>>> tfidfresults = tdTfidfTextAnalyser
+                        .calculateTFIDF(bobBodyContentHandler, GermanTextProcessing.getPosTagList(), TFIDFTextAnalyser.NormalizationType.NONE);
+
+                Map<String, Double> textRankResult = textRankAnalyser.calculateTextRank(bobBodyContentHandler, 4, 15);
+                formatter.format("%1$35s --> %2$15s --> %3$15s",
+                        "term",
+                        "tfidf-score",
+                        "textRank-score");
+                stringBuilder.append("\n");
+
+                Map<String, Pair<Double, Double>> combineResults = new HashMap<String, Pair<Double, Double>>();
+                Double tfidfScore = 0.0d;
+                Double textRankScore = 0.0d;
+
+                for (String key : textRankResult.keySet()) {
+                    Quartet<Integer, Double, String, Set<Integer>> tfidf = tfidfresults.get(key);
+                    tfidfScore = (tfidf != null) ? tfidf.getValue1() : Double.NEGATIVE_INFINITY;
+                    textRankScore = textRankResult.get(key);
+                    combineResults.put(key, Pair.of(tfidfScore, textRankScore));
+                }
+
+                tfidfScore = 0.0d;
+                textRankScore = 0.0d;
+
+                for (String key : tfidfresults.keySet()) {
+                    if (!combineResults.containsKey(key)) {
+                        continue;
+                    }
+                    textRankScore = textRankResult.get(key);
+                    tfidfScore = Double.NEGATIVE_INFINITY;
+                    combineResults.put(key, Pair.of(tfidfScore, textRankScore));
+                }
+                int current = 0;
+                for (String key : combineResults.keySet()) {
+                    if (current++ > max) {
+                        break;
+                    }
+
+                    tfidfScore = combineResults.get(key).getLeft();
+                    textRankScore = combineResults.get(key).getRight();
+                    formatter.format("%1$35s --> %2$15f --> %3$15f",
+                            key,
+                            tfidfScore,
+                            textRankScore);
+                    stringBuilder.append("\n");
+                }
+
+                System.out.println(stringBuilder.toString());
+
+            } catch (Exception exception) {
+
+                logger.error(exception.getMessage(), exception);
+            }
+
+        }
+
+    }
+
+    /**
+     * @return {@code List<File>}
+     */
+    private static List<File> getFiles() {
 
         List<File> results = new ArrayList<File>();
-        results.add(new File(directory + "festsetzungbegruendung-xvii-50aa.pdf"));
-        // results.add(new File(directory + "Angebotsmassnahmen_2017.pdf"));
-        // results.add(new File(directory + "beg4b-042.pdf"));
-        // results.add(new File(directory + "Bekanntmachungstext.pdf"));
-        results.add(new File(directory + "FNP Bericht 2020.pdf"));
-        // results.add(new File(directory + "Strategie-Stadtlandschaft-Berlin.pdf"));
-        results.add(new File(directory + "biologische_vielfalt_strategie.pdf"));
-        // results.add(new File(directory + "modell_baulandentwicklung.docx"));
-        results.add(new File(directory + "Charta Stadtgrün.docx"));
+        // results.add(new File(INPUT_FOLDER + "begruendung11-14a.pdf"));
+        results.add(new File(INPUT_FOLDER + "biologische_vielfalt_strategie.docx"));
+        // results.add(new File(INPUT_FOLDER + "einlegeblatt_gruenanlagensanierung.docx"));
+        // results.add(new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf"));
+        // results.add(new File(INPUT_FOLDER + "mdb-beg4b_004.pdf"));
+        // results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
+        // results.add(new File(INPUT_FOLDER + "StEPWohnen2030-Langfassung.pdf"));
+        // results.add(new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf"));
+        // results.add(new File(INPUT_FOLDER + "Strategie-Stadtlandschaft-Berlin.pdf"));
+        // results.add(new File(INPUT_FOLDER + "UVPG.pdf"));
+        // results.add(new File(INPUT_FOLDER + "Wasseratlas.pdf"));
+        // results.add(new File(INPUT_FOLDER + "xix-58a_begruendung.pdf"));
 
         return results;
 
     }
 
+    /**
+     * create output folder
+     *
+     * @param subfolderName
+     * @return {@code File}
+     * @throws IOException
+     */
     private static File getOutputFolder(String subfolderName) throws IOException {
 
         File folder = new File(OUTPUT_FOLDER + "/" + subfolderName + "/");
@@ -131,46 +226,51 @@ public class KeywordApplication {
         return folder;
     }
 
-    public static void getResults() {
+    /**
+     * this method store results of textRankcalculation in separate files
+     */
+    public static void getTextRankResults() {
+
+        StringBuilder stringBuilder = null;
+        try {
+            for (File file : getFiles()) {
+                stringBuilder = KeywordApplication.calculateTextRank(file);
+                File outputFolder = getOutputFolder("textRank");
+                File resultfile = new File(outputFolder, "textRank_" + file.getName() + ".txt");
+                BufferedWriter writer = new BufferedWriter(
+                        new BufferedWriter(new FileWriter(resultfile, false)));
+                writer.write(stringBuilder.toString());
+                writer.close();
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * this method store results of tfidfcalculation in separate files
+     */
+    public static void getTFIDFResults() {
 
         try {
 
-            String[] descriptions = {
-                // "Lucene ",
-                // "Lucene + Stemming ",
-                "Lucene + Stemming + Stopwordfilter ",
-                // "opennlp ",
-                // "opennlp + Stemming ",
-                "opennlp + Stopwordfilter "
-            };
-
-            TFIDFTextAnalyser[] textAnalysers = {
-                // new TFIDFTextAnalyser().withLucene(),
-                // new TFIDFTextAnalyser().withLucene().withStemming(),
-                new TFIDFTextAnalyser().withLucene().withStemming().withStopwordFilter(),
-                // new TFIDFTextAnalyser().withOpenNLP(),
-                // new TFIDFTextAnalyser().withOpenNLP().withStemming(),
-                new TFIDFTextAnalyser().withOpenNLP().withStopwordFilter() };
-            StringBuilder stringBuilder = new StringBuilder();
+            StringBuilder stringBuilder = null;
+            TFIDFTextAnalyser textAnalysers = new TFIDFTextAnalyser().withOpenNLP().withStopwordFilter();
 
             try {
-                for (int index = 0; index < textAnalysers.length; index++) {
-                    stringBuilder.append(KeywordApplication.calculateTFIDF(getFiles(),
-                            textAnalysers[index],
-                            null,
-                            descriptions[index]));
+                for (File file : getFiles()) {
+                    DocumentConverter documentConverter = new DocumentConverter(file);
+                    stringBuilder = KeywordApplication.calculateTFIDF(file, textAnalysers);
+                    File outputFolder = getOutputFolder("tfidf");
+                    File resultfile = new File(outputFolder, "tfidf_" + file.getName() + ".txt");
+                    BufferedWriter writer = new BufferedWriter(
+                            new BufferedWriter(new FileWriter(resultfile, false)));
+                    writer.write(stringBuilder.toString());
+                    writer.close();
                 }
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             }
-
-            File outputFolder = getOutputFolder("tfidf");
-            File file = new File(outputFolder, "tfidf_result.txt");
-
-            BufferedWriter writer = new BufferedWriter(
-                    new BufferedWriter(new FileWriter(file, false)));
-            writer.write(stringBuilder.toString());
-            writer.close();
 
         } catch (IOException e) {
             logger.error(e.getMessage(), e);
@@ -178,182 +278,9 @@ public class KeywordApplication {
 
     }
 
-    public static List<String> getTagFilters() {
-
-        List<String> tagFilters = new ArrayList<String>();
-
-        // tagFilters.add("CC");
-        // tagFilters.add("CD");
-        // tagFilters.add("DT");
-        // tagFilters.add("EX");
-        // tagFilters.add("FW");
-        // tagFilters.add("IN");
-        // tagFilters.add("JJ");
-        // tagFilters.add("JJR");
-        // tagFilters.add("JJS");
-        // tagFilters.add("LS");
-        tagFilters.add("MD");
-        tagFilters.add("NN");
-        tagFilters.add("NNS");
-        tagFilters.add("NNP");
-        tagFilters.add("NNPS");
-        // tagFilters.add("PDT");
-        // tagFilters.add("POS");
-        // tagFilters.add("PRP");
-        // tagFilters.add("PRP$");
-        // tagFilters.add("RB");
-        // tagFilters.add("RBR");
-        // tagFilters.add("RBS");
-        // tagFilters.add("RP");
-        // tagFilters.add("SYM");
-        // tagFilters.add("TO");
-        // tagFilters.add("UH");
-        // tagFilters.add("VB");
-        // tagFilters.add("VBD");
-        // tagFilters.add("VBG");
-        // tagFilters.add("VBN");
-        // tagFilters.add("VBP");
-        // tagFilters.add("VBZ");
-        // tagFilters.add("WDT");
-        // tagFilters.add("WP");
-        // tagFilters.add("WP$");
-        // tagFilters.add("WRB");
-
-        return tagFilters;
-
-    }
-
     public static void main(String[] args) {
 
-        // runTFIDF();
-        // getResults();
-        runTextRank();
+        combineResult(50);
     }
 
-    public static void runTFIDF() {
-
-        try {
-
-            StringBuilder stringBuilder = new StringBuilder();
-            DocumentConverter documentConverter = new DocumentConverter();
-            TFIDFTextAnalyser tFIDFTextAnalyser = new TFIDFTextAnalyser().withOpenNLP();
-            Map<String, Quartet<Integer, Double, String, Set<Integer>>> result;
-
-            File inputFile = new File("D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.pdf");
-            // File file = new File("D:\\vms\\sharedFolder\\testdata.txt");
-            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-            BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(inputFile);
-            // documentConverter.saveAsTextFile(bodyContentHandler,
-            // "D:\\vms\\sharedFolder\\festsetzungbegruendung-xvii-50aa.txt");
-
-            result = tFIDFTextAnalyser.calculateTFIDF(bodyContentHandler,
-                    null,
-                    TFIDFTextAnalyser.NormalizationType.DOUBLE);
-            Quartet<Integer, Double, String, Set<Integer>> quartet = null;
-
-            formatter.format("%1$35s --> %2$5s --> %3$15s --> %4$10s --> %5$15s",
-                    "term",
-                    "count",
-                    "TFIDF Score",
-                    "Pos TAG",
-                    "Sent Index\n");
-
-            for (String key : result.keySet()) {
-
-                quartet = result.get(key);
-                String sentenceIndies = "";
-                for (Integer index : quartet.getValue3()) {
-                    sentenceIndies += index.toString() + ", ";
-                }
-
-                formatter.format("%1$35s --> %2$5s --> %3$.13f --> %4$10s --> %5$s",
-                        key,
-                        quartet.getValue0().toString(),
-                        quartet.getValue1().doubleValue(),
-                        quartet.getValue2(),
-                        sentenceIndies);
-                stringBuilder.append("\n");
-
-                // System.out.print(MessageFormat.format("spliter: {0} --> word: {1} --> count: {2} ", spliter, word,
-                // tfresults.get(spliter).get(word)));
-                // System.out.print("\n");
-            }
-
-            File outputFolder = getOutputFolder("tfidf");
-            File file = new File(outputFolder, "tfidf_" + inputFile.getName() + "_opennlp.txt");
-            formatter.close();
-            BufferedWriter writer = new BufferedWriter(new BufferedWriter(
-                    new FileWriter(file, false)));
-            writer.write(stringBuilder.toString());
-
-            writer.close();
-
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-        }
-
-    }
-
-    public static void writeSentencesToFile(final List<String> sentences, final String destination) {
-
-        try {
-
-            StringBuilder stringBuilder = new StringBuilder();
-
-            for (String sentence : sentences) {
-                stringBuilder.append(sentence);
-                stringBuilder
-                        .append("################################################################################\n");
-            }
-
-            BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
-            writer.write(stringBuilder.toString());
-            writer.close();
-
-        } catch (IOException exception) {
-            logger.error(exception.getMessage(), exception);
-        }
-
-    }
-
-    public static void runTextRank() {
-
-        try {
-            // File file = new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf");
-            // File file = new File(INPUT_FOLDER + "Anschreiben FH Erfurt Bewerbung.pdf");
-            File file = new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf");
-            DocumentConverter documentConverter = new DocumentConverter();
-            BodyContentHandler bodyContentHandler = documentConverter.documentToBodyContentHandler(file);
-            TextRankAnalyser textRankAnalyser = new TextRankAnalyser();
-            StringBuilder stringBuilder = new StringBuilder();
-            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-
-            formatter.format("%1$35s --> %2$s10",
-                    "term",
-                    "score");
-            stringBuilder.append("\n");
-
-            Map<String, Double> result = textRankAnalyser.calculateTextRank(bodyContentHandler, 5, 35);
-
-            for (String key : result.keySet()) {
-                formatter.format("%1$35s --> %2$.13f",
-                        key,
-                        result.get(key));
-                stringBuilder.append("\n");
-
-            }
-
-            File outputFolder = getOutputFolder("textRank");
-            File outputFile = new File(outputFolder, "textRank_results.txt");
-
-            BufferedWriter writer = new BufferedWriter(new BufferedWriter(
-                    new FileWriter(outputFile, false)));
-            writer.write(stringBuilder.toString());
-            writer.close();
-
-        } catch (Exception exception) {
-            // TODO Auto-generated catch block
-            exception.printStackTrace();
-        }
-    }
 }

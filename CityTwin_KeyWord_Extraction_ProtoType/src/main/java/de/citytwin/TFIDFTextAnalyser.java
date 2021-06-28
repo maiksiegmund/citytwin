@@ -1,8 +1,6 @@
 package de.citytwin;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -12,29 +10,16 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.custom.CustomAnalyzer;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.sax.BodyContentHandler;
 import org.javatuples.Quartet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import opennlp.tools.postag.POSModel;
-import opennlp.tools.postag.POSTaggerME;
-import opennlp.tools.sentdetect.SentenceDetectorME;
-import opennlp.tools.sentdetect.SentenceModel;
-import opennlp.tools.stemmer.snowball.SnowballStemmer;
-import opennlp.tools.tokenize.Tokenizer;
-import opennlp.tools.tokenize.TokenizerME;
-import opennlp.tools.tokenize.TokenizerModel;
 
 /**
  * @author ma6284si
@@ -90,22 +75,13 @@ public class TFIDFTextAnalyser {
         DOUBLE, LOG, NONE
     }
 
-    private static boolean isInitialzied = false;
-    private static POSTaggerME posTagger;
-    private static SentenceDetectorME sentenceDetector;
-    private static Set<String> stopwords = new HashSet<String>();
-    private static Tokenizer tokenizer;
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private boolean withStopWordFilter = false;
     private boolean isOpenNLP = false;
     private boolean withStemming = false;
 
-    private int minLenght = 2;
-    private int maxNewLines = 10;
-
-    private String cleaningPattern = "[^a-zA-ZäÄüÜöÖß-]";
-    private String tokenizerName = "whitespace";
+    private GermanTextProcessing textProcessing;
 
     /**
      * constructor with <b> VERY SIMPLE</b> fluent pattern, no plausibility check
@@ -119,9 +95,7 @@ public class TFIDFTextAnalyser {
      */
     public TFIDFTextAnalyser() throws IOException {
 
-        if (!isInitialzied) {
-            initialize();
-        }
+        initialize();
     }
 
     /**
@@ -207,7 +181,8 @@ public class TFIDFTextAnalyser {
      * @param bodyContentHandler {@link BodyContentHandler}
      * @param tagFilters {@code List<String> }
      * @param type {@link TFIDFTextAnalyser#NormalizationType}
-     * @return new reference of {@link Map}
+     * @return new reference of {@code  Map<String, Quartet<Integer, Double, String, Set<Integer>>>} <br>
+     *         (term : countOfTerm, score, sentenceIndex)
      * @throws IOException
      */
     public Map<String, Quartet<Integer, Double, String, Set<Integer>>> calculateTFIDF(
@@ -216,7 +191,7 @@ public class TFIDFTextAnalyser {
 
         DocumentCount result = new DocumentCount();
 
-        DocumentCount rawCount = prepareText(bodyContentHandler);
+        DocumentCount rawCount = transformText(bodyContentHandler);
         rawCount = (withStemming) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
         DocumentCount tf = null;
         tf = calculateTF(rawCount);
@@ -254,7 +229,8 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method calculate tfidf. Equation = tfidf(t,d,D) = tf(t,d) * idf(t,D)
+     * This method calculate tfidf. <br>
+     * equation <strong> fidf(t,d,D) = tf(t,d) * idf(t,D) </strong>
      *
      * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
      * @param tf {@link DocumentCount}
@@ -283,27 +259,8 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This count new lines in a sentence,
-     * <p>
-     *
-     * @param sentence
-     * @return {@code List<String>}
-     * @throws IOException
-     */
-    private int countNewLines(String sentence) {
-        char[] chars = sentence.toCharArray();
-        int count = 0;
-        for (char ch : chars) {
-            if (ch == '\n') {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    /**
      * This method normalized a term freuency. <br>
-     * equation = k +( 1 - k) f(t,d) / (max(f(t,d)))
+     * equation <strong> k +( 1 - k) f(t,d) / (max(f(t,d))) </strong>
      *
      * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
      * @param documentCount
@@ -340,25 +297,6 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method remove terms they are are in the stopwords list.
-     * <p>
-     * {@link TFIDFTextAnalyser#stopwords}
-     *
-     * @param terms {@code List<String>}
-     * @return new reference of {@code List<String>} filtered
-     */
-    private List<String> filterByStopWords(List<String> terms) {
-        List<String> results = new ArrayList<String>();
-        for (String term : terms) {
-            if (!stopwords.contains(term.toLowerCase())) {
-                results.add(term);
-            }
-        }
-        return results;
-
-    }
-
-    /**
      * This method calculate the raw count and set the pos tag of each term. <br>
      * {@link opennlp.tools.stemmer.snowball.SnowballStemmer}
      *
@@ -370,30 +308,24 @@ public class TFIDFTextAnalyser {
         int sentenceIndex = 0;
         DocumentCount result = new DocumentCount();
         Quartet<Integer, Double, String, Set<Integer>> quartet = null;
-        int tagIndex = 0;
 
         for (Integer index : documentCount.sentences.keySet()) {
-            List<String> terms = documentCount.sentences.get(index);
-            String[] stringArray = new String[terms.size()];
-            stringArray = terms.toArray(stringArray);
-            String[] tags = posTagger.tag(stringArray);
-
-            for (String term : terms) {
+            List<Pair<String, String>> terms = textProcessing.getPOSTags(documentCount.sentences.get(index));
+            for (Pair<String, String> term : terms) {
                 result.countWords++;
-                quartet = Quartet.with(1, 0.0, tags[tagIndex], new HashSet<Integer>());
-                tagIndex++;
-                if (!result.terms.containsKey(term)) {
-                    result.terms.put(term, quartet);
+                quartet = Quartet.with(1, 0.0, term.getRight(), new HashSet<Integer>());
+                if (!result.terms.containsKey(term.getLeft())) {
+                    result.terms.put(term.getLeft(), quartet);
                     quartet.getValue3().add(sentenceIndex);
                     continue;
                 }
-                quartet = result.terms.get(term);
+                quartet = result.terms.get(term.getLeft());
                 quartet = quartet.setAt0(quartet.getValue0() + 1);
                 quartet.getValue3().add(sentenceIndex);
-                result.terms.put(term, quartet);
+                result.terms.put(term.getLeft(), quartet);
             }
             sentenceIndex++;
-            tagIndex = 0;
+
         }
         result.sentences = documentCount.sentences;
         result.isNormalized = documentCount.isNormalized;
@@ -406,8 +338,6 @@ public class TFIDFTextAnalyser {
 
     /**
      * This method stem all terms in {@link DocumentCount#sentences}.
-     * <p>
-     * stemmed by {@link opennlp.tools.stemmer.snowball.SnowballStemmer} <br>
      *
      * @param documentCount
      * @return new reference of {@link DocumentCount}
@@ -415,17 +345,16 @@ public class TFIDFTextAnalyser {
     private DocumentCount getstemmedRawCount(final DocumentCount documentCount) throws IOException {
 
         DocumentCount result = new DocumentCount();
-        SnowballStemmer snowballStemmerOpenNLP = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
-        String stemmed = "";
+        List<String> tempStemmedTerms = null;
 
         for (Integer index : documentCount.sentences.keySet()) {
             List<String> terms = documentCount.sentences.get(index);
-            List<String> stemmedterms = new ArrayList<String>(terms.size());
-            for (String term : terms) {
-                stemmed = snowballStemmerOpenNLP.stem(term).toString();
-                stemmedterms.add(stemmed);
+            List<Pair<String, String>> stemmedTerms = textProcessing.stemm(terms);
+            tempStemmedTerms = new ArrayList<String>();
+            for (Pair<String, String> stemmedTerm : stemmedTerms) {
+                tempStemmedTerms.add(stemmedTerm.getRight());
             }
-            result.sentences.put(index, stemmedterms);
+            result.sentences.put(index, tempStemmedTerms);
         }
 
         result.isNormalized = documentCount.isNormalized;
@@ -436,48 +365,13 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method initialize the opennlp components and the stopword list
-     * <p>
-     * each intance of {@code TFIDFTextAnalyser} use equal models and stopword list
-     * <p>
-     * {@link TFIDFTextAnalyser#posTagger}
-     * <p>
-     * {@link TFIDFTextAnalyser#sentenceDetector}
-     * <p>
-     * {@link TFIDFTextAnalyser#tokenizer}
-     * <p>
-     * {@link TFIDFTextAnalyser#stopwords}
-     * <p>
+     * This method initialize the text processing components
      *
      * @throws IOException
      */
     private void initialize() throws IOException {
 
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("de-sent.bin");
-        SentenceModel sentenceModel = new SentenceModel(inputStream);
-        sentenceDetector = new SentenceDetectorME(sentenceModel);
-        inputStream.close();
-
-        // inputStream = getClass().getClassLoader().getResourceAsStream("de-pos-maxent.bin");
-        inputStream = getClass().getClassLoader().getResourceAsStream("de-pos-perceptron.bin");
-        posTagger = new POSTaggerME(new POSModel(inputStream));
-        inputStream.close();
-
-        inputStream = getClass().getClassLoader().getResourceAsStream("de-token.bin");
-        TokenizerModel tokenizerModel = new TokenizerModel(inputStream);
-        tokenizer = new TokenizerME(tokenizerModel);
-
-        inputStream = getClass().getClassLoader().getResourceAsStream("stopswords_de.txt");
-        Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");
-
-        while (scanner.hasNext()) {
-            stopwords.add(scanner.next());
-        }
-        inputStream.close();
-        scanner.close();
-
-        isInitialzied = true;
-
+        textProcessing = new GermanTextProcessing();
     }
 
     /**
@@ -510,34 +404,6 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method prepare the raw text into sentences <br>
-     * split by apache opennlp or apache lucene
-     * <p>
-     * and use a stopword filter
-     *
-     * @param bodyContentHandler {@link BodyContentHandler}
-     * @return new reference of {@link DocumentCount}
-     */
-    private DocumentCount prepareText(BodyContentHandler bodyContentHandler) throws IOException {
-
-        DocumentCount result = new DocumentCount();
-        int count = 0;
-        List<String> sentences = spliteBodyContentToSencences(bodyContentHandler);
-        List<String> terms = null;
-        for (int index = 0; index < sentences.size(); ++index) {
-            terms = (isOpenNLP) ? splitSentenceOpenNLP(sentences.get(index))
-                    : splitSentenceLucene(sentences.get(index));
-            terms = (withStopWordFilter) ? filterByStopWords(terms) : terms;
-            result.sentences.put(index, terms);
-            count += terms.size();
-        }
-        result.countWords = count;
-        result.isNormalized = false;
-        return result;
-
-    }
-
-    /**
      * This method sort a map by {@link Quartet#getValue1()}
      * <p>
      * term, count, calculation, postag, sentence indices
@@ -565,86 +431,31 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method split textcorpus in each senteces by opennlp
+     * This method transfor into DocumentCount <br>
+     * split by apache opennlp or apache lucene
      * <p>
-     * remove newline pattern {@code "-\n"} and
-     * <p>
-     * newline threshold is {@link TFIDFTextAnalyser#maxNewLines}
-     * <p>
+     * and use a stopword filter
      *
-     * @param bodyContentHandler
-     * @return {@code List<String>}
-     * @throws IOException
+     * @param bodyContentHandler {@link BodyContentHandler}
+     * @return new reference of {@link DocumentCount}
      */
-    private List<String> spliteBodyContentToSencences(BodyContentHandler bodyContentHandler) throws IOException {
+    private DocumentCount transformText(BodyContentHandler bodyContentHandler) throws IOException {
 
-        List<String> results = new ArrayList<>();
-        String temp = "";
-        String[] sentences = sentenceDetector.sentDetect(bodyContentHandler.toString());
-        // remove hyponated tags -\n
-        for (String sentence : sentences) {
-            // table of content contains many newlines, simple approach the remove them
-            if (countNewLines(sentence) < maxNewLines) {
-                temp = sentence.replaceAll("-\n", "");
-                results.add(temp);
-            }
-
+        DocumentCount result = new DocumentCount();
+        int count = 0;
+        List<String> sentences = textProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
+        List<String> terms = null;
+        int sentenceIndex = 0;
+        for (String senctence : sentences) {
+            terms = (isOpenNLP) ? textProcessing.tokenizeOpenNLP(senctence) : textProcessing.tokenizeLucene(senctence);
+            terms = (withStopWordFilter) ? textProcessing.filterByStopWords(terms) : terms;
+            result.sentences.put(sentenceIndex++, terms);
+            count += terms.size();
         }
-        logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
-        return results;
-    }
+        result.countWords = count;
+        result.isNormalized = false;
+        return result;
 
-    /**
-     * This method split sentences in each terms
-     *
-     * @param sentence
-     * @return {@code List<String>}
-     * @throws IOException
-     */
-    private List<String> splitSentenceLucene(final String sentence) throws IOException {
-
-        String temp = "";
-        List<String> results = new ArrayList<String>();
-        Analyzer analyzer;
-
-        analyzer = CustomAnalyzer.builder().withTokenizer(tokenizerName).build();
-        TokenStream stream = analyzer.tokenStream(null, new StringReader(sentence));
-        CharTermAttribute attr = stream.addAttribute(CharTermAttribute.class);
-        stream.reset();
-        while (stream.incrementToken()) {
-            temp = attr.toString().trim().replaceAll(cleaningPattern, "");
-            if (temp.length() > minLenght) {
-                results.add(temp);
-            }
-        }
-        // logger.info(MessageFormat.format("sentence contains {0} words.",
-        // results.size()));
-        analyzer.close();
-        stream.close();
-        return results;
-    }
-
-    /**
-     * This method split a sentence in each term.
-     *
-     * @param sentence
-     * @return {@code List<String>}
-     */
-    private List<String> splitSentenceOpenNLP(final String sentence) {
-
-        String temp = "";
-        List<String> results = new ArrayList<String>();
-        String[] sentences = tokenizer.tokenize(sentence);
-        for (String word : sentences) {
-            temp = word.trim().replaceAll(cleaningPattern, "");
-            if (temp.length() > minLenght) {
-                results.add(temp);
-            }
-
-        }
-        // logger.info(MessageFormat.format("sentence contains {0} words",
-        // results.size()));
-        return results;
     }
 
     /**
