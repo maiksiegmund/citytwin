@@ -98,12 +98,12 @@ public class GermanTextProcessing {
         // tagFilters.add("PTKANT");
         // tagFilters.add("PTKA");
         // tagFilters.add("TRUNC");
-        tagFilters.add("VVFIN");
-        tagFilters.add("VVIMP");
-        tagFilters.add("VVINF");
-        tagFilters.add("VVIZU");
-        tagFilters.add("VVPP");
-        tagFilters.add("VAFIN");
+        // tagFilters.add("VVFIN");
+        // tagFilters.add("VVIMP");
+        // tagFilters.add("VVINF");
+        // tagFilters.add("VVIZU");
+        // tagFilters.add("VVPP");
+        // tagFilters.add("VAFIN");
         // tagFilters.add("VAIMP");
         // tagFilters.add("VAINF");
         // tagFilters.add("VAPP");

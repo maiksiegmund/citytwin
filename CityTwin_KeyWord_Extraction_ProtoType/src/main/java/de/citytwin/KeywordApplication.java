@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Formatter;
 import java.util.HashMap;
@@ -31,9 +30,10 @@ public class KeywordApplication {
      * this method calculate textRank score an return theme in a stringbuilder
      *
      * @param file
+     * @param maxLines
      * @return new reference of {@code StringBuilder}
      */
-    private static StringBuilder calculateTextRank(File file) {
+    private static StringBuilder calculateTextRank(File file, int maxLines) {
 
         StringBuilder stringBuilder = new StringBuilder();
         try {
@@ -48,20 +48,24 @@ public class KeywordApplication {
             stringBuilder.append("\n");
 
             Map<String, Double> result = textRankAnalyser.calculateTextRank(bodyContentHandler, 5, 35);
-
+            int currentLine = 0;
             for (String key : result.keySet()) {
+                if (currentLine++ > maxLines)
+                    break;
                 formatter.format("%1$35s --> %2$.13f",
                         key,
                         result.get(key));
                 stringBuilder.append("\n");
 
             }
+            formatter.close();
             return stringBuilder;
 
         } catch (Exception exception) {
 
             logger.error(exception.getMessage(), exception);
         }
+
         return stringBuilder;
     }
 
@@ -70,9 +74,10 @@ public class KeywordApplication {
      *
      * @param {@code File}
      * @param {@code TFIDFTextAnalyser}
+     * @param maxLines
      * @return {@code StringBuilder}
      */
-    private static StringBuilder calculateTFIDF(File file, TFIDFTextAnalyser tfidfTextAnalyser) {
+    private static StringBuilder calculateTFIDF(File file, TFIDFTextAnalyser tfidfTextAnalyser, int maxLines) {
 
         StringBuilder stringBuilder = new StringBuilder();
         Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
@@ -88,12 +93,13 @@ public class KeywordApplication {
             results = tfidfTextAnalyser.calculateTFIDF(bodyContentHandler,
                     GermanTextProcessing.getPosTagList(),
                     TFIDFTextAnalyser.NormalizationType.NONE);
-            LocalDateTime endTime = LocalDateTime.now();
             // caption
             formatter.format(" %1$35s --> %2$11s", "term", "TFIDF Score");
             stringBuilder.append("\n");
-
+            int currentLine = 0;
             for (String key : results.keySet()) {
+                if (currentLine++ > maxLines)
+                    break;
                 quartet = results.get(key);
                 formatter.format("%1$35s --> %2$11f", key, quartet.getValue1().doubleValue());
                 stringBuilder.append("\n");
@@ -111,20 +117,25 @@ public class KeywordApplication {
 
     }
 
-    // todo fix result merge
-    public static void combineResult(int max) {
+    //
+    /**
+     * this method use {@code TextRankAnalyser} and {@code TFIDFTextAnalyser}
+     *
+     * @param maxLines
+     */
+    public static void getBothResult(int maxLines) {
 
         for (File file : getFiles()) {
             try {
                 StringBuilder stringBuilder = new StringBuilder();
                 Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
                 TFIDFTextAnalyser tdTfidfTextAnalyser = new TFIDFTextAnalyser().withOpenNLP().withStopwordFilter();
-                TextRankAnalyser textRankAnalyser = new TextRankAnalyser();
+                TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
                 DocumentConverter documentConverter = new DocumentConverter(file);
                 BodyContentHandler bobBodyContentHandler = documentConverter.getBodyContentHandler();
 
                 Map<String, Quartet<Integer, Double, String, Set<Integer>>> tfidfresults = tdTfidfTextAnalyser
-                        .calculateTFIDF(bobBodyContentHandler, GermanTextProcessing.getPosTagList(), TFIDFTextAnalyser.NormalizationType.NONE);
+                        .calculateTFIDF(bobBodyContentHandler, null, TFIDFTextAnalyser.NormalizationType.NONE);
 
                 Map<String, Double> textRankResult = textRankAnalyser.calculateTextRank(bobBodyContentHandler, 4, 15);
                 formatter.format("%1$35s --> %2$15s --> %3$15s",
@@ -147,17 +158,9 @@ public class KeywordApplication {
                 tfidfScore = 0.0d;
                 textRankScore = 0.0d;
 
-                for (String key : tfidfresults.keySet()) {
-                    if (!combineResults.containsKey(key)) {
-                        continue;
-                    }
-                    textRankScore = textRankResult.get(key);
-                    tfidfScore = Double.NEGATIVE_INFINITY;
-                    combineResults.put(key, Pair.of(tfidfScore, textRankScore));
-                }
-                int current = 0;
+                int currentLine = 0;
                 for (String key : combineResults.keySet()) {
-                    if (current++ > max) {
+                    if (currentLine++ > maxLines) {
                         break;
                     }
 
@@ -170,7 +173,15 @@ public class KeywordApplication {
                     stringBuilder.append("\n");
                 }
 
+                File outputFolder = getOutputFolder("combineResults");
+                File resultfile = new File(outputFolder, "combineresult_" + file.getName() + ".txt");
+                BufferedWriter writer = new BufferedWriter(
+                        new BufferedWriter(new FileWriter(resultfile, false)));
+                writer.write(stringBuilder.toString());
+                writer.close();
+
                 System.out.println(stringBuilder.toString());
+                formatter.close();
 
             } catch (Exception exception) {
 
@@ -187,18 +198,17 @@ public class KeywordApplication {
     private static List<File> getFiles() {
 
         List<File> results = new ArrayList<File>();
-        // results.add(new File(INPUT_FOLDER + "begruendung11-14a.pdf"));
+        results.add(new File(INPUT_FOLDER + "begruendung11-14a.pdf"));
         results.add(new File(INPUT_FOLDER + "biologische_vielfalt_strategie.docx"));
-        // results.add(new File(INPUT_FOLDER + "einlegeblatt_gruenanlagensanierung.docx"));
-        // results.add(new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf"));
-        // results.add(new File(INPUT_FOLDER + "mdb-beg4b_004.pdf"));
-        // results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
-        // results.add(new File(INPUT_FOLDER + "StEPWohnen2030-Langfassung.pdf"));
-        // results.add(new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf"));
-        // results.add(new File(INPUT_FOLDER + "Strategie-Stadtlandschaft-Berlin.pdf"));
-        // results.add(new File(INPUT_FOLDER + "UVPG.pdf"));
-        // results.add(new File(INPUT_FOLDER + "Wasseratlas.pdf"));
-        // results.add(new File(INPUT_FOLDER + "xix-58a_begruendung.pdf"));
+        results.add(new File(INPUT_FOLDER + "einlegeblatt_gruenanlagensanierung.docx"));
+        results.add(new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf"));
+        results.add(new File(INPUT_FOLDER + "mdb-beg4b_004.pdf"));
+        results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
+        results.add(new File(INPUT_FOLDER + "StEPWohnen2030-Langfassung.pdf"));
+        results.add(new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf"));
+        results.add(new File(INPUT_FOLDER + "Strategie-Stadtlandschaft-Berlin.pdf"));
+        results.add(new File(INPUT_FOLDER + "UVPG.pdf"));
+        results.add(new File(INPUT_FOLDER + "Wasseratlas.pdf"));
 
         return results;
 
@@ -228,13 +238,15 @@ public class KeywordApplication {
 
     /**
      * this method store results of textRankcalculation in separate files
+     *
+     * @param maxLines
      */
-    public static void getTextRankResults() {
+    public static void getTextRankResults(int maxLines) {
 
         StringBuilder stringBuilder = null;
         try {
             for (File file : getFiles()) {
-                stringBuilder = KeywordApplication.calculateTextRank(file);
+                stringBuilder = KeywordApplication.calculateTextRank(file, maxLines);
                 File outputFolder = getOutputFolder("textRank");
                 File resultfile = new File(outputFolder, "textRank_" + file.getName() + ".txt");
                 BufferedWriter writer = new BufferedWriter(
@@ -248,9 +260,11 @@ public class KeywordApplication {
     }
 
     /**
-     * this method store results of tfidfcalculation in separate files
+     * this method store results of tfidf calculation in separate files
+     *
+     * @param maxLines
      */
-    public static void getTFIDFResults() {
+    public static void getTFIDFResults(int maxLines) {
 
         try {
 
@@ -259,8 +273,7 @@ public class KeywordApplication {
 
             try {
                 for (File file : getFiles()) {
-                    DocumentConverter documentConverter = new DocumentConverter(file);
-                    stringBuilder = KeywordApplication.calculateTFIDF(file, textAnalysers);
+                    stringBuilder = KeywordApplication.calculateTFIDF(file, textAnalysers, maxLines);
                     File outputFolder = getOutputFolder("tfidf");
                     File resultfile = new File(outputFolder, "tfidf_" + file.getName() + ".txt");
                     BufferedWriter writer = new BufferedWriter(
@@ -280,7 +293,9 @@ public class KeywordApplication {
 
     public static void main(String[] args) {
 
-        combineResult(50);
+        getTextRankResults(100);
+        getBothResult(100);
+        getTextRankResults(100);
     }
 
 }
