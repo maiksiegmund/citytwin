@@ -50,8 +50,9 @@ public class KeywordApplication {
             Map<String, Double> result = textRankAnalyser.calculateTextRank(bodyContentHandler, 5, 35);
             int currentLine = 0;
             for (String key : result.keySet()) {
-                if (currentLine++ > maxLines)
+                if (currentLine++ > maxLines) {
                     break;
+                }
                 formatter.format("%1$35s --> %2$.13f",
                         key,
                         result.get(key));
@@ -98,8 +99,9 @@ public class KeywordApplication {
             stringBuilder.append("\n");
             int currentLine = 0;
             for (String key : results.keySet()) {
-                if (currentLine++ > maxLines)
+                if (currentLine++ > maxLines) {
                     break;
+                }
                 quartet = results.get(key);
                 formatter.format("%1$35s --> %2$11f", key, quartet.getValue1().doubleValue());
                 stringBuilder.append("\n");
@@ -173,8 +175,8 @@ public class KeywordApplication {
                     stringBuilder.append("\n");
                 }
 
-                File outputFolder = getOutputFolder("combineResults");
-                File resultfile = new File(outputFolder, "combineresult_" + file.getName() + ".txt");
+                File outputFolder = getOutputFolder("both");
+                File resultfile = new File(outputFolder, "both_" + file.getName() + ".txt");
                 BufferedWriter writer = new BufferedWriter(
                         new BufferedWriter(new FileWriter(resultfile, false)));
                 writer.write(stringBuilder.toString());
