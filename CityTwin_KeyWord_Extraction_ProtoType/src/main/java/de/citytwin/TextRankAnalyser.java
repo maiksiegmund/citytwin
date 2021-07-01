@@ -48,15 +48,18 @@ public class TextRankAnalyser {
         private Map<String, Integer> indexOfTerm;
         private Double[][] matrix;
         private Map<String, Double[]> values;
+        private boolean withNormalize = false;
 
         /**
          * Konstruktor.
          *
          * @param graph
+         * @param withNormalize
          */
-        public TextRankMatrix(Graph<String, DefaultWeightedEdge> graph) {
+        public TextRankMatrix(Graph<String, DefaultWeightedEdge> graph, @Nullable Boolean withNormalize) {
             super();
             this.graph = graph;
+            this.withNormalize = (withNormalize != null) ? withNormalize : false;
             initialize();
         }
 
@@ -137,7 +140,8 @@ public class TextRankAnalyser {
                 Double[] tempArray = values.get(term);
                 for (DefaultWeightedEdge edge : edges) {
                     int tempIndex = indexOfTerm.get(graph.getEdgeTarget(edge));
-                    tempArray[tempIndex] = (1 / weight);
+                    tempArray[tempIndex] = (withNormalize) ? (1 / weight) : graph.getEdgeWeight(edge);
+
                 }
             }
             // to do check calculation
@@ -189,6 +193,7 @@ public class TextRankAnalyser {
     private TextRankMatrix textRankMatrix = null;
     private GermanTextProcessing textProcessing;
     private boolean isOpenNLP = false;
+    private boolean withMatrixNormalize = false;
 
     /**
      * Konstruktor.
@@ -218,24 +223,21 @@ public class TextRankAnalyser {
         List<String> sentencesLeft = textProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
         List<String> sentencesRight = sentencesLeft;
 
-        String leftSentence = "";
-        String rightSentence = "";
+        Map<String, List<String>> splited = new HashMap<String, List<String>>();
 
-        // add vertices
+        // add vertices and split
         for (String sentence : sentencesLeft) {
             graph.addVertex(sentence);
+            List<String> splitedTerms = (isOpenNLP) ? textProcessing.tokenizeOpenNLP(sentence) : textProcessing.tokenizeLucene(sentence);
+            splited.put(sentence, splitedTerms);
         }
 
-        for (int indexLeft = 0; indexLeft < sentencesLeft.size(); ++indexLeft) {
-            leftSentence = sentencesLeft.get(indexLeft);
-
-            for (int indexRight = 0; indexRight < sentencesLeft.size(); ++indexRight) {
-                // compare both objects to avoid string compares
-                if (sentencesLeft.get(indexLeft) != sentencesRight.get(indexRight)) {
-                    rightSentence = sentencesRight.get(indexRight);
-                    similartity = getSimilartity(leftSentence, rightSentence);
+        for (String sentenceLeft : sentencesLeft) {
+            for (String sentenceRight : sentencesRight) {
+                if (!sentenceLeft.equals(sentenceRight)) {
+                    similartity = getSimilartity(splited.get(sentenceLeft), splited.get(sentenceRight));
                     DefaultWeightedEdge defaultWeightedEdge = new DefaultWeightedEdge();
-                    graph.addEdge(leftSentence, rightSentence, defaultWeightedEdge);
+                    graph.addEdge(sentenceLeft, sentenceRight, defaultWeightedEdge);
                     graph.setEdgeWeight(defaultWeightedEdge, similartity);
                 }
             }
@@ -297,7 +299,7 @@ public class TextRankAnalyser {
      * @return new reference of {@code Map<String, Double>} (term : score)
      */
     private Map<String, Double> calculateScore(Double d, int iteration) {
-        this.textRankMatrix = new TextRankMatrix(graph);
+        this.textRankMatrix = new TextRankMatrix(graph, this.withMatrixNormalize);
         Map<String, Double> results = new HashMap<String, Double>(textRankMatrix.getValues().size());
         Double[] columnVector = new Double[textRankMatrix.getValues().size()];
         Double[] rowVector = null;
@@ -337,6 +339,7 @@ public class TextRankAnalyser {
         int currentwordWindowsSize = (wordWindowSize == null) ? wordWindowSize : 4;
         int currentIeteration = (iteration == null) ? iteration : 30;
         double d = 0.85d;
+        this.withMatrixNormalize = true;
         List<List<String>> textCorpus = transformText(bodyContentHandler, currentwordWindowsSize);
         this.graph = buildGraph(textCorpus, currentwordWindowsSize);
         Map<String, Double> scores = calculateScore(d, currentIeteration);
@@ -354,9 +357,9 @@ public class TextRankAnalyser {
     public Map<String, Double> calculateTextRankSentences(BodyContentHandler bodyContentHandler, @Nullable Integer iteration) throws IOException {
 
         double d = 0.85d;
+        this.withMatrixNormalize = false;
         int currentIeteration = (iteration == null) ? iteration : 30;
         graph = buildGraph(bodyContentHandler);
-        textRankMatrix = new TextRankMatrix(graph);
         Map<String, Double> scores = calculateScore(d, currentIeteration);
         Map<String, Double> result = sortbyValue(scores);
         return result;
@@ -369,28 +372,30 @@ public class TextRankAnalyser {
      * @param left
      * @param right
      * @return
-     * @throws IOException
      */
-    private Double getSimilartity(String left, String right) throws IOException {
+    private Double getSimilartity(List<String> lefts, List<String> rights) {
 
-        int countOfTermInBothList = 0;
+        if (lefts.size() == 0 || rights.size() == 0) {
+            return 0.0d;
+        }
+        double countOfTermInBothList = 0;
         Double result = 0.0d;
 
-        List<String> leftTerms = (isOpenNLP) ? textProcessing.tokenizeLucene(left) : textProcessing.tokenizeLucene(left);
-        List<String> rightTerms = (isOpenNLP) ? textProcessing.tokenizeLucene(right) : textProcessing.tokenizeLucene(right);
+        // leftTerms = textProcessing.filterByStopWords(leftTerms);
+        // rightTerms = textProcessing.filterByStopWords(rightTerms);
         Set<String> mergedTerms = new HashSet<String>();
-        for (String term : leftTerms) {
+        for (String term : lefts) {
             mergedTerms.add(term);
         }
-        for (String term : rightTerms) {
+        for (String term : rights) {
             mergedTerms.add(term);
         }
         for (String term : mergedTerms) {
-            if (isTermInBothLists(term, leftTerms, rightTerms)) {
+            if (isTermInBothLists(term, lefts, rights)) {
                 countOfTermInBothList++;
             }
         }
-        result = countOfTermInBothList / (Math.log10(leftTerms.size()) + Math.log10(rightTerms.size()));
+        result = countOfTermInBothList / (Math.log10(lefts.size()) + Math.log10(rights.size()));
         return result;
     }
 

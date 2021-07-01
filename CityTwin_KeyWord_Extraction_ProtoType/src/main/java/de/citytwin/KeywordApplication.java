@@ -200,18 +200,19 @@ public class KeywordApplication {
     private static List<File> getFiles() {
 
         List<File> results = new ArrayList<File>();
-        // results.add(new File(INPUT_FOLDER + "begruendung11-14a.pdf"));
-        // results.add(new File(INPUT_FOLDER + "biologische_vielfalt_strategie.docx"));
-        // results.add(new File(INPUT_FOLDER + "einlegeblatt_gruenanlagensanierung.docx"));
-        // results.add(new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf"));
-        // results.add(new File(INPUT_FOLDER + "mdb-beg4b_004.pdf"));
-        // results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
-        // results.add(new File(INPUT_FOLDER + "StEPWohnen2030-Langfassung.pdf"));
-        // results.add(new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf"));
-        // results.add(new File(INPUT_FOLDER + "Strategie-Stadtlandschaft-Berlin.pdf"));
-        // results.add(new File(INPUT_FOLDER + "UVPG.pdf"));
-        // results.add(new File(INPUT_FOLDER + "Wasseratlas.pdf"));
-        results.add(new File(INPUT_FOLDER + "testdata_german.txt"));
+        results.add(new File(INPUT_FOLDER + "begruendung11-14a.pdf"));
+        results.add(new File(INPUT_FOLDER + "biologische_vielfalt_strategie.docx"));
+        results.add(new File(INPUT_FOLDER + "einlegeblatt_gruenanlagensanierung.docx"));
+        results.add(new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf"));
+        results.add(new File(INPUT_FOLDER + "mdb-beg4b_004.pdf"));
+        results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
+        results.add(new File(INPUT_FOLDER + "StEPWohnen2030-Langfassung.pdf"));
+        results.add(new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf"));
+        results.add(new File(INPUT_FOLDER + "Strategie-Stadtlandschaft-Berlin.pdf"));
+        results.add(new File(INPUT_FOLDER + "UVPG.pdf"));
+        results.add(new File(INPUT_FOLDER + "Wasseratlas.pdf"));
+        // results.add(new File(INPUT_FOLDER + "testdata_german.txt"));
+        // results.add(new File(INPUT_FOLDER + "testdata_german_simple.txt"));
 
         return results;
 
@@ -277,7 +278,7 @@ public class KeywordApplication {
                     "score");
             stringBuilder.append("\n");
 
-            Map<String, Double> result = textRankAnalyser.calculateTextRankSentences(bodyContentHandler, 35);
+            Map<String, Double> result = textRankAnalyser.calculateTextRankSentences(bodyContentHandler, 1);
             int currentLine = 0;
             for (String key : result.keySet()) {
                 if (currentLine++ > maxLines) {
