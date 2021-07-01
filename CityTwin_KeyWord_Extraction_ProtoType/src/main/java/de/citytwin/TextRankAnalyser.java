@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Formatter;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,8 +21,8 @@ import javax.annotation.Nullable;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.sax.BodyContentHandler;
 import org.jgrapht.Graph;
-import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.SimpleDirectedGraph;
+import org.jgrapht.graph.DefaultWeightedEdge;
+import org.jgrapht.graph.SimpleDirectedWeightedGraph;
 import org.jgrapht.traverse.DepthFirstIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +43,7 @@ public class TextRankAnalyser {
      */
     public class TextRankMatrix {
 
-        public final transient Graph<String, DefaultEdge> graph;
+        public final transient Graph<String, DefaultWeightedEdge> graph;
 
         private Map<String, Integer> indexOfTerm;
         private Double[][] matrix;
@@ -53,7 +54,7 @@ public class TextRankAnalyser {
          *
          * @param graph
          */
-        public TextRankMatrix(Graph<String, DefaultEdge> graph) {
+        public TextRankMatrix(Graph<String, DefaultWeightedEdge> graph) {
             super();
             this.graph = graph;
             initialize();
@@ -77,7 +78,7 @@ public class TextRankAnalyser {
          * @param edge {@code DefaultEdge}
          * @return {@code String} target of DefaultEdge
          */
-        private String getTarget(DefaultEdge edge) {
+        private String getTarget(DefaultWeightedEdge edge) {
             // return "(" + source + " : " + target + ")";
             String temp = edge.toString();
             int start = temp.indexOf(" : ") + " : ".length();
@@ -101,13 +102,13 @@ public class TextRankAnalyser {
          */
         private void initialize() {
             int size = graph.vertexSet().size();
-            int countOut = 0;
+            double weight = 0.0d;
             int index = 0;
             double initializeValue = 0.0d;
             String term = "";
             matrix = new Double[size][size];
             Iterator<String> iterator = new DepthFirstIterator<>(graph);
-            Set<DefaultEdge> edges = null;
+            Set<DefaultWeightedEdge> edges = null;
 
             values = new HashMap<String, Double[]>(size);
             indexOfTerm = new HashMap<String, Integer>(size);
@@ -132,14 +133,14 @@ public class TextRankAnalyser {
             while (iterator.hasNext()) {
                 term = iterator.next();
                 edges = graph.outgoingEdgesOf(term);
+                weight = sumEdgeWeights(edges);
                 Double[] tempArray = values.get(term);
-                for (DefaultEdge edge : edges) {
-                    // sinnlos
-                    int tempIndex = indexOfTerm.get(getTarget(edge));
-                    tempArray[tempIndex] = (1 / (double)edges.size());
+                for (DefaultWeightedEdge edge : edges) {
+                    int tempIndex = indexOfTerm.get(graph.getEdgeTarget(edge));
+                    tempArray[tempIndex] = (1 / weight);
                 }
             }
-
+            // to do check calculation
             // set simple matrix
             index = 0;
             for (String key : values.keySet()) {
@@ -164,12 +165,27 @@ public class TextRankAnalyser {
 
         }
 
+        /**
+         * this method sum edge weights
+         *
+         * @param edges
+         * @return
+         */
+        private Double sumEdgeWeights(Set<DefaultWeightedEdge> edges) {
+            Double result = 0.0d;
+            for (DefaultWeightedEdge defaultWeightedEdge : edges) {
+                result += graph.getEdgeWeight(defaultWeightedEdge);
+            }
+            return result;
+        }
+
     }
 
     private static transient final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final String VERSION = "$Revision: 1.00 $";
+    private static final double DEFAULT_EDGE_WEIGHT = 1.0d;
 
-    private Graph<String, DefaultEdge> graph = null;
+    private Graph<String, DefaultWeightedEdge> graph = null;
     private TextRankMatrix textRankMatrix = null;
     private GermanTextProcessing textProcessing;
     private boolean isOpenNLP = false;
@@ -186,15 +202,59 @@ public class TextRankAnalyser {
     }
 
     /**
+     * this method create a graph of a given text <br>
+     * vertices are sentences edge weight is similarity between two sentences <br>
+     * O = (n^2)
+     *
+     * @param bodyContentHandler
+     * @return new reference of {@code Graph<String, DefaultWeightedEdge>}
+     * @throws IOException
+     */
+    private Graph<String, DefaultWeightedEdge> buildGraph(BodyContentHandler bodyContentHandler) throws IOException {
+        Graph<String, DefaultWeightedEdge> graph = new SimpleDirectedWeightedGraph<>(DefaultWeightedEdge.class);
+
+        Double similartity = 0.0d;
+
+        List<String> sentencesLeft = textProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
+        List<String> sentencesRight = sentencesLeft;
+
+        String leftSentence = "";
+        String rightSentence = "";
+
+        // add vertices
+        for (String sentence : sentencesLeft) {
+            graph.addVertex(sentence);
+        }
+
+        for (int indexLeft = 0; indexLeft < sentencesLeft.size(); ++indexLeft) {
+            leftSentence = sentencesLeft.get(indexLeft);
+
+            for (int indexRight = 0; indexRight < sentencesLeft.size(); ++indexRight) {
+                // compare both objects to avoid string compares
+                if (sentencesLeft.get(indexLeft) != sentencesRight.get(indexRight)) {
+                    rightSentence = sentencesRight.get(indexRight);
+                    similartity = getSimilartity(leftSentence, rightSentence);
+                    DefaultWeightedEdge defaultWeightedEdge = new DefaultWeightedEdge();
+                    graph.addEdge(leftSentence, rightSentence, defaultWeightedEdge);
+                    graph.setEdgeWeight(defaultWeightedEdge, similartity);
+                }
+            }
+        }
+
+        return graph;
+
+    }
+
+    /**
      * this method build a graph by tankrank algorithm terms are Vertices
      *
      * @param senetences
      * @param wordWindowsSize
      * @return new reference of {@code Graph<String, DefaultEdge>}
      */
-    private Graph<String, DefaultEdge> buildGraph(List<List<String>> senetences, int wordWindowsSize) {
+    private Graph<String, DefaultWeightedEdge> buildGraph(List<List<String>> senetences, int wordWindowsSize) {
         // Graph<String, DefaultEdge> result = new DirectedMultigraph<>(DefaultEdge.class);
-        Graph<String, DefaultEdge> result = new SimpleDirectedGraph<>(DefaultEdge.class);
+        Graph<String, DefaultWeightedEdge> result = new SimpleDirectedWeightedGraph<>(DefaultWeightedEdge.class);
         String[] wordwindow = new String[wordWindowsSize]; // holds vertices
         String vertex = "";
         int slidingWordIndex = 0;
@@ -213,7 +273,10 @@ public class TextRankAnalyser {
                     for (int slidingWindowIndex = windowIndex + 1; slidingWindowIndex < wordWindowsSize; ++slidingWindowIndex) {
                         // avoid graph circles, sometimes heading and sentence start with same term and will be combine,
                         if (!wordwindow[windowIndex].equals(wordwindow[slidingWindowIndex])) {
-                            result.addEdge(wordwindow[windowIndex], wordwindow[slidingWindowIndex]);
+                            DefaultWeightedEdge edge = result.addEdge(wordwindow[windowIndex], wordwindow[slidingWindowIndex]);
+                            if (edge != null) {
+                                result.setEdgeWeight(edge, DEFAULT_EDGE_WEIGHT);
+                            }
                         }
                     }
                 }
@@ -282,6 +345,56 @@ public class TextRankAnalyser {
     }
 
     /**
+     * this method does textrank for sentence extraction
+     *
+     * @param bodyContentHandler
+     * @return
+     * @throws IOException
+     */
+    public Map<String, Double> calculateTextRankSentences(BodyContentHandler bodyContentHandler, @Nullable Integer iteration) throws IOException {
+
+        double d = 0.85d;
+        int currentIeteration = (iteration == null) ? iteration : 30;
+        graph = buildGraph(bodyContentHandler);
+        textRankMatrix = new TextRankMatrix(graph);
+        Map<String, Double> scores = calculateScore(d, currentIeteration);
+        Map<String, Double> result = sortbyValue(scores);
+        return result;
+
+    }
+
+    //
+    /**
+     * @see <a href=https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf> textRank Paper, chapter 4</a>
+     * @param left
+     * @param right
+     * @return
+     * @throws IOException
+     */
+    private Double getSimilartity(String left, String right) throws IOException {
+
+        int countOfTermInBothList = 0;
+        Double result = 0.0d;
+
+        List<String> leftTerms = (isOpenNLP) ? textProcessing.tokenizeLucene(left) : textProcessing.tokenizeLucene(left);
+        List<String> rightTerms = (isOpenNLP) ? textProcessing.tokenizeLucene(right) : textProcessing.tokenizeLucene(right);
+        Set<String> mergedTerms = new HashSet<String>();
+        for (String term : leftTerms) {
+            mergedTerms.add(term);
+        }
+        for (String term : rightTerms) {
+            mergedTerms.add(term);
+        }
+        for (String term : mergedTerms) {
+            if (isTermInBothLists(term, leftTerms, rightTerms)) {
+                countOfTermInBothList++;
+            }
+        }
+        result = countOfTermInBothList / (Math.log10(leftTerms.size()) + Math.log10(rightTerms.size()));
+        return result;
+    }
+
+    /**
      * this method, return a graph as a formatted string
      * <p>
      * node: ... <br>
@@ -319,6 +432,14 @@ public class TextRankAnalyser {
     private void initialize() throws IOException {
 
         textProcessing = new GermanTextProcessing();
+    }
+
+    private boolean isTermInBothLists(String term, List<String> leftTerms, List<String> rightTerms) {
+
+        if (leftTerms.contains(term) && rightTerms.contains(term)) {
+            return true;
+        }
+        return false;
     }
 
     /**

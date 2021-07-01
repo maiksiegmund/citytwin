@@ -200,17 +200,18 @@ public class KeywordApplication {
     private static List<File> getFiles() {
 
         List<File> results = new ArrayList<File>();
-        results.add(new File(INPUT_FOLDER + "begruendung11-14a.pdf"));
-        results.add(new File(INPUT_FOLDER + "biologische_vielfalt_strategie.docx"));
-        results.add(new File(INPUT_FOLDER + "einlegeblatt_gruenanlagensanierung.docx"));
-        results.add(new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf"));
-        results.add(new File(INPUT_FOLDER + "mdb-beg4b_004.pdf"));
-        results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
-        results.add(new File(INPUT_FOLDER + "StEPWohnen2030-Langfassung.pdf"));
-        results.add(new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf"));
-        results.add(new File(INPUT_FOLDER + "Strategie-Stadtlandschaft-Berlin.pdf"));
-        results.add(new File(INPUT_FOLDER + "UVPG.pdf"));
-        results.add(new File(INPUT_FOLDER + "Wasseratlas.pdf"));
+        // results.add(new File(INPUT_FOLDER + "begruendung11-14a.pdf"));
+        // results.add(new File(INPUT_FOLDER + "biologische_vielfalt_strategie.docx"));
+        // results.add(new File(INPUT_FOLDER + "einlegeblatt_gruenanlagensanierung.docx"));
+        // results.add(new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf"));
+        // results.add(new File(INPUT_FOLDER + "mdb-beg4b_004.pdf"));
+        // results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
+        // results.add(new File(INPUT_FOLDER + "StEPWohnen2030-Langfassung.pdf"));
+        // results.add(new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf"));
+        // results.add(new File(INPUT_FOLDER + "Strategie-Stadtlandschaft-Berlin.pdf"));
+        // results.add(new File(INPUT_FOLDER + "UVPG.pdf"));
+        // results.add(new File(INPUT_FOLDER + "Wasseratlas.pdf"));
+        results.add(new File(INPUT_FOLDER + "testdata_german.txt"));
 
         return results;
 
@@ -261,6 +262,43 @@ public class KeywordApplication {
         }
     }
 
+    public static void getTextRankSentencesResults() {
+        StringBuilder stringBuilder = new StringBuilder();
+        try {
+            int maxLines = 10;
+
+            DocumentConverter documentConverter = new DocumentConverter(getFiles().get(0));
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
+            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+
+            formatter.format("%1$35s --> %2$s11",
+                    "term",
+                    "score");
+            stringBuilder.append("\n");
+
+            Map<String, Double> result = textRankAnalyser.calculateTextRankSentences(bodyContentHandler, 35);
+            int currentLine = 0;
+            for (String key : result.keySet()) {
+                if (currentLine++ > maxLines) {
+                    break;
+                }
+                formatter.format("%1$35s --> %2$.13f",
+                        key,
+                        result.get(key));
+                stringBuilder.append("\n");
+
+            }
+            formatter.close();
+            System.out.println(stringBuilder.toString());
+
+        } catch (Exception exception) {
+
+            logger.error(exception.getMessage(), exception);
+        }
+
+    }
+
     /**
      * this method store results of tfidf calculation in separate files
      *
@@ -295,9 +333,10 @@ public class KeywordApplication {
 
     public static void main(String[] args) {
 
-        getTextRankResults(100);
-        getBothResult(100);
-        getTextRankResults(100);
+        getTextRankSentencesResults();
+        // getTextRankResults(100);
+        // getBothResult(100);
+        // getTFIDFResults(100);
     }
 
 }
