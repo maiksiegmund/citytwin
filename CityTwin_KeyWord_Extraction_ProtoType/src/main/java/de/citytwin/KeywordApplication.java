@@ -300,6 +300,43 @@ public class KeywordApplication {
 
     }
 
+    public static void getTextRankNeighbourResults() {
+        StringBuilder stringBuilder = new StringBuilder();
+        try {
+            int maxLines = 10;
+
+            DocumentConverter documentConverter = new DocumentConverter(getFiles().get(0));
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
+            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+
+            formatter.format("%1$35s --> %2$s11",
+                    "term",
+                    "score");
+            stringBuilder.append("\n");
+
+            Map<String, Double> result = textRankAnalyser.getKeywordLinks(bodyContentHandler, 3);
+            int currentLine = 0;
+            for (String key : result.keySet()) {
+                if (currentLine++ > maxLines) {
+                    break;
+                }
+                formatter.format("%1$35s --> %2$.13f",
+                        key,
+                        result.get(key));
+                stringBuilder.append("\n");
+
+            }
+            formatter.close();
+            System.out.println(stringBuilder.toString());
+
+        } catch (Exception exception) {
+
+            logger.error(exception.getMessage(), exception);
+        }
+
+    }
+
     /**
      * this method store results of tfidf calculation in separate files
      *
@@ -334,10 +371,11 @@ public class KeywordApplication {
 
     public static void main(String[] args) {
 
-        getTextRankSentencesResults();
+        // getTextRankSentencesResults();
         // getTextRankResults(100);
         // getBothResult(100);
         // getTFIDFResults(100);
+        getTextRankNeighbourResults();
     }
 
 }

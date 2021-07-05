@@ -144,13 +144,30 @@ public class TextRankAnalyser {
 
                 }
             }
-            // to do check calculation
-            // set simple matrix
             index = 0;
             for (String key : values.keySet()) {
                 matrix[indexOfTerm.get(key)] = values.get(key);
             }
+        }
 
+        /**
+         * this method normlise an vector
+         *
+         * @param {@code Double[]}
+         * @return {@code Double[]}
+         */
+        private Double[] normVector(final Double[] vector) {
+            Double[] results = new Double[vector.length];
+            double length = 0.0d;
+            for (Double value : vector) {
+                length += value * value;
+            }
+            length = Math.sqrt(length);
+            for (int index = 0; index < results.length; index++) {
+                results[index] = (1.0 / length) * vector[index];
+            }
+
+            return results;
         }
 
         /**
@@ -194,6 +211,7 @@ public class TextRankAnalyser {
     private GermanTextProcessing textProcessing;
     private boolean isOpenNLP = false;
     private boolean withMatrixNormalize = false;
+    private boolean withVectorNormalize = false;
 
     /**
      * Konstruktor.
@@ -229,7 +247,8 @@ public class TextRankAnalyser {
         for (String sentence : sentencesLeft) {
             graph.addVertex(sentence);
             List<String> splitedTerms = (isOpenNLP) ? textProcessing.tokenizeOpenNLP(sentence) : textProcessing.tokenizeLucene(sentence);
-            splited.put(sentence, splitedTerms);
+            List<String> filtered = textProcessing.filterByStopWords(splitedTerms);
+            splited.put(sentence, filtered);
         }
 
         for (String sentenceLeft : sentencesLeft) {
@@ -237,8 +256,9 @@ public class TextRankAnalyser {
                 if (!sentenceLeft.equals(sentenceRight)) {
                     similartity = getSimilartity(splited.get(sentenceLeft), splited.get(sentenceRight));
                     DefaultWeightedEdge defaultWeightedEdge = new DefaultWeightedEdge();
-                    graph.addEdge(sentenceLeft, sentenceRight, defaultWeightedEdge);
-                    graph.setEdgeWeight(defaultWeightedEdge, similartity);
+                    if (graph.addEdge(sentenceLeft, sentenceRight, defaultWeightedEdge)) {
+                        graph.setEdgeWeight(defaultWeightedEdge, similartity);
+                    }
                 }
             }
         }
@@ -302,11 +322,13 @@ public class TextRankAnalyser {
         this.textRankMatrix = new TextRankMatrix(graph, this.withMatrixNormalize);
         Map<String, Double> results = new HashMap<String, Double>(textRankMatrix.getValues().size());
         Double[] columnVector = new Double[textRankMatrix.getValues().size()];
+        Double[] tempVector = new Double[textRankMatrix.getValues().size()];
         Double[] rowVector = null;
         Double value = 0.0d;
         int index = 0;
         for (int i = 0; i < columnVector.length; i++) {
             columnVector[i] = 1.0d;
+            tempVector[i] = 1.0d;
         }
 
         for (int currentInteration = 0; currentInteration < iteration; currentInteration++) {
@@ -314,9 +336,11 @@ public class TextRankAnalyser {
             for (String key : textRankMatrix.values.keySet()) {
                 rowVector = textRankMatrix.values.get(key);
                 value = textRankMatrix.scalarProduct(rowVector, columnVector);
-                columnVector[index++] = (1 - d) + d * (value);
-
+                // avoid circle dependency
+                tempVector[index++] = (1 - d) + d * (value);
             }
+            // avoid number overflowF
+            columnVector = (withVectorNormalize) ? textRankMatrix.normVector(tempVector) : tempVector.clone();
             logger.info(MessageFormat.format("iteration {0} of {1}.", currentInteration, iteration));
         }
         index = 0;
@@ -336,6 +360,7 @@ public class TextRankAnalyser {
     public Map<String, Double> calculateTextRank(BodyContentHandler bodyContentHandler, @Nullable Integer wordWindowSize, @Nullable Integer iteration)
             throws IOException {
 
+        this.withVectorNormalize = false;
         int currentwordWindowsSize = (wordWindowSize == null) ? wordWindowSize : 4;
         int currentIeteration = (iteration == null) ? iteration : 30;
         double d = 0.85d;
@@ -358,12 +383,58 @@ public class TextRankAnalyser {
 
         double d = 0.85d;
         this.withMatrixNormalize = false;
+        this.withVectorNormalize = true;
         int currentIeteration = (iteration == null) ? iteration : 30;
         graph = buildGraph(bodyContentHandler);
         Map<String, Double> scores = calculateScore(d, currentIeteration);
         Map<String, Double> result = sortbyValue(scores);
         return result;
+    }
 
+    /**
+     * this method calculate scores of keywords and get there linked Keywords <br>
+     * example maxLinks = 3; <br>
+     * word(-3) --> word(-2) --> word(-1) --> keyword <-- word(1) <-- word(2) <-- word(3)
+     *
+     * @param bodyContentHandler
+     * @param maxLinks
+     * @return {@codd Map<String, Double>} (word(-3) --> word(-2) --> word(-1) --> keyword <-- word(1) <-- word(2) <-- word(3) : score)
+     * @throws IOException
+     */
+    public Map<String, Double> getLinkedKeyword(BodyContentHandler bodyContentHandler, @Nullable Integer maxLinks) throws IOException {
+
+        StringBuilder stringBuilder = new StringBuilder();
+        Map<String, Double> result = new HashMap<String, Double>();
+        Map<String, Double> textRank = calculateTextRank(bodyContentHandler, 4, 20);
+        int max = (maxLinks == null) ? 3 : maxLinks;
+        for (Map.Entry<String, Double> entry : textRank.entrySet()) {
+            // seeking vertices
+            Set<DefaultWeightedEdge> outEdges = graph.outgoingEdgesOf(entry.getKey());
+            Set<DefaultWeightedEdge> inEdges = graph.incomingEdgesOf(entry.getKey());
+            int count = 0;
+            for (DefaultWeightedEdge defaultWeightedEdge : inEdges) {
+                if (count++ > max) {
+                    break;
+                }
+                graph.getEdgeSource(defaultWeightedEdge);
+                stringBuilder.append(graph.getEdgeSource(defaultWeightedEdge));
+                stringBuilder.append(" --> ");
+            }
+            stringBuilder.append(entry.getKey());
+            count = 0;
+            for (DefaultWeightedEdge defaultWeightedEdge : outEdges) {
+                if (count++ > max) {
+                    break;
+                }
+                graph.getEdgeSource(defaultWeightedEdge);
+                stringBuilder.append(" <-- ");
+                stringBuilder.append(graph.getEdgeTarget(defaultWeightedEdge));
+
+            }
+            result.put(stringBuilder.toString(), textRank.get(entry.getKey()));
+            stringBuilder.delete(0, stringBuilder.toString().length());
+        }
+        return sortbyValue(result);
     }
 
     //
@@ -379,7 +450,6 @@ public class TextRankAnalyser {
             return 0.0d;
         }
         double countOfTermInBothList = 0;
-        Double result = 0.0d;
 
         // leftTerms = textProcessing.filterByStopWords(leftTerms);
         // rightTerms = textProcessing.filterByStopWords(rightTerms);
@@ -395,8 +465,16 @@ public class TextRankAnalyser {
                 countOfTermInBothList++;
             }
         }
-        result = countOfTermInBothList / (Math.log10(lefts.size()) + Math.log10(rights.size()));
-        return result;
+        if (countOfTermInBothList < 1.0d) {
+            return 0.0d;
+        }
+
+        double leftSize = lefts.size();
+        double rightSize = rights.size();
+        leftSize = (leftSize > 1.9d) ? Math.log10(leftSize) : 0.0d;
+        rightSize = (rightSize > 1.9d) ? Math.log10(rightSize) : 0.0d;
+        return (leftSize + rightSize > 0.0d) ? countOfTermInBothList / (leftSize + rightSize) : 0.0d;
+
     }
 
     /**
