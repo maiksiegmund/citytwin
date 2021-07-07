@@ -175,60 +175,6 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method calculate term frequency and inverse document frequency <br>
-     *
-     * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
-     * @param bodyContentHandler {@link BodyContentHandler}
-     * @param tagFilters {@code List<String> }
-     * @param type {@link TFIDFTextAnalyser#NormalizationType}
-     * @return new reference of {@code  Map<String, Quartet<Integer, Double, String, Set<Integer>>>} <br>
-     *         (term : countOfTerm, score, sentenceIndex)
-     * @throws IOException
-     */
-    public Map<String, Quartet<Integer, Double, String, Set<Integer>>> calculateTFIDF(
-            final BodyContentHandler bodyContentHandler, @Nullable final List<String> tagFilters,
-            TFIDFTextAnalyser.NormalizationType type) throws IOException {
-
-        DocumentCount result = new DocumentCount();
-
-        DocumentCount rawCount = transformText(bodyContentHandler);
-        rawCount = (withStemming) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
-        DocumentCount tf = null;
-        tf = calculateTF(rawCount);
-        switch(type) {
-            case DOUBLE:
-                tf = doubleNormalizationTermFrequency(tf, 0.5);
-                break;
-            case LOG:
-                tf = logNormalizationTermFrequency(tf);
-                break;
-            case NONE:
-            default:
-                break;
-        }
-        DocumentCount idf = calculateIDF(tf);
-        result = calculateTFIDF(tf, idf);
-        if (tagFilters == null || tagFilters.size() == 0) {
-            return sortbyValue(result.terms, true);
-        }
-
-        Map<String, Quartet<Integer, Double, String, Set<Integer>>> filterd = new HashMap<>();
-
-        for (String tagFilter : tagFilters) {
-            for (String term : result.terms.keySet()) {
-                String wordPosTag = result.terms.get(term).getValue2();
-                if (wordPosTag.equals(tagFilter)) {
-                    filterd.put(term, result.terms.get(term));
-
-                }
-            }
-        }
-
-        return sortbyValue(filterd, true);
-
-    }
-
-    /**
      * This method calculate tfidf. <br>
      * equation <strong> fidf(t,d,D) = tf(t,d) * idf(t,D) </strong>
      *
@@ -362,6 +308,60 @@ public class TFIDFTextAnalyser {
         result.terms = result.terms;
 
         return getRawCount(result);
+    }
+
+    /**
+     * This method calculate term frequency and inverse document frequency <br>
+     *
+     * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
+     * @param bodyContentHandler {@link BodyContentHandler}
+     * @param tagFilters {@code List<String> }
+     * @param type {@link TFIDFTextAnalyser#NormalizationType}
+     * @return new reference of {@code  Map<String, Quartet<Integer, Double, String, Set<Integer>>>} <br>
+     *         (term : countOfTerm, score, sentenceIndex)
+     * @throws IOException
+     */
+    public Map<String, Quartet<Integer, Double, String, Set<Integer>>> getTermsAndScores(
+            final BodyContentHandler bodyContentHandler, @Nullable final List<String> tagFilters,
+            TFIDFTextAnalyser.NormalizationType type) throws IOException {
+
+        DocumentCount result = new DocumentCount();
+
+        DocumentCount rawCount = transformText(bodyContentHandler);
+        rawCount = (withStemming) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
+        DocumentCount tf = null;
+        tf = calculateTF(rawCount);
+        switch(type) {
+            case DOUBLE:
+                tf = doubleNormalizationTermFrequency(tf, 0.5);
+                break;
+            case LOG:
+                tf = logNormalizationTermFrequency(tf);
+                break;
+            case NONE:
+            default:
+                break;
+        }
+        DocumentCount idf = calculateIDF(tf);
+        result = calculateTFIDF(tf, idf);
+        if (tagFilters == null || tagFilters.size() == 0) {
+            return sortbyValue(result.terms, true);
+        }
+
+        Map<String, Quartet<Integer, Double, String, Set<Integer>>> filterd = new HashMap<>();
+
+        for (String tagFilter : tagFilters) {
+            for (String term : result.terms.keySet()) {
+                String wordPosTag = result.terms.get(term).getValue2();
+                if (wordPosTag.equals(tagFilter)) {
+                    filterd.put(term, result.terms.get(term));
+
+                }
+            }
+        }
+
+        return sortbyValue(filterd, true);
+
     }
 
     /**

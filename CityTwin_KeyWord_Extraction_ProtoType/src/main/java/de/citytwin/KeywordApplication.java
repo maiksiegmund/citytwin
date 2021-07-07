@@ -47,7 +47,7 @@ public class KeywordApplication {
                     "score");
             stringBuilder.append("\n");
 
-            Map<String, Double> result = textRankAnalyser.calculateTextRank(bodyContentHandler, 5, 35);
+            Map<String, Double> result = textRankAnalyser.getTermsAndScores(bodyContentHandler, 5, 35);
             int currentLine = 0;
             for (String key : result.keySet()) {
                 if (currentLine++ > maxLines) {
@@ -71,6 +71,90 @@ public class KeywordApplication {
     }
 
     /**
+     * this method return term, them linked other terms and his score calculated by textRank
+     *
+     * @param file
+     * @param maxLines
+     * @return new reference of {@code StringBuilder}
+     */
+    private static StringBuilder calculateTextRankPairTerms(File file, int maxLines) {
+        StringBuilder stringBuilder = new StringBuilder();
+        try {
+
+            DocumentConverter documentConverter = new DocumentConverter(file);
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
+            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+
+            formatter.format("%1$160s --> %2$s11",
+                    "term",
+                    "score");
+            stringBuilder.append("\n");
+
+            Map<String, Double> result = textRankAnalyser.getPairTermsAndScores(bodyContentHandler, 3);
+            int currentLine = 0;
+            for (String key : result.keySet()) {
+                if (currentLine++ > maxLines) {
+                    break;
+                }
+                formatter.format("%1$160s --> %2$.13f",
+                        key,
+                        result.get(key));
+                stringBuilder.append("\n");
+
+            }
+            formatter.close();
+            return stringBuilder;
+
+        } catch (Exception exception) {
+
+            logger.error(exception.getMessage(), exception);
+        }
+        return stringBuilder;
+
+    }
+
+    /**
+     * this method calculate textRank score for each sentence in a textcorpus and return them.
+     *
+     * @param file
+     * @param maxLines
+     * @return new reference of {@code StringBuilder}
+     */
+    private static StringBuilder calculateTextRankSentencesResults(File file, int maxLines) {
+        StringBuilder stringBuilder = new StringBuilder();
+        try {
+
+            DocumentConverter documentConverter = new DocumentConverter(file);
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
+            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+
+            Map<String, Double> result = textRankAnalyser.getSentencesAndScores(bodyContentHandler, 35);
+            int currentLine = 0;
+            for (String key : result.keySet()) {
+                if (currentLine++ > maxLines) {
+                    break;
+                }
+
+                formatter.format("score --> %1$f11", result.get(key));
+                stringBuilder.append("\n");
+                stringBuilder.append(key);
+                stringBuilder.append("\n");
+
+            }
+            formatter.close();
+            return stringBuilder;
+
+        } catch (Exception exception) {
+
+            logger.error(exception.getMessage(), exception);
+        }
+        return stringBuilder;
+
+    }
+
+    /**
      * this method calculate tfidf score an return theme in a stringbuilder
      *
      * @param {@code File}
@@ -91,7 +175,7 @@ public class KeywordApplication {
 
             DocumentConverter documentConverter = new DocumentConverter(file);
             bodyContentHandler = documentConverter.getBodyContentHandler();
-            results = tfidfTextAnalyser.calculateTFIDF(bodyContentHandler,
+            results = tfidfTextAnalyser.getTermsAndScores(bodyContentHandler,
                     GermanTextProcessing.getPosTagList(),
                     TFIDFTextAnalyser.NormalizationType.NONE);
             // caption
@@ -137,9 +221,9 @@ public class KeywordApplication {
                 BodyContentHandler bobBodyContentHandler = documentConverter.getBodyContentHandler();
 
                 Map<String, Quartet<Integer, Double, String, Set<Integer>>> tfidfresults = tdTfidfTextAnalyser
-                        .calculateTFIDF(bobBodyContentHandler, null, TFIDFTextAnalyser.NormalizationType.NONE);
+                        .getTermsAndScores(bobBodyContentHandler, null, TFIDFTextAnalyser.NormalizationType.NONE);
 
-                Map<String, Double> textRankResult = textRankAnalyser.calculateTextRank(bobBodyContentHandler, 4, 15);
+                Map<String, Double> textRankResult = textRankAnalyser.getTermsAndScores(bobBodyContentHandler, 4, 15);
                 formatter.format("%1$35s --> %2$15s --> %3$15s",
                         "term",
                         "tfidf-score",
@@ -205,15 +289,13 @@ public class KeywordApplication {
         results.add(new File(INPUT_FOLDER + "einlegeblatt_gruenanlagensanierung.docx"));
         results.add(new File(INPUT_FOLDER + "festsetzungbegruendung-xvii-50aa.pdf"));
         results.add(new File(INPUT_FOLDER + "mdb-beg4b_004.pdf"));
-        results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
         results.add(new File(INPUT_FOLDER + "StEPWohnen2030-Langfassung.pdf"));
         results.add(new File(INPUT_FOLDER + "Strategie_Smart_City_Berlin.pdf"));
         results.add(new File(INPUT_FOLDER + "Strategie-Stadtlandschaft-Berlin.pdf"));
         results.add(new File(INPUT_FOLDER + "UVPG.pdf"));
+        results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
         results.add(new File(INPUT_FOLDER + "Wasseratlas.pdf"));
-        // results.add(new File(INPUT_FOLDER + "testdata_german.txt"));
-        // results.add(new File(INPUT_FOLDER + "testdata_german_simple.txt"));
-
+        results.add(new File(INPUT_FOLDER + "TG0100061100201300.xls"));
         return results;
 
     }
@@ -241,6 +323,31 @@ public class KeywordApplication {
     }
 
     /**
+     * this method store results of TextRankPairTerms calculation in separate files
+     *
+     * @param maxLines
+     */
+    public static void getTextRankPairTermResults(int maxLines) {
+
+        StringBuilder stringBuilder = null;
+
+        try {
+            for (File file : getFiles()) {
+                stringBuilder = KeywordApplication.calculateTextRankPairTerms(file, maxLines);
+                File outputFolder = getOutputFolder("textRankPairTerms");
+                File resultfile = new File(outputFolder, "textRankPairTerms_" + file.getName() + ".txt");
+                BufferedWriter writer = new BufferedWriter(
+                        new BufferedWriter(new FileWriter(resultfile, false)));
+                writer.write(stringBuilder.toString());
+                writer.close();
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
+
+    }
+
+    /**
      * this method store results of textRankcalculation in separate files
      *
      * @param maxLines
@@ -263,76 +370,27 @@ public class KeywordApplication {
         }
     }
 
-    public static void getTextRankSentencesResults() {
-        StringBuilder stringBuilder = new StringBuilder();
+    /**
+     * this method store results of TextRankPairTerms calculation in separate files
+     *
+     * @param maxLines
+     */
+    public static void getTextRankSentencesResults(int maxLines) {
+
+        StringBuilder stringBuilder = null;
+
         try {
-            int maxLines = 10;
-
-            DocumentConverter documentConverter = new DocumentConverter(getFiles().get(0));
-            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
-            TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
-            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-
-            formatter.format("%1$35s --> %2$s11",
-                    "term",
-                    "score");
-            stringBuilder.append("\n");
-
-            Map<String, Double> result = textRankAnalyser.calculateTextRankSentences(bodyContentHandler, 1);
-            int currentLine = 0;
-            for (String key : result.keySet()) {
-                if (currentLine++ > maxLines) {
-                    break;
-                }
-                formatter.format("%1$35s --> %2$.13f",
-                        key,
-                        result.get(key));
-                stringBuilder.append("\n");
-
+            for (File file : getFiles()) {
+                stringBuilder = KeywordApplication.calculateTextRankSentencesResults(file, maxLines);
+                File outputFolder = getOutputFolder("textRankSentences");
+                File resultfile = new File(outputFolder, "textRankSentences_" + file.getName() + ".txt");
+                BufferedWriter writer = new BufferedWriter(
+                        new BufferedWriter(new FileWriter(resultfile, false)));
+                writer.write(stringBuilder.toString());
+                writer.close();
             }
-            formatter.close();
-            System.out.println(stringBuilder.toString());
-
-        } catch (Exception exception) {
-
-            logger.error(exception.getMessage(), exception);
-        }
-
-    }
-
-    public static void getTextRankNeighbourResults() {
-        StringBuilder stringBuilder = new StringBuilder();
-        try {
-            int maxLines = 10;
-
-            DocumentConverter documentConverter = new DocumentConverter(getFiles().get(0));
-            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
-            TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
-            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-
-            formatter.format("%1$35s --> %2$s11",
-                    "term",
-                    "score");
-            stringBuilder.append("\n");
-
-            Map<String, Double> result = textRankAnalyser.getKeywordLinks(bodyContentHandler, 3);
-            int currentLine = 0;
-            for (String key : result.keySet()) {
-                if (currentLine++ > maxLines) {
-                    break;
-                }
-                formatter.format("%1$35s --> %2$.13f",
-                        key,
-                        result.get(key));
-                stringBuilder.append("\n");
-
-            }
-            formatter.close();
-            System.out.println(stringBuilder.toString());
-
-        } catch (Exception exception) {
-
-            logger.error(exception.getMessage(), exception);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
 
     }
@@ -371,11 +429,12 @@ public class KeywordApplication {
 
     public static void main(String[] args) {
 
-        // getTextRankSentencesResults();
-        // getTextRankResults(100);
-        // getBothResult(100);
-        // getTFIDFResults(100);
-        getTextRankNeighbourResults();
+        getTextRankResults(100);
+        getBothResult(100);
+        getTFIDFResults(100);
+        getTextRankSentencesResults(100);
+        getTextRankPairTermResults(100);
+
     }
 
 }

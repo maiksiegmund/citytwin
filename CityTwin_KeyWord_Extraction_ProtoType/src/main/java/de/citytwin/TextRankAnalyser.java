@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 public class TextRankAnalyser {
 
     /**
-     * This inner class represent textrankmatrix only use here. used as struct ... contains a graph and there adjazenz matrix
+     * This inner class represent textrankmatrix only use here. used as struct ... contains a graph and this adjazenz matrix
      *
      * @author ma6284si, FH Erfurt
      * @version $Revision: 1.0 $
@@ -44,10 +44,23 @@ public class TextRankAnalyser {
     public class TextRankMatrix {
 
         public final transient Graph<String, DefaultWeightedEdge> graph;
-
+        // hold indexes of terms (in Map<K,V> add sequence does not correspond like stack or list)
         private Map<String, Integer> indexOfTerm;
+        // simple adjazenz matrix with out term information
         private Double[][] matrix;
+        // adjazenz matrix with term information
+        //
+        // term_1 (Double, Double, Double ,Double ,Double ,Double, Double)
+        // term_2 (Double, Double, Double ,Double ,Double ,Double, Double)
+        // term_3 (Double, Double, Double ,Double ,Double ,Double, Double)
+        // . (Double, Double, Double ,Double ,Double ,Double, Double)
+        // . (Double, Double, Double ,Double ,Double ,Double, Double)
+        // . (Double, Double, Double ,Double ,Double ,Double, Double)
+        // term_N (Double, Double, Double ,Double ,Double ,Double, Double)
+        //
+        //
         private Map<String, Double[]> values;
+        // normalize matrix
         private boolean withNormalize = false;
 
         /**
@@ -75,19 +88,6 @@ public class TextRankAnalyser {
          */
         public Double[][] getMatrix() {
             return matrix;
-        }
-
-        /**
-         * @param edge {@code DefaultEdge}
-         * @return {@code String} target of DefaultEdge
-         */
-        private String getTarget(DefaultWeightedEdge edge) {
-            // return "(" + source + " : " + target + ")";
-            String temp = edge.toString();
-            int start = temp.indexOf(" : ") + " : ".length();
-            int end = temp.indexOf(")");
-            temp = temp.substring(start, end);
-            return temp;
         }
 
         /**
@@ -131,30 +131,30 @@ public class TextRankAnalyser {
             }
 
             index = 0;
-            // calculate out edges
+            // calculate out going edges
             iterator = new DepthFirstIterator<>(graph);
             while (iterator.hasNext()) {
                 term = iterator.next();
                 edges = graph.outgoingEdgesOf(term);
-                weight = sumEdgeWeights(edges);
                 Double[] tempArray = values.get(term);
                 for (DefaultWeightedEdge edge : edges) {
                     int tempIndex = indexOfTerm.get(graph.getEdgeTarget(edge));
-                    tempArray[tempIndex] = (withNormalize) ? (1 / weight) : graph.getEdgeWeight(edge);
+                    tempArray[tempIndex] = (withNormalize) ? (1 / sumEdgeWeights(edges)) : graph.getEdgeWeight(edge);
 
                 }
             }
             index = 0;
+            // set simple adjazenz matrix
             for (String key : values.keySet()) {
                 matrix[indexOfTerm.get(key)] = values.get(key);
             }
         }
 
         /**
-         * this method normlise an vector
+         * this method normalize an vector
          *
          * @param {@code Double[]}
-         * @return {@code Double[]}
+         * @return new reference of {@code Double[]}
          */
         private Double[] normVector(final Double[] vector) {
             Double[] results = new Double[vector.length];
@@ -171,7 +171,8 @@ public class TextRankAnalyser {
         }
 
         /**
-         * this method calculate dot / scalar- product
+         * this method calculate dot / scalar- product <br>
+         * row and column have to same size, no check only for intern use
          *
          * @param rowVector
          * @param columnVector
@@ -187,10 +188,10 @@ public class TextRankAnalyser {
         }
 
         /**
-         * this method sum edge weights
+         * this method sum edge weights (DEFAULT_EDGE_WEIGHT is 1.0d)
          *
          * @param edges
-         * @return
+         * @return {@code Double}
          */
         private Double sumEdgeWeights(Set<DefaultWeightedEdge> edges) {
             Double result = 0.0d;
@@ -206,7 +207,9 @@ public class TextRankAnalyser {
     private static final String VERSION = "$Revision: 1.00 $";
     private static final double DEFAULT_EDGE_WEIGHT = 1.0d;
 
+    // weigted graph, set by this.calculateScore(...)
     private Graph<String, DefaultWeightedEdge> graph = null;
+    // matrix set by this.calculateScore(...)
     private TextRankMatrix textRankMatrix = null;
     private GermanTextProcessing textProcessing;
     private boolean isOpenNLP = false;
@@ -234,7 +237,7 @@ public class TextRankAnalyser {
      * @throws IOException
      */
     private Graph<String, DefaultWeightedEdge> buildGraph(BodyContentHandler bodyContentHandler) throws IOException {
-        Graph<String, DefaultWeightedEdge> graph = new SimpleDirectedWeightedGraph<>(DefaultWeightedEdge.class);
+        Graph<String, DefaultWeightedEdge> result = new SimpleDirectedWeightedGraph<>(DefaultWeightedEdge.class);
 
         Double similartity = 0.0d;
 
@@ -245,7 +248,7 @@ public class TextRankAnalyser {
 
         // add vertices and split
         for (String sentence : sentencesLeft) {
-            graph.addVertex(sentence);
+            result.addVertex(sentence);
             List<String> splitedTerms = (isOpenNLP) ? textProcessing.tokenizeOpenNLP(sentence) : textProcessing.tokenizeLucene(sentence);
             List<String> filtered = textProcessing.filterByStopWords(splitedTerms);
             splited.put(sentence, filtered);
@@ -256,26 +259,32 @@ public class TextRankAnalyser {
                 if (!sentenceLeft.equals(sentenceRight)) {
                     similartity = getSimilartity(splited.get(sentenceLeft), splited.get(sentenceRight));
                     DefaultWeightedEdge defaultWeightedEdge = new DefaultWeightedEdge();
-                    if (graph.addEdge(sentenceLeft, sentenceRight, defaultWeightedEdge)) {
-                        graph.setEdgeWeight(defaultWeightedEdge, similartity);
+                    if (result.addEdge(sentenceLeft, sentenceRight, defaultWeightedEdge)) {
+                        result.setEdgeWeight(defaultWeightedEdge, similartity);
                     }
                 }
             }
         }
-
-        return graph;
+        logger.info(MessageFormat.format("graph completed contains {0} nodes.", result.vertexSet().size()));
+        return result;
 
     }
 
     /**
-     * this method build a graph by tankrank algorithm terms are Vertices
+     * this method build a graph by textrank algorithm terms are Vertices
      *
-     * @param senetences
-     * @param wordWindowsSize
+     * @param senetences {@code List<List<String>> senetences} <br>
+     *            ({[term_0], [term_1], [term_2], [term_3]}, {[term_0], [term_1], [term_2], [term_3], [term_N]},{ ... })
+     * @param wordWindowsSize <br>
+     *            example <br>
+     *            wordwindowsSize = 4 and sentence_I ([term_0], [term_1], [term_2], [term_3], [term_4], [term_5], [term_N]) <br>
+     *            first iteration take [term_0], [term_1], [term_2], [term_3] of sentence_I <br>
+     *            next iteration take [term_1], [term_2], [term_3], [term_4] of sentence_I <br>
+     *            last iteration take [term_N-3], [term_N-2], [term_N-1], [term_N] of sentence_I <br>
+     *            take in first iteration [term_1], [term_2], [term_3], [term_4]
      * @return new reference of {@code Graph<String, DefaultEdge>}
      */
     private Graph<String, DefaultWeightedEdge> buildGraph(List<List<String>> senetences, int wordWindowsSize) {
-        // Graph<String, DefaultEdge> result = new DirectedMultigraph<>(DefaultEdge.class);
         Graph<String, DefaultWeightedEdge> result = new SimpleDirectedWeightedGraph<>(DefaultWeightedEdge.class);
         String[] wordwindow = new String[wordWindowsSize]; // holds vertices
         String vertex = "";
@@ -293,7 +302,7 @@ public class TextRankAnalyser {
                 // create word pairs and link theme (add edge)
                 for (int windowIndex = 0; windowIndex < wordWindowsSize; ++windowIndex) {
                     for (int slidingWindowIndex = windowIndex + 1; slidingWindowIndex < wordWindowsSize; ++slidingWindowIndex) {
-                        // avoid graph circles, sometimes heading and sentence start with same term and will be combine,
+                        // avoid graph loops, sometimes heading and sentence start with same term and will be combine,
                         if (!wordwindow[windowIndex].equals(wordwindow[slidingWindowIndex])) {
                             DefaultWeightedEdge edge = result.addEdge(wordwindow[windowIndex], wordwindow[slidingWindowIndex]);
                             if (edge != null) {
@@ -352,47 +361,7 @@ public class TextRankAnalyser {
     }
 
     /**
-     * @param bodyContentHandler
-     * @param wordWindowSize by default 4
-     * @param iteration by default 30
-     * @throws IOException
-     */
-    public Map<String, Double> calculateTextRank(BodyContentHandler bodyContentHandler, @Nullable Integer wordWindowSize, @Nullable Integer iteration)
-            throws IOException {
-
-        this.withVectorNormalize = false;
-        int currentwordWindowsSize = (wordWindowSize == null) ? wordWindowSize : 4;
-        int currentIeteration = (iteration == null) ? iteration : 30;
-        double d = 0.85d;
-        this.withMatrixNormalize = true;
-        List<List<String>> textCorpus = transformText(bodyContentHandler, currentwordWindowsSize);
-        this.graph = buildGraph(textCorpus, currentwordWindowsSize);
-        Map<String, Double> scores = calculateScore(d, currentIeteration);
-        Map<String, Double> result = sortbyValue(scores);
-        return result;
-    }
-
-    /**
-     * this method does textrank for sentence extraction
-     *
-     * @param bodyContentHandler
-     * @return
-     * @throws IOException
-     */
-    public Map<String, Double> calculateTextRankSentences(BodyContentHandler bodyContentHandler, @Nullable Integer iteration) throws IOException {
-
-        double d = 0.85d;
-        this.withMatrixNormalize = false;
-        this.withVectorNormalize = true;
-        int currentIeteration = (iteration == null) ? iteration : 30;
-        graph = buildGraph(bodyContentHandler);
-        Map<String, Double> scores = calculateScore(d, currentIeteration);
-        Map<String, Double> result = sortbyValue(scores);
-        return result;
-    }
-
-    /**
-     * this method calculate scores of keywords and get there linked Keywords <br>
+     * this method calculate a score for terms with textRank algorithm and get other linked terms of this term <br>
      * example maxLinks = 3; <br>
      * word(-3) --> word(-2) --> word(-1) --> keyword <-- word(1) <-- word(2) <-- word(3)
      *
@@ -401,11 +370,11 @@ public class TextRankAnalyser {
      * @return {@codd Map<String, Double>} (word(-3) --> word(-2) --> word(-1) --> keyword <-- word(1) <-- word(2) <-- word(3) : score)
      * @throws IOException
      */
-    public Map<String, Double> getLinkedKeyword(BodyContentHandler bodyContentHandler, @Nullable Integer maxLinks) throws IOException {
+    public Map<String, Double> getPairTermsAndScores(BodyContentHandler bodyContentHandler, @Nullable Integer maxLinks) throws IOException {
 
         StringBuilder stringBuilder = new StringBuilder();
         Map<String, Double> result = new HashMap<String, Double>();
-        Map<String, Double> textRank = calculateTextRank(bodyContentHandler, 4, 20);
+        Map<String, Double> textRank = getTermsAndScores(bodyContentHandler, 4, 20);
         int max = (maxLinks == null) ? 3 : maxLinks;
         for (Map.Entry<String, Double> entry : textRank.entrySet()) {
             // seeking vertices
@@ -437,12 +406,34 @@ public class TextRankAnalyser {
         return sortbyValue(result);
     }
 
+    /**
+     * this method calculate a score for sentences with textRank algorithm
+     *
+     * @param bodyContentHandler
+     * @param iteration
+     * @return new reference of {@code Map<String, Double>} (sentences : score)
+     * @throws IOException
+     */
+    public Map<String, Double> getSentencesAndScores(BodyContentHandler bodyContentHandler, @Nullable Integer iteration) throws IOException {
+
+        double d = 0.85d;
+        this.withMatrixNormalize = false;
+        this.withVectorNormalize = true;
+        int currentIeteration = (iteration == null) ? iteration : 30;
+        graph = buildGraph(bodyContentHandler);
+        Map<String, Double> scores = calculateScore(d, currentIeteration);
+        Map<String, Double> result = sortbyValue(scores);
+        return result;
+    }
+
     //
     /**
+     * this method calculate similartity between two sentences
+     *
      * @see <a href=https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf> textRank Paper, chapter 4</a>
-     * @param left
-     * @param right
-     * @return
+     * @param lefts {@code List<String>}
+     * @param rights {@code List<String>}
+     * @return similartity
      */
     private Double getSimilartity(List<String> lefts, List<String> rights) {
 
@@ -475,6 +466,30 @@ public class TextRankAnalyser {
         rightSize = (rightSize > 1.9d) ? Math.log10(rightSize) : 0.0d;
         return (leftSize + rightSize > 0.0d) ? countOfTermInBothList / (leftSize + rightSize) : 0.0d;
 
+    }
+
+    /**
+     * this method calculate a score for terms with textRank algorithm
+     *
+     * @param bodyContentHandler
+     * @param wordWindowSize by default 4
+     * @param iteration by default 30
+     * @return new reference of {@code Map<String, Double>} (term : score)
+     * @throws IOException
+     */
+    public Map<String, Double> getTermsAndScores(BodyContentHandler bodyContentHandler, @Nullable Integer wordWindowSize, @Nullable Integer iteration)
+            throws IOException {
+
+        this.withVectorNormalize = false;
+        int currentwordWindowsSize = (wordWindowSize == null) ? wordWindowSize : 4;
+        int currentIeteration = (iteration == null) ? iteration : 30;
+        double d = 0.85d;
+        this.withMatrixNormalize = true;
+        List<List<String>> textCorpus = transformText(bodyContentHandler, currentwordWindowsSize);
+        this.graph = buildGraph(textCorpus, currentwordWindowsSize);
+        Map<String, Double> scores = calculateScore(d, currentIeteration);
+        Map<String, Double> result = sortbyValue(scores);
+        return result;
     }
 
     /**
@@ -527,11 +542,8 @@ public class TextRankAnalyser {
 
     /**
      * this method, return a matrix as a formatted string <br>
-     * {@code if (N > 15) {return } return "matrix to large!"} <br>
-     * is for test
-     *
-     * @param textRankMatrix
-     * @return matrix
+     * {@code if (N > 15) {return "matrix to large!"} <br>
+     * is for test @param textRankMatrix @return matrix
      */
     public String matrixToString() {
 
@@ -625,6 +637,7 @@ public class TextRankAnalyser {
             }
 
         }
+        logger.info(MessageFormat.format("text corpus transformation completed contains {0} sentences ", results.size()));
         return results;
 
     }
