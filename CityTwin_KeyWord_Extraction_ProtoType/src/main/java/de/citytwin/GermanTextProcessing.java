@@ -335,6 +335,24 @@ public class GermanTextProcessing {
     }
 
     /**
+     * * This method split articles in each senteces by opennlp
+     *
+     * @param {@code List<String> articles}
+     * @return new reference{@code List<String>}
+     */
+    public List<String> tokenizeArticlesToSencences(final List<String> articles) {
+        List<String> results = new ArrayList<String>();
+        for (String atricle : articles) {
+            String[] sentences = sentenceDetector.sentDetect(atricle);
+            for (String sentence : sentences) {
+                results.add(sentence);
+            }
+        }
+        logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
+        return results;
+    }
+
+    /**
      * This method splits an sentence in each term by apache lucene
      *
      * @param sentence

@@ -427,13 +427,29 @@ public class KeywordApplication {
 
     }
 
+    public static void calculateWord2Vec() {
+
+        try {
+            String path = "D:\\vms\\sharedFolder\\wikidumps\\text\\AE";
+            String fileName = "\\wiki_31";
+            Word2VecAnalyser analyser = new Word2VecAnalyser();
+            File file = new File(path + fileName);
+            analyser.transforJsonText(file);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            logger.error(e.getMessage(), e);
+        }
+
+    }
+
     public static void main(String[] args) {
 
-        getTextRankResults(100);
-        getBothResult(100);
-        getTFIDFResults(100);
-        getTextRankSentencesResults(100);
-        getTextRankPairTermResults(100);
+        // getTextRankResults(100);
+        // getBothResult(100);
+        // getTFIDFResults(100);
+        // getTextRankSentencesResults(100);
+         getTextRankPairTermResults(100);
+        //calculateWord2Vec();
 
     }
 
