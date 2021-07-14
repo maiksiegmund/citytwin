@@ -11,7 +11,9 @@
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 		<jackson.version>2.12.4</jackson.version>
-		<spark.version>3.1.2</spark.version>
+		<!-- <spark.version>3.1.2</spark.version> -->
+		<dl4j-master.version>1.0.0-beta7</dl4j-master.version>
+		<nd4j.backend>nd4j-native</nd4j.backend>
 
 	</properties>
 
@@ -54,10 +56,58 @@
 			<version>${jackson.version}</version>
 		</dependency>
 
-		<!-- <dependency> <groupId>org.apache.spark</groupId> <artifactId>spark-mllib_2.12</artifactId> 
-			<version>${spark.version}</version> <scope>provided</scope> </dependency> 
-			<dependency> <groupId>org.apache.spark</groupId> <artifactId>spark-sql_2.12</artifactId> 
-			<version>${spark.version}</version> <scope>provided</scope> </dependency> -->
+		<dependency>
+			<groupId>org.deeplearning4j</groupId>
+			<artifactId>deeplearning4j-core</artifactId>
+			<version>1.0.0-M1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.nd4j</groupId>
+			<artifactId>nd4j-common</artifactId>
+			<version>1.0.0-M1</version>
+		</dependency>
+
+
+		<dependency>
+			<groupId>org.nd4j</groupId>
+			<artifactId>${nd4j.backend}</artifactId>
+			<version>${dl4j-master.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.deeplearning4j</groupId>
+			<artifactId>deeplearning4j-nlp</artifactId>
+			<version>1.0.0-M1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.nd4j</groupId>
+			<artifactId>nd4j-cuda-8.0-platform</artifactId>
+			<version>1.0.0-alpha</version>
+		</dependency>
+		<dependency>
+			<groupId>org.datavec</groupId>
+			<artifactId>datavec-api</artifactId>
+			<version>1.0.0-alpha</version>
+		</dependency>
+		<dependency>
+			<groupId>org.datavec</groupId>
+			<artifactId>datavec-local</artifactId>
+			<version>${dl4j-master.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.deeplearning4j</groupId>
+			<artifactId>deeplearning4j-datasets</artifactId>
+			<version>${dl4j-master.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.nd4j</groupId>
+			<artifactId>nd4j-native</artifactId>
+			<version>1.0.0-M1</version>
+		</dependency>
+
 
 	</dependencies>
 	<build>

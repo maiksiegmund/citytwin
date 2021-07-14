@@ -430,11 +430,11 @@ public class KeywordApplication {
     public static void calculateWord2Vec() {
 
         try {
-            String path = "D:\\vms\\sharedFolder\\wikidumps\\text\\AE";
+            String path = "D:\\Keyword extraction";
             String fileName = "\\wiki_31";
             Word2VecAnalyser analyser = new Word2VecAnalyser();
             File file = new File(path + fileName);
-            analyser.transforJsonText(file);
+            analyser.word2vec(file);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             logger.error(e.getMessage(), e);
@@ -448,8 +448,8 @@ public class KeywordApplication {
         // getBothResult(100);
         // getTFIDFResults(100);
         // getTextRankSentencesResults(100);
-         getTextRankPairTermResults(100);
-        //calculateWord2Vec();
+        // getTextRankPairTermResults(100);
+        calculateWord2Vec();
 
     }
 
