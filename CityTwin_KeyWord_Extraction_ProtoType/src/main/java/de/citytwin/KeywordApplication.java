@@ -434,8 +434,13 @@ public class KeywordApplication {
             // String path = "D:\\Keyword extraction";
             String fileName = "\\wiki_31";
             Word2VecAnalyser analyser = new Word2VecAnalyser();
-            File file = new File(path + fileName);
-            analyser.word2vec(file);
+            List<BodyContentHandler> bodyContentHandlers = new ArrayList<BodyContentHandler>();
+            for (File file : getFiles()) {
+                bodyContentHandlers.add(new DocumentConverter(file).getBodyContentHandler()) ;
+            }
+
+            analyser.getWord2Vec(bodyContentHandlers);
+
         } catch (Exception e) {
             // TODO Auto-generated catch block
             logger.error(e.getMessage(), e);

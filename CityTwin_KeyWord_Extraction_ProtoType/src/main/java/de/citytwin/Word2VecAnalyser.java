@@ -12,6 +12,8 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.tika.sax.BodyContentHandler;
+import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
 import org.deeplearning4j.models.word2vec.Word2Vec;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
 import org.deeplearning4j.text.sentenceiterator.SentencePreProcessor;
@@ -237,7 +239,7 @@ public class Word2VecAnalyser {
     private void initialize() throws IOException {
 
         textProcessing = new GermanTextProcessing();
-        // createDataset();
+
     }
 
     /**
@@ -247,7 +249,7 @@ public class Word2VecAnalyser {
      * @return new reference of {@code List<List<String>>}
      * @throws IOException
      */
-    public List<List<String>> transforJsonText(File jsonFile) throws IOException {
+    private List<List<String>> transforJsonText(File jsonFile) throws IOException {
         List<List<String>> results = new ArrayList<List<String>>();
         List<String> articles = getArticleTexts(jsonFile);
         List<String> sentences = textProcessing.tokenizeArticlesToSencences(articles);
@@ -258,48 +260,70 @@ public class Word2VecAnalyser {
 
     }
 
-    // private Dataset<Row> createDataset() {
-    //
-    // SparkSession spark = SparkSession
-    // .builder()
-    // .appName("JavaWord2VecExample")
-    // .getOrCreate();
-    //
-    // List<Row> data = Arrays.asList(
-    // RowFactory.create(Arrays.asList("Hi I heard about Spark".split(" "))),
-    // RowFactory.create(Arrays.asList("I wish Java could use case classes".split(" "))),
-    // RowFactory.create(Arrays.asList("Logistic regression models are neat".split(" "))));
-    // StructType schema = new StructType(new StructField[] {
-    // new StructField("text", new ArrayType(DataTypes.StringType, true), false, Metadata.empty())
-    // });
-    // return spark.createDataFrame(data, schema);
-    //
-    // }
+    private List<String> articles = new ArrayList<String>();
+    private List<String> stopWords = new ArrayList<String>();
+    private List<String> sentences = new ArrayList<String>();
+    private Word2Vec vec = null;
 
-    public void word2vec(File jsonFile) throws IOException {
+    /**
+     * this method set articles
+     *
+     * @param jsonFiles
+     * @throws IOException
+     */
+    private void transformText(List<BodyContentHandler> bodyContentHandlers) throws IOException {
 
-        List<String> stopWords = new ArrayList<String>();
-        stopWords.addAll(textProcessing.getStopwords());
-        List<String> sentences = this.getArticleTexts(jsonFile);
-
-        SentenceIterator iter = new CityTwinSentenceIterator(sentences);
-        // Split on white spaces in the line to get words
-        TokenizerFactory t = new CityTwinTokenizerFactory(this.textProcessing);
-
-        t.setTokenPreProcessor(new CityTwinTokenPreProcess());
-
-        Word2Vec vec = new Word2Vec.Builder()
-                .minWordFrequency(5)
-                .iterations(1)
-                .layerSize(100)
-                .stopWords(stopWords)
-                .seed(42)
-                .windowSize(5)
-                .iterate(iter)
-                .tokenizerFactory(t)
-                .build();
-
-        vec.fit();
+        for (BodyContentHandler bodyContentHandler : bodyContentHandlers) {
+            sentences.addAll(textProcessing.tokenizeBodyContentToSencences(bodyContentHandler));
+        }
+        logger.info(MessageFormat.format("text corpus transformation completed contains {0} sentences ", sentences.size()));
 
     }
+
+    private void setStopWords() {
+        stopWords.addAll(textProcessing.getStopwords());
+    }
+
+    private void fitWord2vec() throws IOException {
+
+        String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\documentmodel.txt";
+        File file = new File(pathToModel);
+
+        SentenceIterator sentenceIterator = new CityTwinSentenceIterator(sentences);
+        TokenizerFactory tokenizerFactory = new CityTwinTokenizerFactory(this.textProcessing);
+        tokenizerFactory.setTokenPreProcessor(new CityTwinTokenPreProcess());
+
+        vec = (file.exists()) ? WordVectorSerializer.readWord2VecModel(pathToModel) :
+
+                new Word2Vec.Builder()
+                        .minWordFrequency(5)
+                        .iterations(1)
+                        .layerSize(100)
+                        .stopWords(stopWords)
+                        .seed(42)
+                        .windowSize(5)
+                        .iterate(sentenceIterator)
+                        .tokenizerFactory(tokenizerFactory)
+                        .build();
+
+        // vec.fit();
+
+        // WordVectorSerializer.writeWord2VecModel(vec, pathToModel);
+
+    }
+
+    public Word2Vec getWord2Vec(List<BodyContentHandler> bodyContentHandlers) throws IOException {
+        transformText(bodyContentHandlers);
+        setStopWords();
+        fitWord2vec();
+        List<String> temps = vec.similarWordsInVocabTo("BOKraft", 0.1d);
+
+        for (String temp : vec.similarWordsInVocabTo("Gesetzgeber", 0.7d)) {
+            System.out.println("near to Gesetzgeber --> " + temp);
+
+        }
+
+        return vec;
+    }
+
 }
