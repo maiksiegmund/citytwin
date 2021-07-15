@@ -430,7 +430,8 @@ public class KeywordApplication {
     public static void calculateWord2Vec() {
 
         try {
-            String path = "D:\\Keyword extraction";
+            String path = "D:\\vms\\sharedFolder\\wikidumps\\text\\AE";
+            // String path = "D:\\Keyword extraction";
             String fileName = "\\wiki_31";
             Word2VecAnalyser analyser = new Word2VecAnalyser();
             File file = new File(path + fileName);

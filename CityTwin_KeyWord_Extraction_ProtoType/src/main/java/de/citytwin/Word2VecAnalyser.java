@@ -286,8 +286,6 @@ public class Word2VecAnalyser {
         // Split on white spaces in the line to get words
         TokenizerFactory t = new CityTwinTokenizerFactory(this.textProcessing);
 
-
-
         t.setTokenPreProcessor(new CityTwinTokenPreProcess());
 
         Word2Vec vec = new Word2Vec.Builder()
@@ -300,6 +298,8 @@ public class Word2VecAnalyser {
                 .iterate(iter)
                 .tokenizerFactory(t)
                 .build();
+
+        vec.fit();
 
     }
 }
