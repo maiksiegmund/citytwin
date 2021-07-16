@@ -307,6 +307,24 @@ public class GermanTextProcessing {
     }
 
     /**
+     * This method split articles in each sentences by opennlp an article can contain more as one sentence
+     *
+     * @param {@code List<String> articles}
+     * @return new reference{@code List<String>}
+     */
+    public List<String> tokenizeArticlesToSencences(final List<String> articles) {
+        List<String> results = new ArrayList<String>();
+        for (String atricle : articles) {
+            String[] sentences = sentenceDetector.sentDetect(atricle);
+            for (String sentence : sentences) {
+                results.add(sentence);
+            }
+        }
+        logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
+        return results;
+    }
+
+    /**
      * This method split textcorpus in each senteces by opennlp
      * <p>
      * remove newline pattern {@code "-\n"} and
@@ -328,24 +346,6 @@ public class GermanTextProcessing {
             temp = sentence.replaceAll("\n", "");
             if (countNewLines(sentence) < maxNewLines) {
                 results.add(temp);
-            }
-        }
-        logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
-        return results;
-    }
-
-    /**
-     * * This method split articles in each senteces by opennlp
-     *
-     * @param {@code List<String> articles}
-     * @return new reference{@code List<String>}
-     */
-    public List<String> tokenizeArticlesToSencences(final List<String> articles) {
-        List<String> results = new ArrayList<String>();
-        for (String atricle : articles) {
-            String[] sentences = sentenceDetector.sentDetect(atricle);
-            for (String sentence : sentences) {
-                results.add(sentence);
             }
         }
         logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));

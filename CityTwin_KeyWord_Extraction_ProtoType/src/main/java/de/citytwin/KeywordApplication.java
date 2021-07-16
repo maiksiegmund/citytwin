@@ -37,8 +37,8 @@ public class KeywordApplication {
 
         StringBuilder stringBuilder = new StringBuilder();
         try {
-            DocumentConverter documentConverter = new DocumentConverter(file);
-            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
+            DocumentConverter documentConverter = new DocumentConverter();
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
             TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
             Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 
@@ -81,8 +81,8 @@ public class KeywordApplication {
         StringBuilder stringBuilder = new StringBuilder();
         try {
 
-            DocumentConverter documentConverter = new DocumentConverter(file);
-            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
+            DocumentConverter documentConverter = new DocumentConverter();
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
             TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
             Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 
@@ -125,8 +125,8 @@ public class KeywordApplication {
         StringBuilder stringBuilder = new StringBuilder();
         try {
 
-            DocumentConverter documentConverter = new DocumentConverter(file);
-            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler();
+            DocumentConverter documentConverter = new DocumentConverter();
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
             TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
             Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
 
@@ -173,8 +173,8 @@ public class KeywordApplication {
 
         try {
 
-            DocumentConverter documentConverter = new DocumentConverter(file);
-            bodyContentHandler = documentConverter.getBodyContentHandler();
+            DocumentConverter documentConverter = new DocumentConverter();
+            bodyContentHandler = documentConverter.getBodyContentHandler(file);
             results = tfidfTextAnalyser.getTermsAndScores(bodyContentHandler,
                     GermanTextProcessing.getPosTagList(),
                     TFIDFTextAnalyser.NormalizationType.NONE);
@@ -217,8 +217,8 @@ public class KeywordApplication {
                 Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
                 TFIDFTextAnalyser tdTfidfTextAnalyser = new TFIDFTextAnalyser().withOpenNLP().withStopwordFilter();
                 TextRankAnalyser textRankAnalyser = new TextRankAnalyser().withOpenNLP();
-                DocumentConverter documentConverter = new DocumentConverter(file);
-                BodyContentHandler bobBodyContentHandler = documentConverter.getBodyContentHandler();
+                DocumentConverter documentConverter = new DocumentConverter();
+                BodyContentHandler bobBodyContentHandler = documentConverter.getBodyContentHandler(file);
 
                 Map<String, Quartet<Integer, Double, String, Set<Integer>>> tfidfresults = tdTfidfTextAnalyser
                         .getTermsAndScores(bobBodyContentHandler, null, TFIDFTextAnalyser.NormalizationType.NONE);
@@ -296,6 +296,18 @@ public class KeywordApplication {
         results.add(new File(INPUT_FOLDER + "Stadtgrün Selbstverpflichtung.docx"));
         results.add(new File(INPUT_FOLDER + "Wasseratlas.pdf"));
         results.add(new File(INPUT_FOLDER + "TG0100061100201300.xls"));
+        return results;
+
+    }
+
+    private static List<File> getFiles(String path) {
+        List<File> results = new ArrayList<File>();
+        File folder = new File(path);
+        File[] files = folder.listFiles();
+        for (int i = 0; i < files.length; i++) {
+            results.add(files[i]);
+
+        }
         return results;
 
     }
@@ -427,27 +439,6 @@ public class KeywordApplication {
 
     }
 
-    public static void calculateWord2Vec() {
-
-        try {
-            String path = "D:\\vms\\sharedFolder\\wikidumps\\text\\AE";
-            // String path = "D:\\Keyword extraction";
-            String fileName = "\\wiki_31";
-            Word2VecAnalyser analyser = new Word2VecAnalyser();
-            List<BodyContentHandler> bodyContentHandlers = new ArrayList<BodyContentHandler>();
-            for (File file : getFiles()) {
-                bodyContentHandlers.add(new DocumentConverter(file).getBodyContentHandler()) ;
-            }
-
-            analyser.getWord2Vec(bodyContentHandlers);
-
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            logger.error(e.getMessage(), e);
-        }
-
-    }
-
     public static void main(String[] args) {
 
         // getTextRankResults(100);
@@ -455,7 +446,47 @@ public class KeywordApplication {
         // getTFIDFResults(100);
         // getTextRankSentencesResults(100);
         // getTextRankPairTermResults(100);
-        calculateWord2Vec();
+        trainWord2Vec();
+
+    }
+
+    public static void trainWord2Vec() {
+
+        try {
+
+            File outputFolder = getOutputFolder("word2Vec");
+            Word2VecAnalyser analyser = new Word2VecAnalyser();
+            HashMap<String, Integer> parameters = analyser.getDefaultParameters();
+
+            List<String> textCorpus = new ArrayList<String>();
+            DocumentConverter documentConverter = new DocumentConverter();
+
+            GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
+
+            // citytwin documents
+            for (File file : getFiles()) {
+
+                BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
+                List<String> temp = germanTextProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
+                textCorpus.addAll(temp);
+
+            }
+            // wiki dumps
+            for (File file : getFiles()) {
+
+                BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
+                List<String> temp = germanTextProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
+                textCorpus.addAll(temp);
+
+            }
+
+            analyser.trainModel(textCorpus, parameters);
+            analyser.writeModel(outputFolder.getAbsolutePath() + "\\selftrained.bin");
+
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            logger.error(e.getMessage(), e);
+        }
 
     }
 

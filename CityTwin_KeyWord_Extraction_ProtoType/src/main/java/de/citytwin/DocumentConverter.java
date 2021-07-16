@@ -1,5 +1,9 @@
 package de.citytwin;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,6 +12,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -29,20 +35,63 @@ public class DocumentConverter {
     private Metadata metadata = null;
     ParseContext parseContext = null;
 
-    public DocumentConverter(final File file) throws SAXException, TikaException, IOException, Exception {
-        setTikaComponents(file);
+    public DocumentConverter() {
+
     }
 
-    public BodyContentHandler getBodyContentHandler() {
+    /**
+     * this method parse an list of json files and store the article texts. file content like <br>
+     * {"id":"..." , "revid": "...", "url": "http://..." , "title": "..." , "text": "..."}
+     *
+     * @param jsonFile
+     * @return new reference of {@code List<String>}
+     * @throws IOException
+     */
+    public List<String> getArticleTexts(final List<File> jsonFiles) throws IOException {
+
+        List<String> results = new ArrayList<String>();
+        ObjectMapper mapper = new ObjectMapper();
+        for (File jsonFile : jsonFiles) {
+            JsonParser parser = mapper.createParser(jsonFile);
+            JsonToken token = parser.nextToken();
+
+            while (token != null) {
+                // seeking text fieldname
+                if ("text".equals(parser.getText())) {
+                    // next token is text field value
+                    token = parser.nextToken();
+                    if (!parser.getText().isBlank()) {
+                        results.add(parser.getText());
+
+                    }
+                }
+                token = parser.nextToken();
+            }
+        }
+        logger.info(MessageFormat.format("json file contains {0} atricles ", results.size()));
+        return results;
+
+    }
+
+    public BodyContentHandler getBodyContentHandler(final File file) throws SAXException, TikaException, IOException, Exception {
+        if (bodyContentHandler == null) {
+            setTikaComponents(file);
+        }
         return bodyContentHandler;
     }
 
-    public String getDocumentTitle() {
+    public String getDocumentTitle(final File file) throws SAXException, TikaException, IOException, Exception {
+        if (metadata == null) {
+            setTikaComponents(file);
+        }
         return metadata.get("title");
 
     }
 
-    public Metadata getMetaData() {
+    public Metadata getMetaData(final File file) throws SAXException, TikaException, IOException, Exception {
+        if (metadata == null) {
+            setTikaComponents(file);
+        }
         return metadata;
     }
 
