@@ -52,6 +52,7 @@ public class DocumentConverter {
         List<String> results = new ArrayList<String>();
         ObjectMapper mapper = new ObjectMapper();
         for (File jsonFile : jsonFiles) {
+            logger.info(MessageFormat.format("parse file {0}.", jsonFile.getName()));
             JsonParser parser = mapper.createParser(jsonFile);
             JsonToken token = parser.nextToken();
 

@@ -25,6 +25,7 @@ public class KeywordApplication {
 
     private static final String OUTPUT_FOLDER = "output";
     private static final String INPUT_FOLDER = "D:\\vms\\sharedFolder\\";
+    private static final String JSON_FOLDER = "D:\\vms\\sharedFolder\\wikidumps\\text\\AB\\";
 
     /**
      * this method calculate textRank score an return theme in a stringbuilder
@@ -446,11 +447,12 @@ public class KeywordApplication {
         // getTFIDFResults(100);
         // getTextRankSentencesResults(100);
         // getTextRankPairTermResults(100);
-        trainWord2Vec();
+        // trainWord2VecModel();
+        expandWord2VecModel("D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained01.bin");
 
     }
 
-    public static void trainWord2Vec() {
+    public static void trainWord2VecModel() {
 
         try {
 
@@ -472,18 +474,38 @@ public class KeywordApplication {
 
             }
             // wiki dumps
-            for (File file : getFiles()) {
-
-                BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
-                List<String> temp = germanTextProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
-                textCorpus.addAll(temp);
-
-            }
+            List<File> files = getFiles(JSON_FOLDER);
+            List<String> temp = documentConverter.getArticleTexts(files);
+            List<String> articlesSentences = germanTextProcessing.tokenizeArticlesToSencences(temp);
+            textCorpus.addAll(articlesSentences);
 
             analyser.trainModel(textCorpus, parameters);
-            analyser.writeModel(outputFolder.getAbsolutePath() + "\\selftrained.bin");
+            analyser.writeModel(outputFolder.getAbsolutePath() + "\\selftrained02.bin");
 
         } catch (Exception e) {
+            // TODO Auto-generated catch block
+            logger.error(e.getMessage(), e);
+        }
+
+    }
+
+    public static void expandWord2VecModel(String pathToModel) {
+
+        try {
+            File outputFolder = getOutputFolder("word2Vec");
+            Word2VecAnalyser analyser = new Word2VecAnalyser().withModel(pathToModel);
+            HashMap<String, Integer> parameters = analyser.getDefaultParameters();
+            DocumentConverter documentConverter = new DocumentConverter();
+            List<String> textCorpus = new ArrayList<String>();
+            GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
+            // wiki dumps
+            List<File> files = getFiles(JSON_FOLDER);
+            List<String> temp = documentConverter.getArticleTexts(files);
+            List<String> articlesSentences = germanTextProcessing.tokenizeArticlesToSencences(temp);
+            textCorpus.addAll(articlesSentences);
+            analyser.trainModel(textCorpus, parameters);
+            analyser.writeModel(outputFolder.getAbsolutePath() + "\\selftrained03.bin");
+        } catch (IOException e) {
             // TODO Auto-generated catch block
             logger.error(e.getMessage(), e);
         }
