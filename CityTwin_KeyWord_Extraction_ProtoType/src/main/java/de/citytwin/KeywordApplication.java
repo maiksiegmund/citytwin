@@ -25,7 +25,7 @@ public class KeywordApplication {
 
     private static final String OUTPUT_FOLDER = "output";
     private static final String INPUT_FOLDER = "D:\\vms\\sharedFolder\\";
-    private static final String JSON_FOLDER = "D:\\vms\\sharedFolder\\wikidumps\\text\\AB\\";
+    private static final String JSON_FOLDER = "D:\\vms\\sharedFolder\\wikidumps\\text\\";
 
     /**
      * this method calculate textRank score an return theme in a stringbuilder
@@ -204,6 +204,34 @@ public class KeywordApplication {
 
     }
 
+    /**
+     * this method expand an existing model (batch training)
+     *
+     * @param pathToModel
+     */
+    public static void expandWord2VecModel(String pathToModel) {
+
+        try {
+            File outputFolder = getOutputFolder("word2Vec");
+            Word2VecAnalyser analyser = new Word2VecAnalyser().withModel(pathToModel);
+            HashMap<String, Integer> parameters = analyser.getDefaultParameters();
+            DocumentConverter documentConverter = new DocumentConverter();
+            List<String> textCorpus = new ArrayList<String>();
+            GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
+            // wiki dumps
+            List<File> files = getFiles(JSON_FOLDER);
+            List<String> temp = documentConverter.getArticleTexts(files);
+            List<String> articlesSentences = germanTextProcessing.tokenizeArticlesToSencences(temp);
+            textCorpus.addAll(articlesSentences);
+            analyser.trainModel(textCorpus, parameters);
+            analyser.writeModel(outputFolder.getAbsolutePath() + "\\selftrained03.bin");
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            logger.error(e.getMessage(), e);
+        }
+
+    }
+
     //
     /**
      * this method use {@code TextRankAnalyser} and {@code TFIDFTextAnalyser}
@@ -304,9 +332,18 @@ public class KeywordApplication {
     private static List<File> getFiles(String path) {
         List<File> results = new ArrayList<File>();
         File folder = new File(path);
+
         File[] files = folder.listFiles();
         for (int i = 0; i < files.length; i++) {
-            results.add(files[i]);
+            if (files[i].isDirectory()) {
+                File subFolder = new File(files[i].getAbsolutePath());
+                for (File subFile : subFolder.listFiles()) {
+                    results.add(subFile);
+                }
+            } else {
+
+                results.add(files[i]);
+            }
 
         }
         return results;
@@ -440,6 +477,86 @@ public class KeywordApplication {
 
     }
 
+    public static void getWord2VecResults() {
+        try {
+
+            int maxResults = 10;
+            int currentCount = 0;
+            double accurany = 0.95d;
+
+            StringBuilder stringBuilder = new StringBuilder();
+            Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
+            String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained04.bin";
+            Word2VecAnalyser word2VecAnalyser = new Word2VecAnalyser().withModel(pathToModel);
+
+            TextRankAnalyser textRankAnalyser = new TextRankAnalyser();
+            TFIDFTextAnalyser tdTfidfTextAnalyser = new TFIDFTextAnalyser();
+
+            GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
+            GermanTextProcessing.getPosTagList();
+
+            DocumentConverter documentConverter = new DocumentConverter();
+
+            Map<String, Quartet<Integer, Double, String, Set<Integer>>> tdIdfResults = null;
+            Map<String, Double> textRankResults = null;
+
+            Quartet<Integer, Double, String, Set<Integer>> tdIDFResult = null;
+
+            tdIdfResults = tdTfidfTextAnalyser.getTermsAndScores(documentConverter.getBodyContentHandler(getFiles().get(0)),
+                    GermanTextProcessing.getPosTagList(),
+                    TFIDFTextAnalyser.NormalizationType.NONE);
+
+            textRankResults = textRankAnalyser.getTermsAndScores(documentConverter.getBodyContentHandler(getFiles().get(0)), 3, 25);
+
+            formatter.format("%1$10s --> %2$40s --> %3$40s",
+                    "algo",
+                    "term",
+                    "word2vec similarity list");
+            stringBuilder.append("\n");
+
+            for (String term : tdIdfResults.keySet()) {
+                tdIDFResult = tdIdfResults.get(term);
+                currentCount++;
+                if (currentCount > maxResults) {
+                    break;
+                }
+                List<String> similarities = word2VecAnalyser.similarWordsInVocabTo(term, accurany);
+
+                for (String similarityTerm : similarities) {
+                    formatter.format("%1$10s --> %2$40s --> %3$40s",
+                            "td - IDF",
+                            term,
+                            similarityTerm);
+                    stringBuilder.append("\n");
+                }
+
+            }
+            currentCount = 0;
+            for (String term : textRankResults.keySet()) {
+                textRankResults.get(term);
+                currentCount++;
+                if (currentCount > maxResults) {
+                    break;
+                }
+                List<String> similarities = word2VecAnalyser.similarWordsInVocabTo(term, accurany);
+
+                for (String similarityTerm : similarities) {
+                    formatter.format("%1$10s --> %2$40s --> %3$40s",
+                            "textRank",
+                            term,
+                            similarityTerm);
+                    stringBuilder.append("\n");
+                }
+
+            }
+
+            System.out.println(stringBuilder.toString());
+        } catch (Exception ex) {
+            logger.error(ex.getMessage(), ex);
+        }
+
+    }
+
     public static void main(String[] args) {
 
         // getTextRankResults(100);
@@ -447,65 +564,63 @@ public class KeywordApplication {
         // getTFIDFResults(100);
         // getTextRankSentencesResults(100);
         // getTextRankPairTermResults(100);
-        // trainWord2VecModel();
-        expandWord2VecModel("D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained01.bin");
+        trainWord2VecModel();
+        // expandWord2VecModel("D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained01.bin");
+        // getWord2VecResults();
 
     }
 
+    /**
+     * this method train a word2vec model (german wiki dumps with 2.5mio articles and citytwin documents) use large amount of ram
+     */
     public static void trainWord2VecModel() {
 
         try {
 
             File outputFolder = getOutputFolder("word2Vec");
             Word2VecAnalyser analyser = new Word2VecAnalyser();
-            HashMap<String, Integer> parameters = analyser.getDefaultParameters();
+
+            HashMap<String, Integer> parameters = new HashMap<String, Integer>();
+            parameters.put("batchSize", 100);
+            parameters.put("minWordFrequency", 7);
+            parameters.put("iterations", 2);
+            parameters.put("layerSize", 100);
+            parameters.put("seed", 42);
+            parameters.put("windowSize", 5);
 
             List<String> textCorpus = new ArrayList<String>();
             DocumentConverter documentConverter = new DocumentConverter();
 
             GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
+
+
+            germanTextProcessing.tokenizeOpenNLP("„berlin–Karlshorst“ daß ist der älteste Platz. Großer neuerung! alt-neu! Übergang!");
+
 
             // citytwin documents
             for (File file : getFiles()) {
 
                 BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
-                List<String> temp = germanTextProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
-                textCorpus.addAll(temp);
+                List<String> tempSentences = germanTextProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
+                for (String text : tempSentences) {
+                    String temp = germanTextProcessing.tryToCleanSentence(text, true);
+
+                    System.out.println(text);
+                    System.out.println(temp);
+                    textCorpus.add(temp);
+                }
 
             }
             // wiki dumps
-            List<File> files = getFiles(JSON_FOLDER);
-            List<String> temp = documentConverter.getArticleTexts(files);
-            List<String> articlesSentences = germanTextProcessing.tokenizeArticlesToSencences(temp);
-            textCorpus.addAll(articlesSentences);
-
-            analyser.trainModel(textCorpus, parameters);
-            analyser.writeModel(outputFolder.getAbsolutePath() + "\\selftrained02.bin");
+            // List<File> files = getFiles(JSON_FOLDER);
+            // List<String> temp = documentConverter.getArticleTexts(files);
+            // List<String> articlesSentences = germanTextProcessing.tokenizeArticlesToSencences(temp);
+            // textCorpus.addAll(articlesSentences);
+            //
+            // analyser.trainModel(textCorpus, parameters);
+            // analyser.writeModel(outputFolder.getAbsolutePath() + "\\selftrained04.bin");
 
         } catch (Exception e) {
-            // TODO Auto-generated catch block
-            logger.error(e.getMessage(), e);
-        }
-
-    }
-
-    public static void expandWord2VecModel(String pathToModel) {
-
-        try {
-            File outputFolder = getOutputFolder("word2Vec");
-            Word2VecAnalyser analyser = new Word2VecAnalyser().withModel(pathToModel);
-            HashMap<String, Integer> parameters = analyser.getDefaultParameters();
-            DocumentConverter documentConverter = new DocumentConverter();
-            List<String> textCorpus = new ArrayList<String>();
-            GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
-            // wiki dumps
-            List<File> files = getFiles(JSON_FOLDER);
-            List<String> temp = documentConverter.getArticleTexts(files);
-            List<String> articlesSentences = germanTextProcessing.tokenizeArticlesToSencences(temp);
-            textCorpus.addAll(articlesSentences);
-            analyser.trainModel(textCorpus, parameters);
-            analyser.writeModel(outputFolder.getAbsolutePath() + "\\selftrained03.bin");
-        } catch (IOException e) {
             // TODO Auto-generated catch block
             logger.error(e.getMessage(), e);
         }

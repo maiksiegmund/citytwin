@@ -184,6 +184,7 @@ public class Word2VecAnalyser {
     public HashMap<String, Integer> getDefaultParameters() {
 
         HashMap<String, Integer> parameters = new HashMap<String, Integer>();
+        parameters.put("batchSize", 100);
         parameters.put("minWordFrequency", 5);
         parameters.put("iterations", 1);
         parameters.put("layerSize", 100);
@@ -237,6 +238,7 @@ public class Word2VecAnalyser {
         TokenizerFactory tokenizerFactory = new CityTwinTokenizerFactory(this.textProcessing);
         tokenizerFactory.setTokenPreProcessor(new CityTwinTokenPreProcess());
 
+        int batchSize = (paramters.get("batchSize") != null) ? paramters.get("batchSize").intValue() : 100;
         int minWordFrequency = (paramters.get("minWordFrequency") != null) ? paramters.get("minWordFrequency").intValue() : 5;
         int iteration = (paramters.get("iterations") != null) ? paramters.get("iterations").intValue() : 1;
         int layerSize = (paramters.get("layerSize") != null) ? paramters.get("layerSize").intValue() : 100;
@@ -245,6 +247,7 @@ public class Word2VecAnalyser {
 
         if (word2vec == null) {
             word2vec = new Word2Vec.Builder()
+                    .batchSize(batchSize)
                     .minWordFrequency(minWordFrequency)
                     .iterations(iteration)
                     .layerSize(layerSize)
@@ -259,7 +262,7 @@ public class Word2VecAnalyser {
             word2vec.setSentenceIterator(sentenceIterator);
         }
         word2vec.fit();
-        logger.info("train model");
+        logger.info("model trained");
 
     }
 

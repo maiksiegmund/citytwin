@@ -124,10 +124,13 @@ public class GermanTextProcessing {
         GermanTextProcessing.stopwords = stopwords;
     }
 
-    private String cleaningPattern = "[^a-zA-ZäÄüÜöÖß-]";
+    // private String cleaningPattern = "[^g-z^C-Z^ä^Ä^ü^Ü^ö^Ö^ß^-]";
+    private String cleaningPattern = "[^a-zA-ZäÄüÜöÖß -]";
     private int maxNewLines = 10;
 
     private int minCharactersLenght = 2;
+    // Minimum term count in a sentences
+    private int minTermCount = 5;
 
     private String tokenizerName = "Letter";
 
@@ -440,6 +443,30 @@ public class GermanTextProcessing {
             return parts[0] + parts[1];
         }
         return term;
+    }
+
+    /**
+     * this method clean sentence, unnessary information like headings, table of content and listing try to remove
+     *
+     * @param sentence
+     * @param isOpenNLP
+     * @return
+     * @throws IOException
+     */
+    public String tryToCleanSentence(String sentence, boolean isOpenNLP) throws IOException {
+
+        StringBuilder stringBuilder = new StringBuilder();
+        List<String> terms = (isOpenNLP) ? tokenizeOpenNLP(sentence) : tokenizeLucene(sentence);
+
+        for (String term : terms) {
+            if (terms.size() <= this.minTermCount)
+                break;
+            String temp = tryToRemoveHypen(term);
+            stringBuilder.append(temp + " ");
+        }
+        stringBuilder.append(sentence.charAt(sentence.length() - 1));
+
+        return stringBuilder.toString();
     }
 
 }
