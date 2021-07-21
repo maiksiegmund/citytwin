@@ -124,12 +124,11 @@ public class GermanTextProcessing {
         GermanTextProcessing.stopwords = stopwords;
     }
 
-    // private String cleaningPattern = "[^g-z^C-Z^ä^Ä^ü^Ü^ö^Ö^ß^-]";
-    private String cleaningPattern = "[^a-zA-ZäÄüÜöÖß -]";
+    private String cleaningPattern = "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]";
     private int maxNewLines = 10;
-
-    private int minCharactersLenght = 2;
-    // Minimum term count in a sentences
+    // threshold term lenght
+    private int minTermLenght = 2;
+    // threshold of term count in a sentences
     private int minTermCount = 5;
 
     private String tokenizerName = "Letter";
@@ -142,21 +141,49 @@ public class GermanTextProcessing {
     }
 
     /**
-     * This count new lines in a sentence,
+     * This count a specific char in a sentence,
      * <p>
      *
      * @param sentence
-     * @return {@code List<String>}
+     * @return {@code int}
      */
-    public int countNewLines(String sentence) {
+    public int countChar(String sentence, char charToCount) {
         char[] chars = sentence.toCharArray();
         int count = 0;
         for (char ch : chars) {
-            if (ch == '\n') {
+            if (ch == charToCount) {
                 count++;
             }
         }
         return count;
+    }
+
+    /**
+     * this mehtod count digits in a sentence
+     *
+     * @param sentence
+     * @return
+     */
+    public int countDigits(String sentence) {
+        char chars[] = sentence.toCharArray();
+        int result = 0;
+        for (char ch : chars) {
+            if (Character.isDigit(ch)) {
+                result++;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * This count new lines in a sentence,
+     * <p>
+     *
+     * @param sentence
+     * @return {@code int}
+     */
+    public int countNewLines(String sentence) {
+        return countChar(sentence, '\n');
     }
 
     /**
@@ -210,7 +237,7 @@ public class GermanTextProcessing {
     }
 
     public int getMinCharactersLenght() {
-        return minCharactersLenght;
+        return minTermLenght;
     }
 
     /**
@@ -274,6 +301,23 @@ public class GermanTextProcessing {
 
     }
 
+    /**
+     * this method calculate the probability (dots, digits and blanks)
+     *
+     * @param sentence
+     * @return {@code int} in percent
+     */
+    public int probabilityIsSentenceTabelofContent(String sentence) {
+
+        int countDots = this.countChar(sentence, '.');
+        int countDigits = this.countDigits(sentence);
+        int countBlanks = this.countChar(sentence, ' ');
+        float accurany = (float)countDots / (float)sentence.length() * 100.0f + (float)countDigits / (float)sentence.length() * 100.0f
+                + (float)countBlanks / (float)sentence.length() * 100.0f;
+        return (int)Math.ceil(accurany);
+
+    }
+
     public void setCleaningPattern(String cleaningPattern) {
         this.cleaningPattern = cleaningPattern;
     }
@@ -283,7 +327,7 @@ public class GermanTextProcessing {
     }
 
     public void setMinCharactersLenght(int minCharactersLenght) {
-        this.minCharactersLenght = minCharactersLenght;
+        this.minTermLenght = minCharactersLenght;
     }
 
     public void setTokenizerName(String tokenizerName) {
@@ -379,11 +423,13 @@ public class GermanTextProcessing {
         while (stream.incrementToken()) {
             temp = attr.toString();
             temp = tryToRemoveHypen(temp);
-            results.add(temp);
+            if (temp.length() >= minTermLenght) {
+                results.add(temp);
+            }
         }
         analyzer.close();
         stream.close();
-        logger.info("tokenize completed, sentence contains {0} terms.", results.size());
+        logger.info(MessageFormat.format("tokenize completed, sentence contains {0} terms.", results.size()));
         return results;
     }
 
@@ -400,7 +446,7 @@ public class GermanTextProcessing {
         for (String term : tokenizer.tokenize(sentence)) {
             temp = term.trim().replaceAll(cleaningPattern, "");
             temp = tryToRemoveHypen(temp);
-            if (temp.length() >= minCharactersLenght) {
+            if (temp.length() >= minTermLenght) {
                 results.add(temp);
             }
 
@@ -420,6 +466,35 @@ public class GermanTextProcessing {
     @Override
     public String toString() {
         return this.getClass().getName() + " " + VERSION;
+    }
+
+    /**
+     * this method try to remove unimportant information like headings, table of content and listing
+     *
+     * @param sentence
+     * @param isOpenNLP
+     * @return new refernece of {@code List <String>}
+     * @throws IOException
+     */
+    public List<String> tryToCleanSentence(String sentence, boolean isOpenNLP) throws IOException {
+
+        int tableOfContentThreshold = 50;
+        List<String> results = new ArrayList<String>();
+        List<String> terms = (isOpenNLP) ? tokenizeOpenNLP(sentence) : tokenizeLucene(sentence);
+
+        if (terms.size() <= this.minTermCount) {
+            return results;
+
+        }
+        if (probabilityIsSentenceTabelofContent(sentence) > tableOfContentThreshold) {
+            return results;
+        }
+        for (String term : terms) {
+            String temp = tryToRemoveHypen(term);
+            results.add(temp);
+        }
+        return results;
+
     }
 
     /**
@@ -443,30 +518,6 @@ public class GermanTextProcessing {
             return parts[0] + parts[1];
         }
         return term;
-    }
-
-    /**
-     * this method clean sentence, unnessary information like headings, table of content and listing try to remove
-     *
-     * @param sentence
-     * @param isOpenNLP
-     * @return
-     * @throws IOException
-     */
-    public String tryToCleanSentence(String sentence, boolean isOpenNLP) throws IOException {
-
-        StringBuilder stringBuilder = new StringBuilder();
-        List<String> terms = (isOpenNLP) ? tokenizeOpenNLP(sentence) : tokenizeLucene(sentence);
-
-        for (String term : terms) {
-            if (terms.size() <= this.minTermCount)
-                break;
-            String temp = tryToRemoveHypen(term);
-            stringBuilder.append(temp + " ");
-        }
-        stringBuilder.append(sentence.charAt(sentence.length() - 1));
-
-        return stringBuilder.toString();
     }
 
 }

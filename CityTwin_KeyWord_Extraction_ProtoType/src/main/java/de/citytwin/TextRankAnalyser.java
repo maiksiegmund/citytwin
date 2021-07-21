@@ -628,7 +628,7 @@ public class TextRankAnalyser {
         List<String> filteredSentences = null;
 
         for (String sentence : sentences) {
-            List<String> terms = (isOpenNLP) ? textProcessing.tokenizeOpenNLP(sentence) : textProcessing.tokenizeLucene(sentence);
+            List<String> terms = textProcessing.tryToCleanSentence(sentence, isOpenNLP);
             List<Pair<String, String>> pairs = textProcessing.getPOSTags(terms);
             filteredSentences = textProcessing.filterByPosTags(pairs);
             filteredSentences = textProcessing.filterByStopWords(filteredSentences);

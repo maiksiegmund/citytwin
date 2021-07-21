@@ -493,7 +493,6 @@ public class KeywordApplication {
             TFIDFTextAnalyser tdTfidfTextAnalyser = new TFIDFTextAnalyser();
 
             GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
-            GermanTextProcessing.getPosTagList();
 
             DocumentConverter documentConverter = new DocumentConverter();
 
@@ -570,6 +569,38 @@ public class KeywordApplication {
 
     }
 
+    public static void test() {
+
+        // DocumentConverter documentConverter = new DocumentConverter();
+        try {
+            String sentences[] = {
+                "Städtebaulich–landschaftsplanerisches Gutachten Trabrennbahn Karlshorst, Conradi, Braum & Bockhorst/Becker Giseke Mohren Richard, 2000.",
+                "Landschaftsprogramm (LaPro 94), Senatsverwaltung für Stadtentwicklung und Umweltschutz, 1994.",
+                "S. 4367), zuletzt geändert am 21. März 2002 (Abl.",
+                "Ausführungsvorschriften zur Anwendung des § 26 a des Berliner Naturschutzgesetzes – Schutz bestimmter Biotop – vom 18. Oktober 2000 (ABl." };
+            String patterns[] = { "[^\\u2013\\u002D\\wäÄöÖüÜß]" };
+            GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
+            germanTextProcessing = new GermanTextProcessing();
+
+            for (String pattern : patterns) {
+                germanTextProcessing.setCleaningPattern(pattern);
+                for (String setence : sentences) {
+                    List<String> terms = germanTextProcessing.tokenizeOpenNLP(setence);
+                    for (String term : terms) {
+                        System.out.print(term + " ");
+                    }
+                }
+
+                System.out.println("");
+            }
+
+        } catch (IOException exception) {
+            // TODO Auto-generated catch block
+            exception.printStackTrace();
+        }
+
+    }
+
     /**
      * this method train a word2vec model (german wiki dumps with 2.5mio articles and citytwin documents) use large amount of ram
      */
@@ -577,6 +608,7 @@ public class KeywordApplication {
 
         try {
 
+            StringBuilder stringBuilder = new StringBuilder();
             File outputFolder = getOutputFolder("word2Vec");
             Word2VecAnalyser analyser = new Word2VecAnalyser();
 
@@ -593,21 +625,21 @@ public class KeywordApplication {
 
             GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
 
-
-            germanTextProcessing.tokenizeOpenNLP("„berlin–Karlshorst“ daß ist der älteste Platz. Großer neuerung! alt-neu! Übergang!");
-
-
             // citytwin documents
             for (File file : getFiles()) {
 
                 BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
                 List<String> tempSentences = germanTextProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
                 for (String text : tempSentences) {
-                    String temp = germanTextProcessing.tryToCleanSentence(text, true);
+                    List<String> cleanedTerms = germanTextProcessing.tryToCleanSentence(text, true);
+                    for (String cleanedTerm : cleanedTerms) {
+                        stringBuilder.append(cleanedTerm + " ");
+                    }
+                    if (stringBuilder.toString().length() > 0) {
+                        textCorpus.add(stringBuilder.toString());
 
-                    System.out.println(text);
-                    System.out.println(temp);
-                    textCorpus.add(temp);
+                    }
+                    stringBuilder.delete(0, stringBuilder.length());
                 }
 
             }
@@ -626,5 +658,4 @@ public class KeywordApplication {
         }
 
     }
-
 }
