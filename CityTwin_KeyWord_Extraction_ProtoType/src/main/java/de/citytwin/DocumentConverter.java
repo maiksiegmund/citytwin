@@ -75,24 +75,18 @@ public class DocumentConverter {
     }
 
     public BodyContentHandler getBodyContentHandler(final File file) throws SAXException, TikaException, IOException, Exception {
-        if (bodyContentHandler == null) {
-            setTikaComponents(file);
-        }
+        setTikaComponents(file);
         return bodyContentHandler;
     }
 
     public String getDocumentTitle(final File file) throws SAXException, TikaException, IOException, Exception {
-        if (metadata == null) {
-            setTikaComponents(file);
-        }
+        setTikaComponents(file);
         return metadata.get("title");
 
     }
 
     public Metadata getMetaData(final File file) throws SAXException, TikaException, IOException, Exception {
-        if (metadata == null) {
-            setTikaComponents(file);
-        }
+        setTikaComponents(file);
         return metadata;
     }
 
