@@ -447,7 +447,7 @@ public class TFIDFTextAnalyser {
         List<String> terms = null;
         int sentenceIndex = 0;
         for (String senctence : sentences) {
-            terms = textProcessing.tryToCleanSentence(senctence, isOpenNLP);
+            terms = textProcessing.tryToCleanSentence(senctence, isOpenNLP, null);
             terms = (withStopWordFilter) ? textProcessing.filterByStopWords(terms) : terms;
             result.sentences.put(sentenceIndex++, terms);
             count += terms.size();

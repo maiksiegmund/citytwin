@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -302,7 +304,7 @@ public class GermanTextProcessing {
     }
 
     /**
-     * this method calculate the probability (dots, digits and blanks)
+     * this method calculate the probability (calculate by dots, digits and blanks in sentence)
      *
      * @param sentence
      * @return {@code int} in percent
@@ -473,12 +475,14 @@ public class GermanTextProcessing {
      *
      * @param sentence
      * @param isOpenNLP
+     * @param tableOfContentThreshold (Nullable, default 50)
      * @return new refernece of {@code List <String>}
      * @throws IOException
      */
-    public List<String> tryToCleanSentence(String sentence, boolean isOpenNLP) throws IOException {
 
-        int tableOfContentThreshold = 50;
+    public List<String> tryToCleanSentence(String sentence, boolean isOpenNLP, @Nullable Integer tableOfContentThreshold) throws IOException {
+
+        int threshold = (tableOfContentThreshold == null) ? 50 : tableOfContentThreshold;
         List<String> results = new ArrayList<String>();
         List<String> terms = (isOpenNLP) ? tokenizeOpenNLP(sentence) : tokenizeLucene(sentence);
 
@@ -486,7 +490,7 @@ public class GermanTextProcessing {
             return results;
 
         }
-        if (probabilityIsSentenceTabelofContent(sentence) > tableOfContentThreshold) {
+        if (probabilityIsSentenceTabelofContent(sentence) > threshold) {
             return results;
         }
         for (String term : terms) {
@@ -518,6 +522,15 @@ public class GermanTextProcessing {
             return parts[0] + parts[1];
         }
         return term;
+    }
+
+    /**
+     * this method return SentenceDetector
+     *
+     * @return static reference of {@code SentenceDetectorME}
+     */
+    public SentenceDetectorME getSentenceDetectorME() {
+        return sentenceDetector;
     }
 
 }

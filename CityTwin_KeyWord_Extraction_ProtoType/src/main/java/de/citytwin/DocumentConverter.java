@@ -74,17 +74,47 @@ public class DocumentConverter {
 
     }
 
+    /**
+     * this method return BodyContentHandler of file
+     *
+     * @param file
+     * @return new reference of {@code BodyContentHandler}
+     * @throws SAXException
+     * @throws TikaException
+     * @throws IOException
+     * @throws Exception
+     */
     public BodyContentHandler getBodyContentHandler(final File file) throws SAXException, TikaException, IOException, Exception {
         setTikaComponents(file);
         return bodyContentHandler;
     }
 
+    /**
+     * this method return title of file
+     *
+     * @param file
+     * @return {@code String}
+     * @throws SAXException
+     * @throws TikaException
+     * @throws IOException
+     * @throws Exception
+     */
     public String getDocumentTitle(final File file) throws SAXException, TikaException, IOException, Exception {
         setTikaComponents(file);
         return metadata.get("title");
 
     }
 
+    /**
+     * this method return metadata of file
+     *
+     * @param file
+     * @return new reference of {@code Metadata}
+     * @throws SAXException
+     * @throws TikaException
+     * @throws IOException
+     * @throws Exception
+     */
     public Metadata getMetaData(final File file) throws SAXException, TikaException, IOException, Exception {
         setTikaComponents(file);
         return metadata;

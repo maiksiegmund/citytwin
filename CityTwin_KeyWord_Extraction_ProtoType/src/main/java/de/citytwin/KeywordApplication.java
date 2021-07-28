@@ -573,38 +573,37 @@ public class KeywordApplication {
         // getTextRankPairTermResults(100);
         // trainWord2VecModel();
         // expandWord2VecModel("D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained01.bin");
-        getWord2VecResults();
-
+        // getWord2VecResults();
+        test();
     }
 
     public static void test() {
 
-        // DocumentConverter documentConverter = new DocumentConverter();
         try {
-            String sentences[] = {
-                "Städtebaulich–landschaftsplanerisches Gutachten Trabrennbahn Karlshorst, Conradi, Braum & Bockhorst/Becker Giseke Mohren Richard, 2000.",
-                "Landschaftsprogramm (LaPro 94), Senatsverwaltung für Stadtentwicklung und Umweltschutz, 1994.",
-                "S. 4367), zuletzt geändert am 21. März 2002 (Abl.",
-                "Ausführungsvorschriften zur Anwendung des § 26 a des Berliner Naturschutzgesetzes – Schutz bestimmter Biotop – vom 18. Oktober 2000 (ABl." };
-            String patterns[] = { "[^\\u2013\\u002D\\wäÄöÖüÜß]" };
+            String path = "D:\\VMS\\sharedFolder\\ALKIS-OK 6_0.pdf";
+            StringBuilder stringBuilder = new StringBuilder();
+            DocumentConverter documentConverter = new DocumentConverter();
             GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
-            germanTextProcessing = new GermanTextProcessing();
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(new File(path));
+            File outputFolder = getOutputFolder("word2vec");
+            String[] sentences = germanTextProcessing.getSentenceDetectorME().sentDetect(bodyContentHandler.toString());
 
-            for (String pattern : patterns) {
-                germanTextProcessing.setCleaningPattern(pattern);
-                for (String setence : sentences) {
-                    List<String> terms = germanTextProcessing.tokenizeOpenNLP(setence);
-                    for (String term : terms) {
-                        System.out.print(term + " ");
-                    }
-                }
-
-                System.out.println("");
+            // List<String> sentences = germanTextProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
+            for (String sentence : sentences) {
+                stringBuilder.append(sentence);
+                stringBuilder.append("---------------------------------------------------------------------------\n");
             }
 
-        } catch (IOException exception) {
+            File resultfile = new File(outputFolder, "alkis.txt");
+            BufferedWriter writer = new BufferedWriter(
+                    new BufferedWriter(new FileWriter(resultfile, false)));
+            writer.write(stringBuilder.toString());
+            writer.close();
+            stringBuilder.delete(0, stringBuilder.length());
+
+        } catch (Exception exception) {
             // TODO Auto-generated catch block
-            exception.printStackTrace();
+            logger.error(exception.getMessage(), exception);
         }
 
     }
@@ -639,7 +638,7 @@ public class KeywordApplication {
                 BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
                 List<String> tempSentences = germanTextProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
                 for (String text : tempSentences) {
-                    List<String> cleanedTerms = germanTextProcessing.tryToCleanSentence(text, true);
+                    List<String> cleanedTerms = germanTextProcessing.tryToCleanSentence(text, true, null);
                     for (String cleanedTerm : cleanedTerms) {
                         stringBuilder.append(cleanedTerm + " ");
                     }
