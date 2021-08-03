@@ -11,7 +11,9 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
+import org.deeplearning4j.models.word2vec.VocabWord;
 import org.deeplearning4j.models.word2vec.Word2Vec;
+import org.deeplearning4j.models.word2vec.wordstore.VocabCache;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
 import org.deeplearning4j.text.sentenceiterator.SentencePreProcessor;
 import org.deeplearning4j.text.tokenization.tokenizer.TokenPreProcess;
@@ -185,11 +187,13 @@ public class Word2VecAnalyser {
 
         HashMap<String, Integer> parameters = new HashMap<String, Integer>();
         parameters.put("batchSize", 100);
+        parameters.put("epochs", 1);
         parameters.put("minWordFrequency", 5);
         parameters.put("iterations", 1);
         parameters.put("layerSize", 100);
         parameters.put("seed", 42);
         parameters.put("windowSize", 5);
+        parameters.put("workers", 4);
         return parameters;
     }
 
@@ -213,6 +217,19 @@ public class Word2VecAnalyser {
             return word2vec.similarWordsInVocabTo(term, accurany);
         }
         throw new IOException("no intern model set. call trainModel(...) or new Word2VecAnalyser().withModel(...)");
+    }
+
+    public Map<String, Double> accuracy(List<String> questions) {
+        return word2vec.accuracy(questions);
+    }
+
+    public List<String> wordsNearest(String word, int count) {
+        return new ArrayList<String>(word2vec.wordsNearest(word, count));
+
+    }
+
+    public void test() {
+        VocabCache<VocabWord> test = word2vec.getVocab();
     }
 
     /**
@@ -239,21 +256,25 @@ public class Word2VecAnalyser {
         tokenizerFactory.setTokenPreProcessor(new CityTwinTokenPreProcess());
 
         int batchSize = (paramters.get("batchSize") != null) ? paramters.get("batchSize").intValue() : 100;
+        int epochs = (paramters.get("epochs") != null) ? paramters.get("epochs").intValue() : 1;
         int minWordFrequency = (paramters.get("minWordFrequency") != null) ? paramters.get("minWordFrequency").intValue() : 5;
         int iteration = (paramters.get("iterations") != null) ? paramters.get("iterations").intValue() : 1;
         int layerSize = (paramters.get("layerSize") != null) ? paramters.get("layerSize").intValue() : 100;
         int seed = (paramters.get("seed") != null) ? paramters.get("seed").intValue() : 42;
         int windowSize = (paramters.get("windowSize") != null) ? paramters.get("windowSize").intValue() : 5;
+        int workers = (paramters.get("workers") != null) ? paramters.get("workers").intValue() : 4;
 
         if (word2vec == null) {
             word2vec = new Word2Vec.Builder()
                     .batchSize(batchSize)
+                    .epochs(epochs)
                     .minWordFrequency(minWordFrequency)
                     .iterations(iteration)
                     .layerSize(layerSize)
                     .stopWords(stopWords)
                     .seed(seed)
                     .windowSize(windowSize)
+                    .workers(workers)
                     .iterate(sentenceIterator)
                     .tokenizerFactory(tokenizerFactory)
                     .build();
