@@ -78,7 +78,7 @@ public class TFIDFTextAnalyser {
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private boolean withStopWordFilter = false;
-    private boolean isOpenNLP = false;
+    private boolean withOpenNLP = false;
     private boolean withStemming = false;
 
     private GermanTextProcessing textProcessing;
@@ -447,7 +447,7 @@ public class TFIDFTextAnalyser {
         List<String> terms = null;
         int sentenceIndex = 0;
         for (String senctence : sentences) {
-            terms = textProcessing.tryToCleanSentence(senctence, isOpenNLP, null);
+            terms = textProcessing.tryToCleanSentence(senctence, withOpenNLP, null);
             terms = (withStopWordFilter) ? textProcessing.filterByStopWords(terms) : terms;
             result.sentences.put(sentenceIndex++, terms);
             count += terms.size();
@@ -464,7 +464,7 @@ public class TFIDFTextAnalyser {
      * @return new reference of {@link TFIDFTextAnalyser}
      */
     public TFIDFTextAnalyser withLucene() {
-        this.isOpenNLP = false;
+        this.withOpenNLP = false;
         return this;
     }
 
@@ -474,7 +474,7 @@ public class TFIDFTextAnalyser {
      * @return new reference of {@link TFIDFTextAnalyser}
      */
     public TFIDFTextAnalyser withOpenNLP() {
-        this.isOpenNLP = true;
+        this.withOpenNLP = true;
         return this;
     }
 
@@ -496,6 +496,37 @@ public class TFIDFTextAnalyser {
     public TFIDFTextAnalyser withStopwordFilter() {
         this.withStopWordFilter = true;
         return this;
+    }
+
+
+    public boolean isWithStopWordFilter() {
+        return withStopWordFilter;
+    }
+
+
+    public void setWithStopWordFilter(boolean withStopWordFilter) {
+        this.withStopWordFilter = withStopWordFilter;
+    }
+
+
+    public boolean getWithOpenNLP() {
+        return withOpenNLP;
+    }
+
+
+
+    public void setWithOpenNLP(boolean isOpenNLP) {
+        this.withOpenNLP = isOpenNLP;
+    }
+
+
+    public boolean isWithStemming() {
+        return withStemming;
+    }
+
+
+    public void setWithStemming(boolean withStemming) {
+        this.withStemming = withStemming;
     }
 
 }
