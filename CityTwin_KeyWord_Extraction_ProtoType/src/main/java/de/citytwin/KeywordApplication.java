@@ -697,6 +697,9 @@ public class KeywordApplication {
             analyser.trainModel(textCorpus, parameters);
             analyser.writeModel(outputFolder.getAbsolutePath() + "\\onlyCityTwin.bin");
 
+
+
+
         } catch (Exception e) {
             // TODO Auto-generated catch block
             logger.error(e.getMessage(), e);
