@@ -262,6 +262,7 @@ public class Word2VecAnalyser {
             word2vec.setSentenceIterator(sentenceIterator);
         }
         word2vec.fit();
+        word2vec.
         logger.info("model trained");
 
     }
