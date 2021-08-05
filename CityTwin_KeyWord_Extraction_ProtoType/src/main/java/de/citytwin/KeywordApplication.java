@@ -489,10 +489,12 @@ public class KeywordApplication {
             int currentCount = 0;
             double accurany = 0.95d;
 
+            DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().Model(INPUT_FOLDER).withStopwordFilter().withOpenNLP().build();
+            documentAnalyser.analyseDocument(new File(""));
             StringBuilder stringBuilder = new StringBuilder();
             Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
             // String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained.bin";
-            //String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained06.bin";
+            // String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained06.bin";
             String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\onlyCityTwin.bin";
             // String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\documentmodel_22_07_21_22_07_21.txt";
             Word2VecAnalyser word2VecAnalyser = new Word2VecAnalyser().withModel(pathToModel);
@@ -604,9 +606,9 @@ public class KeywordApplication {
         // getTFIDFResults(100);
         // getTextRankSentencesResults(100);
         // getTextRankPairTermResults(100);
-        //trainWord2VecModel();
+        // trainWord2VecModel();
         // expandWord2VecModel("D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained01.bin");
-         getWord2VecResults();
+        getWord2VecResults();
         // test();
     }
 
@@ -696,9 +698,6 @@ public class KeywordApplication {
 
             analyser.trainModel(textCorpus, parameters);
             analyser.writeModel(outputFolder.getAbsolutePath() + "\\onlyCityTwin.bin");
-
-
-
 
         } catch (Exception e) {
             // TODO Auto-generated catch block
