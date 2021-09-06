@@ -97,15 +97,22 @@ public class KeywordApplication {
                     "score");
             stringBuilder.append("\n");
 
-            Map<String, Double> result = textRankAnalyser.getPairTermsAndScores(bodyContentHandler, 3);
+            Map<String, Double> textRankresults = textRankAnalyser.getTermsAndScores(bodyContentHandler, 5, 10);
+            Map<String, Map<String, List<String>>> textRankLinkedTerms = textRankAnalyser.getLinkedTerms(textRankresults, 3);
+
             int currentLine = 0;
-            for (String key : result.keySet()) {
+            for (String key : textRankresults.keySet()) {
                 if (currentLine++ > maxLines) {
                     break;
                 }
-                formatter.format("%1$160s --> %2$.13f",
-                        key,
-                        result.get(key));
+
+                for (String keyLinled : textRankLinkedTerms.get(key).keySet()) {
+
+                }
+
+                // formatter.format("%1$160s --> %2$.13f",
+                // key,
+                // result.get(key));
                 stringBuilder.append("\n");
 
             }
@@ -490,7 +497,7 @@ public class KeywordApplication {
             double accurany = 0.95d;
 
             DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().Model(INPUT_FOLDER).withStopwordFilter().withOpenNLP().build();
-            documentAnalyser.analyseDocument(new File(""));
+            documentAnalyser.performKeyWordExtraction(new File(""));
             StringBuilder stringBuilder = new StringBuilder();
             Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
             // String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained.bin";

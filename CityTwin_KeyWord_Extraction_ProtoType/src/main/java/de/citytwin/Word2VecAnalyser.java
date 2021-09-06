@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -183,6 +184,10 @@ public class Word2VecAnalyser {
         initialize();
     }
 
+    public Map<String, Double> accuracy(List<String> questions) {
+        return word2vec.accuracy(questions);
+    }
+
     public HashMap<String, Integer> getDefaultParameters() {
 
         HashMap<String, Integer> parameters = new HashMap<String, Integer>();
@@ -216,16 +221,7 @@ public class Word2VecAnalyser {
         if (word2vec != null) {
             return word2vec.similarWordsInVocabTo(term, accurany);
         }
-        throw new IOException("no intern model set. call trainModel(...) or new Word2VecAnalyser().withModel(...)");
-    }
-
-    public Map<String, Double> accuracy(List<String> questions) {
-        return word2vec.accuracy(questions);
-    }
-
-    public List<String> wordsNearest(String word, int count) {
-        return new ArrayList<String>(word2vec.wordsNearest(word, count));
-
+        throw new IOException("no intern model set. perform method trainModel(...) or new Word2VecAnalyser().withModel(...)");
     }
 
     public void test() {
@@ -297,6 +293,25 @@ public class Word2VecAnalyser {
 
         word2vec = WordVectorSerializer.readWord2VecModel(source);
         return this;
+    }
+
+    /**
+     * warper method <br>
+     * example: king - queen + woman = man
+     *
+     * @param plus {@code = Arrays.asList("king", "woman")}
+     * @param minus {@code = Arrays.asList("queen")}
+     * @param count {@code = 10}
+     * @return new reference of List<String> with the result
+     */
+    public List<String> wordNearest(Collection<String> plus, Collection<String> minus, int count) {
+        return new ArrayList<String>(word2vec.wordsNearest(plus, minus, count));
+
+    }
+
+    public List<String> wordsNearest(String word, int count) {
+        return new ArrayList<String>(word2vec.wordsNearest(word, count));
+
     }
 
     public void writeModel(String destination) {

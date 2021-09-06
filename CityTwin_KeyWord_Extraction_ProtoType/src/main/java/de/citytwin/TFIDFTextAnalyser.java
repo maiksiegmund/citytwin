@@ -348,20 +348,24 @@ public class TFIDFTextAnalyser {
             return sortbyValue(result.terms, true);
         }
 
-        Map<String, Quartet<Integer, Double, String, Set<Integer>>> filterd = new HashMap<>();
+        Map<String, Quartet<Integer, Double, String, Set<Integer>>> filtered = new HashMap<>();
 
         for (String tagFilter : tagFilters) {
             for (String term : result.terms.keySet()) {
                 String wordPosTag = result.terms.get(term).getValue2();
                 if (wordPosTag.equals(tagFilter)) {
-                    filterd.put(term, result.terms.get(term));
+                    filtered.put(term, result.terms.get(term));
 
                 }
             }
         }
 
-        return sortbyValue(filterd, true);
+        return sortbyValue(filtered, true);
 
+    }
+
+    public boolean getWithOpenNLP() {
+        return withOpenNLP;
     }
 
     /**
@@ -372,6 +376,14 @@ public class TFIDFTextAnalyser {
     private void initialize() throws IOException {
 
         textProcessing = new GermanTextProcessing();
+    }
+
+    public boolean isWithStemming() {
+        return withStemming;
+    }
+
+    public boolean isWithStopWordFilter() {
+        return withStopWordFilter;
     }
 
     /**
@@ -401,6 +413,18 @@ public class TFIDFTextAnalyser {
         result.isNormalized = true;
         logger.info("log normalization completed.");
         return result;
+    }
+
+    public void setWithOpenNLP(boolean isOpenNLP) {
+        this.withOpenNLP = isOpenNLP;
+    }
+
+    public void setWithStemming(boolean withStemming) {
+        this.withStemming = withStemming;
+    }
+
+    public void setWithStopWordFilter(boolean withStopWordFilter) {
+        this.withStopWordFilter = withStopWordFilter;
     }
 
     /**
@@ -496,37 +520,6 @@ public class TFIDFTextAnalyser {
     public TFIDFTextAnalyser withStopwordFilter() {
         this.withStopWordFilter = true;
         return this;
-    }
-
-
-    public boolean isWithStopWordFilter() {
-        return withStopWordFilter;
-    }
-
-
-    public void setWithStopWordFilter(boolean withStopWordFilter) {
-        this.withStopWordFilter = withStopWordFilter;
-    }
-
-
-    public boolean getWithOpenNLP() {
-        return withOpenNLP;
-    }
-
-
-
-    public void setWithOpenNLP(boolean isOpenNLP) {
-        this.withOpenNLP = isOpenNLP;
-    }
-
-
-    public boolean isWithStemming() {
-        return withStemming;
-    }
-
-
-    public void setWithStemming(boolean withStemming) {
-        this.withStemming = withStemming;
     }
 
 }

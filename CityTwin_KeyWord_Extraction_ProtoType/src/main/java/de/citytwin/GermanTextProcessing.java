@@ -263,6 +263,15 @@ public class GermanTextProcessing {
         return results;
     }
 
+    /**
+     * this method return SentenceDetector
+     *
+     * @return static reference of {@code SentenceDetectorME}
+     */
+    public SentenceDetectorME getSentenceDetectorME() {
+        return sentenceDetector;
+    }
+
     public String getTokenizerName() {
         return tokenizerName;
     }
@@ -522,15 +531,6 @@ public class GermanTextProcessing {
             return parts[0] + parts[1];
         }
         return term;
-    }
-
-    /**
-     * this method return SentenceDetector
-     *
-     * @return static reference of {@code SentenceDetectorME}
-     */
-    public SentenceDetectorME getSentenceDetectorME() {
-        return sentenceDetector;
     }
 
 }

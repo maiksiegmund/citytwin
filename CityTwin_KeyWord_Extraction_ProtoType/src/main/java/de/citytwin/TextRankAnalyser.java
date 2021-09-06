@@ -361,49 +361,47 @@ public class TextRankAnalyser {
     }
 
     /**
-     * this method calculate a score for terms with textRank algorithm and get other linked terms of this term <br>
+     * this method get in and outbounds Terms of each term in textRank parameter <br>
      * example maxLinks = 3; <br>
-     * word(-3) --> word(-2) --> word(-1) --> keyword <-- word(1) <-- word(2) <-- word(3)
      *
-     * @param bodyContentHandler
+     * @param textRank (contains the keywords founded by textRank)
      * @param maxLinks
-     * @return {@codd Map<String, Double>} (word(-3) --> word(-2) --> word(-1) --> keyword <-- word(1) <-- word(2) <-- word(3) : score)
-     * @throws IOException
+     * @return {@code Map<String, Map<String, List<String>>>} (keyword : in : List(...) and out : List(...))
      */
-    public Map<String, Double> getPairTermsAndScores(BodyContentHandler bodyContentHandler, @Nullable Integer maxLinks) throws IOException {
+    public Map<String, Map<String, List<String>>> getLinkedTerms(Map<String, Double> textRank, @Nullable Integer maxLinks) {
 
-        StringBuilder stringBuilder = new StringBuilder();
-        Map<String, Double> result = new HashMap<String, Double>();
-        Map<String, Double> textRank = getTermsAndScores(bodyContentHandler, 4, 20);
+        Map<String, Map<String, List<String>>> result = new HashMap<String, Map<String, List<String>>>();
         int max = (maxLinks == null) ? 3 : maxLinks;
+        List<String> inbounds = null;
+        List<String> outbounds = null;
         for (Map.Entry<String, Double> entry : textRank.entrySet()) {
             // seeking vertices
             Set<DefaultWeightedEdge> outEdges = graph.outgoingEdgesOf(entry.getKey());
             Set<DefaultWeightedEdge> inEdges = graph.incomingEdgesOf(entry.getKey());
             int count = 0;
+            inbounds = new ArrayList<String>();
             for (DefaultWeightedEdge defaultWeightedEdge : inEdges) {
                 if (count++ > max) {
                     break;
                 }
                 graph.getEdgeSource(defaultWeightedEdge);
-                stringBuilder.append(graph.getEdgeSource(defaultWeightedEdge));
-                stringBuilder.append(" --> ");
+                inbounds.add(graph.getEdgeSource(defaultWeightedEdge));
             }
-            stringBuilder.append(entry.getKey());
             count = 0;
+            outbounds = new ArrayList<String>();
             for (DefaultWeightedEdge defaultWeightedEdge : outEdges) {
                 if (count++ > max) {
                     break;
                 }
-                graph.getEdgeSource(defaultWeightedEdge);
-                stringBuilder.append(" <-- ");
-                stringBuilder.append(graph.getEdgeTarget(defaultWeightedEdge));
+                outbounds.add(graph.getEdgeSource(defaultWeightedEdge));
 
             }
-            result.put(stringBuilder.toString(), textRank.get(entry.getKey()));
-            stringBuilder.delete(0, stringBuilder.toString().length());
+            Map<String, List<String>> links = new HashMap<String, List<String>>();
+            links.put("in", inbounds);
+            links.put("out", outbounds);
+            result.put(entry.getKey(), links);
         }
-        return sortbyValue(result);
+        return result;
     }
 
     /**
