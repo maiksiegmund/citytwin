@@ -384,7 +384,6 @@ public class TextRankAnalyser {
                 if (count++ > max) {
                     break;
                 }
-                graph.getEdgeSource(defaultWeightedEdge);
                 inbounds.add(graph.getEdgeSource(defaultWeightedEdge));
             }
             count = 0;
@@ -393,7 +392,7 @@ public class TextRankAnalyser {
                 if (count++ > max) {
                     break;
                 }
-                outbounds.add(graph.getEdgeSource(defaultWeightedEdge));
+                outbounds.add(graph.getEdgeTarget(defaultWeightedEdge));
 
             }
             Map<String, List<String>> links = new HashMap<String, List<String>>();

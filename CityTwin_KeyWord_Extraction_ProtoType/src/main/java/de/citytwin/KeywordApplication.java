@@ -106,15 +106,20 @@ public class KeywordApplication {
                     break;
                 }
 
-                for (String keyLinled : textRankLinkedTerms.get(key).keySet()) {
+                // for (String keyLinked : textRankLinkedTerms.get(key).keySet()) {
+                Map<String, List<String>> data = textRankLinkedTerms.get(key);
 
+                List<String> inAndOuts = data.get("in");
+                for (String string : inAndOuts) {
+                    formatter.format("%1$s --> ", string);
                 }
-
-                // formatter.format("%1$160s --> %2$.13f",
-                // key,
-                // result.get(key));
+                formatter.format("%s (%2$f10)", key, textRankresults.get(key));
+                inAndOuts = data.get("out");
+                for (String string : inAndOuts) {
+                    formatter.format(" --> %1$s", string);
+                }
+                // }
                 stringBuilder.append("\n");
-
             }
             formatter.close();
             return stringBuilder;
@@ -496,31 +501,42 @@ public class KeywordApplication {
             int currentCount = 0;
             double accurany = 0.95d;
 
-            DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().Model(INPUT_FOLDER).withStopwordFilter().withOpenNLP().build();
-            documentAnalyser.performKeyWordExtraction(new File(""));
+            // DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().Model(INPUT_FOLDER).withStopwordFilter().withOpenNLP().build();
+            // documentAnalyser.performKeyWordExtraction(new File(""));
             StringBuilder stringBuilder = new StringBuilder();
             Formatter formatter = new Formatter(stringBuilder, Locale.GERMAN);
-            // String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained.bin";
+            String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained.bin";
             // String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained06.bin";
-            String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\onlyCityTwin.bin";
+            // String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\onlyCityTwin.bin";
             // String pathToModel = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\documentmodel_22_07_21_22_07_21.txt";
             Word2VecAnalyser word2VecAnalyser = new Word2VecAnalyser().withModel(pathToModel);
             String inputFile = "D:\\Keyword extraction\\input\\word2vec_input.txt";
             String consoleInput = "";
             while (true) {
-
+                BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
                 try {
+
                     List<String> questions = (Files.readLines(new File(inputFile), Charset.defaultCharset()));
+                    Map<String, Double> accuracies = word2VecAnalyser.accuracy(questions);
+                    for (String key : accuracies.keySet()) {
+                        System.out.println(key + " " + accuracies.get(key));
+                    }
+
                     for (String question : questions) {
-                        List<String> results = word2VecAnalyser.wordsNearest(question, 10);
+                        List<String> wordsNearest = word2VecAnalyser.wordsNearest(question, 10);
+                        List<String> similarWords = word2VecAnalyser.similarWordsInVocabTo(question, accurany);
+
                         System.out.println("nearest to : " + question);
-                        for (String result : results) {
-                            System.out.println(result);
+                        for (String nearst : wordsNearest) {
+                            System.out.println(nearst);
+                        }
+                        System.out.println("similar to : " + question);
+                        for (String similar : similarWords) {
+                            System.out.println(similar);
                         }
                         System.out.println("-----------------------------------------------------------------------------");
                     }
 
-                    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
                     System.out.print("enter n to break");
                     String s = br.readLine();
                     if (s.equals("n")) {
@@ -529,6 +545,12 @@ public class KeywordApplication {
                     }
                 } catch (Exception ex) {
                     logger.error(ex.getMessage(), ex);
+
+                    String s = br.readLine();
+                    if (s.equals("n")) {
+                        System.out.println("exit");
+                        break;
+                    }
                 }
 
             }

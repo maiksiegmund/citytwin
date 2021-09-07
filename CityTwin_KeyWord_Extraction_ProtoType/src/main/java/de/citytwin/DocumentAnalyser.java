@@ -11,6 +11,7 @@ import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -268,7 +269,14 @@ public class DocumentAnalyser {
     }
 
     public boolean isTermInALKIS(String term) {
-        return true;
+        List<Pair<String, String>> stemmed = germanTextProcessing.stemm(Arrays.asList(term));
+
+        Pair<String, String> pair = stemmed.get(0);
+        ALKISDTO dto = alkisDTOs.stream()
+                .filter(item -> pair.getLeft().equals(item.name) || pair.getRight().equals(item.name))
+                .findFirst()
+                .orElse(null);
+        return (dto == null);
     }
 
     public boolean isTermInOntology(String term) {
@@ -276,16 +284,22 @@ public class DocumentAnalyser {
         List<Pair<String, String>> stemmed = germanTextProcessing.stemm(Arrays.asList(term));
 
         Pair<String, String> pair = stemmed.get(0);
-        OntologyDTO dtoByName = ontologyDTOs.stream()
-                .filter(item -> pair.getLeft().equals(item.word))
-                .findFirst()
-                .orElse(null);
-        OntologyDTO dtoByStemm = ontologyDTOs.stream()
-                .filter(item -> pair.getRight().equals(item.stem))
+        OntologyDTO dto = ontologyDTOs.stream()
+                .filter(item -> pair.getLeft().equals(item.word) || pair.getRight().equals(item.stem))
                 .findFirst()
                 .orElse(null);
 
-        return false;
+        return (dto == null);
+
+    }
+
+    public Map<String, Double> filterKeyWords(Map<String, Double> keywords, double accuracy){
+        Map<String, Double> result = new HashMap<String, Double>();
+        word2vecAnalyser.accuracy(null);
+        word2vecAnalyser.wordNearest(null, null, textRankIteration);
+        return result;
+
+
     }
 
     public void performKeyWordExtraction(final File file) throws IOException {
