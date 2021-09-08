@@ -637,8 +637,9 @@ public class KeywordApplication {
         // getTextRankPairTermResults(100);
         // trainWord2VecModel();
         // expandWord2VecModel("D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained01.bin");
-        getWord2VecResults();
+        // getWord2VecResults();
         // test();
+        analyseDocument();
     }
 
     public static void test() {
@@ -734,4 +735,25 @@ public class KeywordApplication {
         }
 
     }
+
+    public static void analyseDocument() {
+
+        String modelPath = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained.bin";
+        File file = getFiles().get(0);
+        try {
+
+            DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().withOpenNLP().withStopwordFilter().Model(modelPath).build();
+            documentAnalyser.performKeyWordExtraction(file);
+            Map<String, Double> result = documentAnalyser.filterBySimilarity(0.90f);
+            for (String key : result.keySet()) {
+                System.out.println(key);
+
+            }
+        } catch (Exception exception) {
+            logger.error(exception.getMessage(), exception);
+
+        }
+
+    }
+
 }

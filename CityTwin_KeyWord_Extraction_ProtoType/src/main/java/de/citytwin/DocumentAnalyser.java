@@ -248,6 +248,9 @@ public class DocumentAnalyser {
     private int textRankIteration = 5;
     private int textRankMaxLinks = 3;
 
+    private int word2vecAnalyserCount = 10;
+
+
     private Map<String, Quartet<Integer, Double, String, Set<Integer>>> tfIDFResults = null;
 
     private Map<String, Double> textRankResults = null;
@@ -268,7 +271,7 @@ public class DocumentAnalyser {
 
     }
 
-    public boolean isTermInALKIS(String term) {
+    public ALKISDTO getTermInALKIS(String term) {
         List<Pair<String, String>> stemmed = germanTextProcessing.stemm(Arrays.asList(term));
 
         Pair<String, String> pair = stemmed.get(0);
@@ -276,10 +279,10 @@ public class DocumentAnalyser {
                 .filter(item -> pair.getLeft().equals(item.name) || pair.getRight().equals(item.name))
                 .findFirst()
                 .orElse(null);
-        return (dto == null);
+        return dto;
     }
 
-    public boolean isTermInOntology(String term) {
+    public OntologyDTO getTermInOntology(String term) {
 
         List<Pair<String, String>> stemmed = germanTextProcessing.stemm(Arrays.asList(term));
 
@@ -289,18 +292,56 @@ public class DocumentAnalyser {
                 .findFirst()
                 .orElse(null);
 
-        return (dto == null);
+        return dto;
 
     }
 
-    public Map<String, Double> filterKeyWords(Map<String, Double> keywords, double accuracy){
+    public Map<String, Double> filterBySimilarity(double similarity) {
         Map<String, Double> result = new HashMap<String, Double>();
-        word2vecAnalyser.accuracy(null);
-        word2vecAnalyser.wordNearest(null, null, textRankIteration);
+        logger.info("filter textRank keywords by similarity (ALKIS and ontology)");
+        double currentSimilarity = 0.0f;
+        // filter textrank keywords
+        for (String key : textRankResults.keySet()) {
+            for (ALKISDTO alkisdto : alkisDTOs) {
+                currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
+                if (currentSimilarity > similarity) {
+                    result.put(key, textRankResults.get(key));
+                }
+                currentSimilarity = 0.0f;
+            }
+            for (OntologyDTO ontologyDTO : ontologyDTOs) {
+                currentSimilarity =  word2vecAnalyser.similarity(ontologyDTO.word, key);
+                if (currentSimilarity > similarity) {
+                    result.put(key, textRankResults.get(key));
+                }
+                currentSimilarity = 0.0f;
+            }
+        }
+        // filter tf idf keywords
+        logger.info("filter tf idf keywords by similarity (ALKIS and ontology)");
+        currentSimilarity = 0.0f;
+        // filter textrank keywords
+        for (String key : tfIDFResults.keySet()) {
+            for (ALKISDTO alkisdto : alkisDTOs) {
+                currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
+                if (currentSimilarity > similarity) {
+                    result.put(key, tfIDFResults.get(key).getValue1());
+                }
+                currentSimilarity = 0.0f;
+            }
+            for (OntologyDTO ontologyDTO : ontologyDTOs) {
+                currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
+                if (currentSimilarity > similarity) {
+                    result.put(key, tfIDFResults.get(key).getValue1());
+                }
+                currentSimilarity = 0.0f;
+            }
+        }
         return result;
 
-
     }
+
+
 
     public void performKeyWordExtraction(final File file) throws IOException {
         if (!isBuilt) {

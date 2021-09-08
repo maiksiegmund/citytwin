@@ -314,6 +314,17 @@ public class Word2VecAnalyser {
 
     }
 
+    /**
+     * Returns similarity of two elements, provided by ModelUtils
+     *
+     * @param left
+     * @param right
+     * @return a normalized similarity (cosine similarity)
+     */
+    public double similarity(String left, String right) {
+        return word2vec.similarity(left, right);
+    }
+
     public void writeModel(String destination) {
         if (word2vec != null) {
             WordVectorSerializer.writeWord2VecModel(word2vec, destination);
