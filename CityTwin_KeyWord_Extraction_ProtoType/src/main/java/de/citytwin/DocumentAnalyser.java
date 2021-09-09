@@ -298,6 +298,18 @@ public class DocumentAnalyser {
             text = (alkisText.equals("")) ? ontologytText : alkisText + " | " + ontologytText;
             System.out.println(MessageFormat.format("term: {0} details: {1}", key, text));
 
+            Map<String, List<String>> bounds = textRankLinkResults.get(key);
+            text = "";
+            for (String in : bounds.get(TextRankAnalyser.IN)) {
+                text += text + " ";
+            }
+            System.out.println(MessageFormat.format("term: {0} inbouds: {1}", key, text));
+            text = "";
+            for (String in : bounds.get(TextRankAnalyser.OUT)) {
+                text += text + " ";
+            }
+            System.out.println(MessageFormat.format("term: {0} outbouds: {1}", key, text));
+
         }
 
     }

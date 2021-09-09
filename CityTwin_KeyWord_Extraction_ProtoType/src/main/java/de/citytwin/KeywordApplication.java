@@ -744,11 +744,12 @@ public class KeywordApplication {
 
             DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().withOpenNLP().withStopwordFilter().Model(modelPath).build();
             documentAnalyser.performKeyWordExtraction(file);
-            Map<String, Double> result = documentAnalyser.filterBySimilarity(0.90f);
-            for (String key : result.keySet()) {
-                System.out.println(key);
-
-            }
+            documentAnalyser.analyse(0.90f);
+            // Map<String, Double> result = documentAnalyser.filterBySimilarity(0.90f);
+            // for (String key : result.keySet()) {
+            // System.out.println(key);
+            //
+            // }
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);
 
