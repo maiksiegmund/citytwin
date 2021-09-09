@@ -744,7 +744,7 @@ public class KeywordApplication {
 
             DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().withOpenNLP().withStopwordFilter().Model(modelPath).build();
             documentAnalyser.performKeyWordExtraction(file);
-            documentAnalyser.analyse(0.90f);
+            documentAnalyser.analyse(0.85f);
             // Map<String, Double> result = documentAnalyser.filterBySimilarity(0.90f);
             // for (String key : result.keySet()) {
             // System.out.println(key);

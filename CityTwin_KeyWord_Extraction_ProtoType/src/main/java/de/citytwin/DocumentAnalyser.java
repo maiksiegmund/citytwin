@@ -293,13 +293,16 @@ public class DocumentAnalyser {
             ontologyDTO = getLinkedOntologyDTO(key);
 
             alkisText = (alkisDTO != null) ? MessageFormat.format("{0} ({1})", alkisDTO.getCategorie(), alkisDTO.getCode().toString()) : "";
-            ontologytText = (ontologyDTO != null) ? MessageFormat.format("{0})", ontologyDTO.getType()) : "";
+            ontologytText = (ontologyDTO != null) ? MessageFormat.format("{0}", ontologyDTO.getType()) : "";
 
             text = (alkisText.equals("")) ? ontologytText : alkisText + " | " + ontologytText;
             System.out.println(MessageFormat.format("term: {0} details: {1}", key, text));
 
             Map<String, List<String>> bounds = textRankLinkResults.get(key);
             text = "";
+            if (bounds == null) {
+                continue;
+            }
             for (String in : bounds.get(TextRankAnalyser.IN)) {
                 text += text + " ";
             }
