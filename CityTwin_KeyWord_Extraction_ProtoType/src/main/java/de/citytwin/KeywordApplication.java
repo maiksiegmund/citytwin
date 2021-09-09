@@ -739,7 +739,7 @@ public class KeywordApplication {
     public static void analyseDocument() {
 
         String modelPath = "D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained.bin";
-        File file = getFiles().get(0);
+        File file = getFiles().get(1);
         try {
 
             DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().withOpenNLP().withStopwordFilter().Model(modelPath).build();

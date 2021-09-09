@@ -1,6 +1,7 @@
 package de.citytwin;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -19,10 +20,12 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.tika.exception.TikaException;
 import org.apache.tika.sax.BodyContentHandler;
 import org.javatuples.Quartet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.SAXException;
 
 /**
  * @author Maik Siegmund, FH Erfurt
@@ -102,7 +105,7 @@ public class DocumentAnalyser {
         public DocumentAnalyser build() throws Exception {
 
             DocumentAnalyser documentAnalyser = new DocumentAnalyser();
-            documentAnalyser.textRankAnalyser = (this.withOpenNLP) ? new TextRankAnalyser().withOpenNLP() : new TextRankAnalyser().withOpenNLP();
+            documentAnalyser.textRankAnalyser = (this.withOpenNLP) ? new TextRankAnalyser().withOpenNLP() : new TextRankAnalyser().withLucene();
             documentAnalyser.tfIdfAnalyser = new TFIDFTextAnalyser();
             documentAnalyser.tfIdfAnalyser.setWithOpenNLP(withOpenNLP);
             documentAnalyser.tfIdfAnalyser.setWithStopWordFilter(withStopwordFilter);
@@ -250,7 +253,6 @@ public class DocumentAnalyser {
 
     private int word2vecAnalyserCount = 10;
 
-
     private Map<String, Quartet<Integer, Double, String, Set<Integer>>> tfIDFResults = null;
 
     private Map<String, Double> textRankResults = null;
@@ -310,7 +312,7 @@ public class DocumentAnalyser {
                 currentSimilarity = 0.0f;
             }
             for (OntologyDTO ontologyDTO : ontologyDTOs) {
-                currentSimilarity =  word2vecAnalyser.similarity(ontologyDTO.word, key);
+                currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
                 if (currentSimilarity > similarity) {
                     result.put(key, textRankResults.get(key));
                 }
@@ -337,16 +339,18 @@ public class DocumentAnalyser {
                 currentSimilarity = 0.0f;
             }
         }
+        logger.info(MessageFormat.format("removed {0} keywords", (tfIDFResults.size() + textRankResults.size() - result.size())));
         return result;
 
     }
 
-
-
-    public void performKeyWordExtraction(final File file) throws IOException {
+    public void performKeyWordExtraction(final File file) throws SAXException, TikaException, Exception {
         if (!isBuilt) {
             throw new IOException("perform ... build()");
         }
+
+        bodyContentHandler = documentConverter.getBodyContentHandler(file);
+
         logger.info("run tf idf");
         tfIDFResults = tfIdfAnalyser
                 .getTermsAndScores(bodyContentHandler, GermanTextProcessing.getPosTagList(), TFIDFTextAnalyser.NormalizationType.NONE);
@@ -370,13 +374,16 @@ public class DocumentAnalyser {
         ObjectMapper mapper = new ObjectMapper();
         InputStream inputStream = getClass().getClassLoader().getResourceAsStream("ALKIS.json");
         alkisDTOs = Arrays.asList(mapper.readValue(inputStream, ALKISDTO[].class));
+        inputStream.close();
 
     }
 
     protected void readOntology() throws JsonParseException, JsonMappingException, IOException {
         ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         InputStream inputStream = getClass().getClassLoader().getResourceAsStream("ontology.json");
         ontologyDTOs = Arrays.asList(mapper.readValue(inputStream, OntologyDTO[].class));
+        inputStream.close();
     }
 
     public void setAlkis(List<ALKISDTO> alkisDTOs) {
