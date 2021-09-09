@@ -35,9 +35,11 @@ import org.xml.sax.SAXException;
 public class DocumentAnalyser {
 
     /**
+     * data transfer object (deserialized)
+     *
      * @author Maik Siegmund, FH Erfurt
      * @version $Revision: 1.0 $
-     * @since CityTwin_KeyWord_Extraction_ProtoType 1.0 simple data transfer object (deserialized)
+     * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
      */
     public static class ALKISDTO {
 
@@ -143,6 +145,8 @@ public class DocumentAnalyser {
     }
 
     /**
+     * data transfer object (deserialized)
+     *
      * @author Maik, FH Erfurt
      * @version $Revision: 1.0 $
      * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
@@ -252,24 +256,49 @@ public class DocumentAnalyser {
     private int textRankMaxLinks = 3;
 
     private int word2vecAnalyserCount = 10;
-
+    // intern use (store keywords)
     private Map<String, Quartet<Integer, Double, String, Set<Integer>>> tfIDFResults = null;
-
+    // intern use (store keywords)
     private Map<String, Double> textRankResults = null;
+
+    /** set by {@code DocumentAnalyser#filterBySimilarity(double) } */
+    private Map<String, ALKISDTO> linkedALKIS = null;
+    /** set by {@code DocumentAnalyser#filterBySimilarity(double) } */
+    private Map<String, OntologyDTO> linkedOntology = null;
 
     private Map<String, Map<String, List<String>>> textRankLinkResults = null;
 
     private DocumentAnalyser() {
     }
 
-    public void analyse() throws IOException {
+    public void analyse(double similarity) throws IOException {
         if (!isBuilt) {
             throw new IOException("perform ... performKeyWordExtraction(...)");
         }
 
-        logger.info("seeking in and outbound terms");
+        logger.info("seeking in- and outbound terms");
         textRankLinkResults = textRankAnalyser.getLinkedTerms(textRankResults, textRankMaxLinks);
-        logger.info("finished");
+        logger.info(MessageFormat.format("founded overall {0}", textRankLinkResults.size()));
+
+        Map<String, Double> filteredKeyWords = filterBySimilarity(similarity);
+
+        ALKISDTO alkisDTO = null;
+        OntologyDTO ontologyDTO = null;
+        String alkisText = "";
+        String ontologytText = "";
+        String text = "";
+        for (String key : filteredKeyWords.keySet()) {
+
+            alkisDTO = getLinkedALKISDTO(key);
+            ontologyDTO = getLinkedOntologyDTO(key);
+
+            alkisText = (alkisDTO != null) ? MessageFormat.format("{0} ({1})", alkisDTO.getCategorie(), alkisDTO.getCode().toString()) : "";
+            ontologytText = (ontologyDTO != null) ? MessageFormat.format("{0})", ontologyDTO.getType()) : "";
+
+            text = (alkisText.equals("")) ? ontologytText : alkisText + " | " + ontologytText;
+            System.out.println(MessageFormat.format("term: {0} details: {1}", key, text));
+
+        }
 
     }
 
@@ -300,6 +329,8 @@ public class DocumentAnalyser {
 
     public Map<String, Double> filterBySimilarity(double similarity) {
         Map<String, Double> result = new HashMap<String, Double>();
+        linkedALKIS = new HashMap<String, ALKISDTO>();
+        linkedOntology = new HashMap<String, OntologyDTO>();
         logger.info("filter textRank keywords by similarity (ALKIS and ontology)");
         double currentSimilarity = 0.0f;
         // filter textrank keywords
@@ -308,6 +339,7 @@ public class DocumentAnalyser {
                 currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
                 if (currentSimilarity > similarity) {
                     result.put(key, textRankResults.get(key));
+                    linkedALKIS.put(key, alkisdto);
                 }
                 currentSimilarity = 0.0f;
             }
@@ -315,6 +347,7 @@ public class DocumentAnalyser {
                 currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
                 if (currentSimilarity > similarity) {
                     result.put(key, textRankResults.get(key));
+                    linkedOntology.put(key, ontologyDTO);
                 }
                 currentSimilarity = 0.0f;
             }
@@ -322,12 +355,12 @@ public class DocumentAnalyser {
         // filter tf idf keywords
         logger.info("filter tf idf keywords by similarity (ALKIS and ontology)");
         currentSimilarity = 0.0f;
-        // filter textrank keywords
         for (String key : tfIDFResults.keySet()) {
             for (ALKISDTO alkisdto : alkisDTOs) {
                 currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
                 if (currentSimilarity > similarity) {
                     result.put(key, tfIDFResults.get(key).getValue1());
+                    linkedALKIS.put(key, alkisdto);
                 }
                 currentSimilarity = 0.0f;
             }
@@ -335,11 +368,14 @@ public class DocumentAnalyser {
                 currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
                 if (currentSimilarity > similarity) {
                     result.put(key, tfIDFResults.get(key).getValue1());
+                    linkedOntology.put(key, ontologyDTO);
                 }
                 currentSimilarity = 0.0f;
             }
         }
-        logger.info(MessageFormat.format("removed {0} keywords", (tfIDFResults.size() + textRankResults.size() - result.size())));
+        logger.info(MessageFormat.format("overall keywords: {0} --> removed {1} keywords",
+                (tfIDFResults.size() + textRankResults.size()),
+                (tfIDFResults.size() + textRankResults.size() - result.size())));
         return result;
 
     }
@@ -360,6 +396,14 @@ public class DocumentAnalyser {
         textRankResults = textRankAnalyser.getTermsAndScores(bodyContentHandler, textRankWordWindowSize, textRankIteration);
         logger.info(MessageFormat.format("text rank founded {0} keywords", textRankResults.size()));
 
+    }
+
+    public ALKISDTO getLinkedALKISDTO(final String term) {
+        return linkedALKIS.get(term);
+    }
+
+    public OntologyDTO getLinkedOntologyDTO(final String term) {
+        return linkedOntology.get(term);
     }
 
     /**

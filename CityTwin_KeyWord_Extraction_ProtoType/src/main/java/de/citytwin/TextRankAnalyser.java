@@ -203,6 +203,8 @@ public class TextRankAnalyser {
 
     }
 
+    public final static String IN = "in";
+    public final static String OUT = "out";
     private static transient final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final String VERSION = "$Revision: 1.00 $";
     private static final double DEFAULT_EDGE_WEIGHT = 1.0d;
@@ -396,8 +398,8 @@ public class TextRankAnalyser {
 
             }
             Map<String, List<String>> links = new HashMap<String, List<String>>();
-            links.put("in", inbounds);
-            links.put("out", outbounds);
+            links.put(TextRankAnalyser.IN, inbounds);
+            links.put(TextRankAnalyser.OUT, outbounds);
             result.put(entry.getKey(), links);
         }
         return result;
