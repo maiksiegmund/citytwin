@@ -281,39 +281,14 @@ public class DocumentAnalyser {
         Pair<OntologyDTO, Double> keyWordOntologyDTO = null;
 
         for (String key : filteredKeyWordsAlkis.keySet()) {
-
-<<<<<<< HEAD
-            alkisText = (alkisDTO != null) ? MessageFormat.format("{0} ({1})", alkisDTO.getCategorie(), alkisDTO.getCode().toString()) : "";
-            ontologytText = (ontologyDTO != null) ? MessageFormat.format("{0}", ontologyDTO.getType()) : "";
-=======
             keyWordalkisDTO = filteredKeyWordsAlkis.get(key);
             System.out.println(keyWordalkisDTO.getLeft().toString());
->>>>>>> 27aaeb38c0de94b93c7b472962e3c17689e0eb6c
-
         }
 
-<<<<<<< HEAD
-            Map<String, List<String>> bounds = textRankLinkResults.get(key);
-            text = "";
-            if (bounds == null) {
-                continue;
-            }
-            for (String in : bounds.get(TextRankAnalyser.IN)) {
-                text += text + " ";
-            }
-            System.out.println(MessageFormat.format("term: {0} inbouds: {1}", key, text));
-            text = "";
-            for (String in : bounds.get(TextRankAnalyser.OUT)) {
-                text += text + " ";
-            }
-            System.out.println(MessageFormat.format("term: {0} outbouds: {1}", key, text));
-=======
-        for (String key : filteredKeyWordsOntology.keySet()) {
 
+        for (String key : filteredKeyWordsOntology.keySet()) {
             keyWordOntologyDTO = filteredKeyWordsOntology.get(key);
             System.out.println(keyWordOntologyDTO.getLeft().toString());
->>>>>>> 27aaeb38c0de94b93c7b472962e3c17689e0eb6c
-
         }
 
     }
