@@ -282,14 +282,20 @@ public class DocumentAnalyser {
 
         for (String key : filteredKeyWordsAlkis.keySet()) {
             keyWordalkisDTO = filteredKeyWordsAlkis.get(key);
+            System.out.print(key + " --> ");
             System.out.println(keyWordalkisDTO.getLeft().toString());
         }
 
-
         for (String key : filteredKeyWordsOntology.keySet()) {
             keyWordOntologyDTO = filteredKeyWordsOntology.get(key);
+            System.out.print(key + " --> ");
             System.out.println(keyWordOntologyDTO.getLeft().toString());
         }
+
+        logger.info(MessageFormat.format("founded ALKIS:{0}, founded ONTOLOGY: {1}, overall: {2} ",
+                filteredKeyWordsAlkis.size(),
+                filteredKeyWordsOntology.size(),
+                (filteredKeyWordsAlkis.size() + filteredKeyWordsOntology.size())));
 
     }
 
