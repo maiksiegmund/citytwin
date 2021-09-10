@@ -328,22 +328,19 @@ public class DocumentAnalyser {
         Map<String, Pair<ALKISDTO, Double>> result = new HashMap<String, Pair<ALKISDTO, Double>>();
         logger.info("filter keywords (ALKIS)");
         double currentSimilarity = 0.0f;
-        for (String key : textRankResults.keySet()) {
-            for (ALKISDTO alkisdto : alkisDTOs) {
+
+        for (ALKISDTO alkisdto : alkisDTOs) {
+            for (String key : textRankResults.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(alkisdto, textRankResults.get(key)));
                 }
-                currentSimilarity = 0.0f;
             }
-        }
-        for (String key : tfIDFResults.keySet()) {
-            for (ALKISDTO alkisdto : alkisDTOs) {
+            for (String key : tfIDFResults.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
                 if (currentSimilarity > similarity) {
-                    result.put(key, Pair.of(alkisdto, textRankResults.get(key)));
+                    result.put(key, Pair.of(alkisdto, tfIDFResults.get(key).getValue1()));
                 }
-                currentSimilarity = 0.0f;
             }
         }
         return result;
@@ -353,23 +350,21 @@ public class DocumentAnalyser {
         Map<String, Pair<OntologyDTO, Double>> result = new HashMap<String, Pair<OntologyDTO, Double>>();
         logger.info("filter keywords (Ontology)");
         double currentSimilarity = 0.0f;
-        for (String key : textRankResults.keySet()) {
-            for (OntologyDTO ontologyDTO : ontologyDTOs) {
+
+        for (OntologyDTO ontologyDTO : ontologyDTOs) {
+            for (String key : textRankResults.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(ontologyDTO, textRankResults.get(key)));
                 }
-                currentSimilarity = 0.0f;
             }
-        }
-        for (String key : tfIDFResults.keySet()) {
-            for (OntologyDTO ontologyDTO : ontologyDTOs) {
+            for (String key : tfIDFResults.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
                 if (currentSimilarity > similarity) {
-                    result.put(key, Pair.of(ontologyDTO, textRankResults.get(key)));
+                    result.put(key, Pair.of(ontologyDTO, tfIDFResults.get(key).getValue1()));
                 }
-                currentSimilarity = 0.0f;
             }
+
         }
         return result;
     }
