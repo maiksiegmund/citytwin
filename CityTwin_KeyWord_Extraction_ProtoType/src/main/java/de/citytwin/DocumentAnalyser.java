@@ -332,12 +332,14 @@ public class DocumentAnalyser {
         for (ALKISDTO alkisdto : alkisDTOs) {
             for (String key : textRankResults.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
+                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, alkisdto.name, currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(alkisdto, textRankResults.get(key)));
                 }
             }
             for (String key : tfIDFResults.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
+                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, alkisdto.name, currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(alkisdto, tfIDFResults.get(key).getValue1()));
                 }
@@ -354,12 +356,14 @@ public class DocumentAnalyser {
         for (OntologyDTO ontologyDTO : ontologyDTOs) {
             for (String key : textRankResults.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
+                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ontologyDTO.word, currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(ontologyDTO, textRankResults.get(key)));
                 }
             }
             for (String key : tfIDFResults.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
+                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ontologyDTO.word, currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(ontologyDTO, tfIDFResults.get(key).getValue1()));
                 }
