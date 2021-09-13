@@ -1,13 +1,11 @@
 package de.citytwin;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -34,67 +32,8 @@ import org.xml.sax.SAXException;
  */
 public class DocumentAnalyser {
 
-    /**
-     * data transfer object (deserialized)
-     *
-     * @author Maik Siegmund, FH Erfurt
-     * @version $Revision: 1.0 $
-     * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
-     */
-    public static class ALKISDTO {
-
-        private String name;
-        private String categorie;
-        private Integer code;
-
-        public ALKISDTO() {
-        }
-
-        /**
-         * Konstruktor.
-         *
-         * @param name
-         * @param categorie
-         * @param code
-         */
-        public ALKISDTO(String name, String categorie, Integer code) {
-            super();
-            this.name = name;
-            this.categorie = categorie;
-            this.code = code;
-        }
-
-        public String getCategorie() {
-            return categorie;
-        }
-
-        public Integer getCode() {
-            return code;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setCategorie(String categorie) {
-            this.categorie = categorie;
-        }
-
-        public void setCode(Integer code) {
-            this.code = code;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String toString() {
-            return "ALKISDTO [" + (name != null ? "name=" + name + ", " : "") + (categorie != null ? "categorie=" + categorie + ", " : "")
-                    + (code != null ? "code=" + code : "") + "]";
-        }
-
-    }
+    private static String ALKIS_RESOURCE = "alkis.json";
+    private static String ONTOLOGY_RESOURCE = "ontology.json";
 
     public static class Builder {
 
@@ -113,8 +52,11 @@ public class DocumentAnalyser {
             documentAnalyser.tfIdfAnalyser.setWithStemming(withStemmening);
             documentAnalyser.word2vecAnalyser = new Word2VecAnalyser().withModel(pathToModel);
             documentAnalyser.documentConverter = new DocumentConverter();
-            documentAnalyser.readAlkis();
-            documentAnalyser.readOntology();
+            documentAnalyser.alkisDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {},
+                    DocumentAnalyser.ALKIS_RESOURCE);
+            documentAnalyser.ontologyDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<OntologyDTO>>() {},
+                    DocumentAnalyser.ONTOLOGY_RESOURCE);
+
             documentAnalyser.isBuilt = true;
             return documentAnalyser;
 
@@ -143,99 +85,6 @@ public class DocumentAnalyser {
 
     }
 
-    /**
-     * data transfer object (deserialized)
-     *
-     * @author Maik, FH Erfurt
-     * @version $Revision: 1.0 $
-     * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
-     */
-    public static class OntologyDTO {
-
-        private boolean isSemantic = false;
-        private boolean isKeyWord = false;
-        private boolean isCore = false;
-        private String stem = "";
-        private String type = "";
-        private String word = "";
-
-        /**
-         * Konstruktor.
-         */
-        public OntologyDTO() {
-            this.isSemantic = false;
-            this.isKeyWord = false;
-            this.isCore = false;
-            this.stem = "";
-            this.type = "";
-            this.word = "";
-        }
-
-        public OntologyDTO(boolean isSemantic, boolean isKeyWord, boolean isCore, String stem, String type, String word) {
-            this.isSemantic = isSemantic;
-            this.isKeyWord = isKeyWord;
-            this.isCore = isCore;
-            this.stem = stem;
-            this.type = type;
-            this.word = word;
-        }
-
-        public String getStem() {
-            return stem;
-        }
-
-        public String getType() {
-            return type;
-        }
-
-        public String getWord() {
-            return word;
-        }
-
-        public boolean isCore() {
-            return isCore;
-        }
-
-        public boolean isKeyWord() {
-            return isKeyWord;
-        }
-
-        public boolean isSemantic() {
-            return isSemantic;
-        }
-
-        public void setCore(boolean isCore) {
-            this.isCore = isCore;
-        }
-
-        public void setKeyWord(boolean isKeyWord) {
-            this.isKeyWord = isKeyWord;
-        }
-
-        public void setSemantic(boolean isSemantic) {
-            this.isSemantic = isSemantic;
-        }
-
-        public void setStem(String stem) {
-            this.stem = stem;
-        }
-
-        public void setType(String type) {
-            this.type = type;
-        }
-
-        public void setWord(String word) {
-            this.word = word;
-        }
-
-        @Override
-        public String toString() {
-            return "OntologyDTO [isSemantic=" + isSemantic + ", isKeyWord=" + isKeyWord + ", isCore=" + isCore + ", stem=" + stem + ", type=" + type
-                    + ", word=" + word + "]";
-        }
-
-    }
-
     /** Aktuelle Versionsinformation */
     private static final String VERSION = "$Revision: 1.00 $";
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
@@ -247,8 +96,8 @@ public class DocumentAnalyser {
     protected boolean isBuilt = false;
     private BodyContentHandler bodyContentHandler = null;
     private GermanTextProcessing germanTextProcessing = null;
-    private List<ALKISDTO> alkisDTOs = new ArrayList<ALKISDTO>();
-    private List<OntologyDTO> ontologyDTOs = new ArrayList<OntologyDTO>();
+    protected List<ALKISDTO> alkisDTOs = new ArrayList<ALKISDTO>();
+    protected List<OntologyDTO> ontologyDTOs = new ArrayList<OntologyDTO>();
 
     private int textRankWordWindowSize = 5;
     private int textRankIteration = 5;
@@ -316,7 +165,7 @@ public class DocumentAnalyser {
 
         Pair<String, String> pair = stemmed.get(0);
         OntologyDTO dto = ontologyDTOs.stream()
-                .filter(item -> pair.getLeft().equals(item.word) || pair.getRight().equals(item.stem))
+                .filter(item -> pair.getLeft().equals(item.word) || pair.getRight().equals(item.stemm))
                 .findFirst()
                 .orElse(null);
 
@@ -398,22 +247,22 @@ public class DocumentAnalyser {
      * @throws JsonMappingException
      * @throws IOException
      */
-    protected void readAlkis() throws JsonParseException, JsonMappingException, IOException {
-
-        ObjectMapper mapper = new ObjectMapper();
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("ALKIS.json");
-        alkisDTOs = Arrays.asList(mapper.readValue(inputStream, ALKISDTO[].class));
-        inputStream.close();
-
-    }
-
-    protected void readOntology() throws JsonParseException, JsonMappingException, IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("ontology.json");
-        ontologyDTOs = Arrays.asList(mapper.readValue(inputStream, OntologyDTO[].class));
-        inputStream.close();
-    }
+    // protected void readAlkis() throws JsonParseException, JsonMappingException, IOException {
+    //
+    // ObjectMapper mapper = new ObjectMapper();
+    // InputStream inputStream = getClass().getClassLoader().getResourceAsStream("ALKIS.json");
+    // alkisDTOs = Arrays.asList(mapper.readValue(inputStream, ALKISDTO[].class));
+    // inputStream.close();
+    //
+    // }
+    //
+    // protected void readOntology() throws JsonParseException, JsonMappingException, IOException {
+    // ObjectMapper mapper = new ObjectMapper();
+    // mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    // InputStream inputStream = getClass().getClassLoader().getResourceAsStream("ontology.json");
+    // ontologyDTOs = Arrays.asList(mapper.readValue(inputStream, OntologyDTO[].class));
+    // inputStream.close();
+    // }
 
     public void setAlkis(List<ALKISDTO> alkisDTOs) {
         this.alkisDTOs = new ArrayList<ALKISDTO>(alkisDTOs);

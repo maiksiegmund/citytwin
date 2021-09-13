@@ -283,7 +283,7 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method stem all terms in {@link DocumentCount#sentences}.
+     * This method stemm all terms in {@link DocumentCount#sentences}.
      *
      * @param documentCount
      * @return new reference of {@link DocumentCount}
