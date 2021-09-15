@@ -12,9 +12,9 @@ public class OntologyDTO {
     private boolean isSemantic = false;
     private boolean isKeyWord = false;
     private boolean isCore = false;
-    String stemm = "";
+    private String stemm = "";
     private String type = "";
-    String word = "";
+    private String word = "";
 
     /**
      * Konstruktor.
@@ -37,7 +37,7 @@ public class OntologyDTO {
         this.word = word;
     }
 
-    public String getStem() {
+    public String getStemm() {
         return stemm;
     }
 

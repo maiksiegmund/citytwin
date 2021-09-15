@@ -1,8 +1,6 @@
 package de.citytwin;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +17,7 @@ import javax.annotation.Nonnull;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.BodyContentHandler;
 import org.javatuples.Quartet;
 import org.slf4j.Logger;
@@ -34,6 +33,9 @@ public class DocumentAnalyser {
 
     private static String ALKIS_RESOURCE = "alkis.json";
     private static String ONTOLOGY_RESOURCE = "ontology.json";
+    private static String URI = "bolt://localhost:7687";
+    private static String USER = "neo4j";
+    private static String PASSWORD = "C1tyTw1n!";
 
     public static class Builder {
 
@@ -95,6 +97,7 @@ public class DocumentAnalyser {
     protected DocumentConverter documentConverter = null;
     protected boolean isBuilt = false;
     private BodyContentHandler bodyContentHandler = null;
+    private Metadata metadata = null;
     private GermanTextProcessing germanTextProcessing = null;
     protected List<ALKISDTO> alkisDTOs = new ArrayList<ALKISDTO>();
     protected List<OntologyDTO> ontologyDTOs = new ArrayList<OntologyDTO>();
@@ -146,6 +149,10 @@ public class DocumentAnalyser {
                 filteredKeyWordsOntology.size(),
                 (filteredKeyWordsAlkis.size() + filteredKeyWordsOntology.size())));
 
+        DBController dbController = new DBController(DocumentAnalyser.URI, DocumentAnalyser.USER, DocumentAnalyser.PASSWORD);
+
+        dbController.persist(filteredKeyWordsAlkis, metadata);
+
     }
 
     public ALKISDTO getTermInALKIS(String term) {
@@ -153,7 +160,7 @@ public class DocumentAnalyser {
 
         Pair<String, String> pair = stemmed.get(0);
         ALKISDTO dto = alkisDTOs.stream()
-                .filter(item -> pair.getLeft().equals(item.name) || pair.getRight().equals(item.name))
+                .filter(item -> pair.getLeft().equals(item.getName()) || pair.getRight().equals(item.getName()))
                 .findFirst()
                 .orElse(null);
         return dto;
@@ -165,7 +172,7 @@ public class DocumentAnalyser {
 
         Pair<String, String> pair = stemmed.get(0);
         OntologyDTO dto = ontologyDTOs.stream()
-                .filter(item -> pair.getLeft().equals(item.word) || pair.getRight().equals(item.stemm))
+                .filter(item -> pair.getLeft().equals(item.getWord()) || pair.getRight().equals(item.getStemm()))
                 .findFirst()
                 .orElse(null);
 
@@ -180,14 +187,14 @@ public class DocumentAnalyser {
 
         for (ALKISDTO alkisdto : alkisDTOs) {
             for (String key : textRankResults.keySet()) {
-                currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
+                currentSimilarity = word2vecAnalyser.similarity(alkisdto.getName(), key);
                 // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, alkisdto.name, currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(alkisdto, textRankResults.get(key)));
                 }
             }
             for (String key : tfIDFResults.keySet()) {
-                currentSimilarity = word2vecAnalyser.similarity(alkisdto.name, key);
+                currentSimilarity = word2vecAnalyser.similarity(alkisdto.getName(), key);
                 // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, alkisdto.name, currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(alkisdto, tfIDFResults.get(key).getValue1()));
@@ -204,14 +211,14 @@ public class DocumentAnalyser {
 
         for (OntologyDTO ontologyDTO : ontologyDTOs) {
             for (String key : textRankResults.keySet()) {
-                currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
+                currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.getWord(), key);
                 // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ontologyDTO.word, currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(ontologyDTO, textRankResults.get(key)));
                 }
             }
             for (String key : tfIDFResults.keySet()) {
-                currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.word, key);
+                currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.getWord(), key);
                 // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ontologyDTO.word, currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(ontologyDTO, tfIDFResults.get(key).getValue1()));
@@ -228,6 +235,7 @@ public class DocumentAnalyser {
         }
 
         bodyContentHandler = documentConverter.getBodyContentHandler(file);
+        metadata = documentConverter.getMetaData(file);
 
         logger.info("run tf idf");
         tfIDFResults = tfIdfAnalyser
@@ -239,30 +247,6 @@ public class DocumentAnalyser {
         logger.info(MessageFormat.format("text rank founded {0} keywords", textRankResults.size()));
 
     }
-
-    /**
-     * this method deserialized alkis.json file (include as resource)
-     *
-     * @throws JsonParseException
-     * @throws JsonMappingException
-     * @throws IOException
-     */
-    // protected void readAlkis() throws JsonParseException, JsonMappingException, IOException {
-    //
-    // ObjectMapper mapper = new ObjectMapper();
-    // InputStream inputStream = getClass().getClassLoader().getResourceAsStream("ALKIS.json");
-    // alkisDTOs = Arrays.asList(mapper.readValue(inputStream, ALKISDTO[].class));
-    // inputStream.close();
-    //
-    // }
-    //
-    // protected void readOntology() throws JsonParseException, JsonMappingException, IOException {
-    // ObjectMapper mapper = new ObjectMapper();
-    // mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    // InputStream inputStream = getClass().getClassLoader().getResourceAsStream("ontology.json");
-    // ontologyDTOs = Arrays.asList(mapper.readValue(inputStream, OntologyDTO[].class));
-    // inputStream.close();
-    // }
 
     public void setAlkis(List<ALKISDTO> alkisDTOs) {
         this.alkisDTOs = new ArrayList<ALKISDTO>(alkisDTOs);

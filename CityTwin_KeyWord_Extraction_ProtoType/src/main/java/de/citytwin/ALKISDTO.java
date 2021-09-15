@@ -9,7 +9,7 @@ package de.citytwin;
  */
 public class ALKISDTO {
 
-    String name;
+    private String name;
     private String categorie;
     private Integer code;
 
