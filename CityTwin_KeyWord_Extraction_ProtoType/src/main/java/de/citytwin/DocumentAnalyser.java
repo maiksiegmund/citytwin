@@ -31,11 +31,11 @@ import org.xml.sax.SAXException;
  */
 public class DocumentAnalyser {
 
-    private static String ALKIS_RESOURCE = "alkis.json";
-    private static String ONTOLOGY_RESOURCE = "ontology.json";
-    private static String URI = "bolt://localhost:7687";
-    private static String USER = "neo4j";
-    private static String PASSWORD = "C1tyTw1n!";
+    public static String ALKIS_RESOURCE = "alkis.json";
+    public static String ONTOLOGY_RESOURCE = "ontology.json";
+    public static String URI = "bolt://localhost:7687";
+    public static String USER = "neo4j";
+    public static String PASSWORD = "C1tyTw1n!";
 
     public static class Builder {
 
@@ -152,6 +152,7 @@ public class DocumentAnalyser {
         DBController dbController = new DBController(DocumentAnalyser.URI, DocumentAnalyser.USER, DocumentAnalyser.PASSWORD);
 
         dbController.persist(filteredKeyWordsAlkis, metadata);
+        dbController.persist(null, metadata);
 
     }
 
@@ -254,6 +255,24 @@ public class DocumentAnalyser {
 
     public void setOntology(List<OntologyDTO> ontologyDTOs) {
         this.ontologyDTOs = new ArrayList<OntologyDTO>(ontologyDTOs);
+    }
+
+    /**
+     * this method get near
+     *
+     * @param filterdWords
+     */
+    public Map<String, List<String>> getNearestTo(List<String> filterdTerms) {
+
+        Map<String, List<String>> result = new HashMap<String, List<String>>(filterdTerms.size());
+        for (String term : filterdTerms) {
+            List<String> nearestWords = word2vecAnalyser.wordsNearest(PASSWORD, word2vecAnalyserCount);
+            result.put(term, filterdTerms);
+
+        }
+        // todo filter!
+        return result;
+
     }
 
     /**

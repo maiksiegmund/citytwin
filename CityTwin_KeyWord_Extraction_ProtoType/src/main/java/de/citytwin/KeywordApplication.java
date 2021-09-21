@@ -1,5 +1,6 @@
 package de.citytwin;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.io.Files;
 
 import java.io.BufferedReader;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.BodyContentHandler;
 import org.javatuples.Quartet;
 import org.slf4j.Logger;
@@ -638,33 +640,38 @@ public class KeywordApplication {
         // trainWord2VecModel();
         // expandWord2VecModel("D:\\Workspace\\CityTwin_KeyWord_Extraction_ProtoType\\output\\word2vec\\selftrained01.bin");
         // getWord2VecResults();
-        // test();
-        analyseDocument();
+        test();
+        // analyseDocument();
     }
 
     public static void test() {
 
         try {
-            String path = "D:\\VMS\\sharedFolder\\ALKIS-OK 6_0.pdf";
-            StringBuilder stringBuilder = new StringBuilder();
-            DocumentConverter documentConverter = new DocumentConverter();
-            GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
-            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(new File(path));
-            File outputFolder = getOutputFolder("word2vec");
-            String[] sentences = germanTextProcessing.getSentenceDetectorME().sentDetect(bodyContentHandler.toString());
 
-            // List<String> sentences = germanTextProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
-            for (String sentence : sentences) {
-                stringBuilder.append(sentence);
-                stringBuilder.append("---------------------------------------------------------------------------\n");
+            Map<String, Pair<ALKISDTO, Double>> filteredKeyWordsAlkis = new HashMap<String, Pair<ALKISDTO, Double>>();
+            Map<String, Pair<OntologyDTO, Double>> filteredKeyWordsOntology = new HashMap<String, Pair<OntologyDTO, Double>>();
+
+            Pair<ALKISDTO, Double> keyWordalkisDTO = null;
+            Pair<OntologyDTO, Double> keyWordOntologyDTO = null;
+
+            DocumentConverter documentConverter = new DocumentConverter();
+            Metadata metadata = documentConverter.getMetaData(getFiles().get(1));
+            List<ALKISDTO> alkisdtos = documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {}, DocumentAnalyser.ALKIS_RESOURCE);
+            List<OntologyDTO> ontologyDTOs = documentConverter.getDTOs(new TypeReference<List<OntologyDTO>>() {}, DocumentAnalyser.ONTOLOGY_RESOURCE);
+            DBController dbController = new DBController(DocumentAnalyser.URI, DocumentAnalyser.USER, DocumentAnalyser.PASSWORD);
+
+            int index = 0;
+            for (String keyword : keywords) {
+                keyWordalkisDTO = Pair.of(alkisdtos.get(index), index + 0.4d);
+                filteredKeyWordsAlkis.put(keyword, keyWordalkisDTO);
+
+                keyWordOntologyDTO = Pair.of(ontologyDTOs.get(index), index + 0.4d);
+                filteredKeyWordsOntology.put(keyword, keyWordOntologyDTO);
+
             }
 
-            File resultfile = new File(outputFolder, "alkis.txt");
-            BufferedWriter writer = new BufferedWriter(
-                    new BufferedWriter(new FileWriter(resultfile, false)));
-            writer.write(stringBuilder.toString());
-            writer.close();
-            stringBuilder.delete(0, stringBuilder.length());
+            dbController.persist(filteredKeyWordsAlkis, metadata);
+            dbController.persist(filteredKeyWordsOntology, metadata);
 
         } catch (Exception exception) {
             // TODO Auto-generated catch block
@@ -756,5 +763,8 @@ public class KeywordApplication {
         }
 
     }
+
+    public static String[] keywords = { "Bauplan", "Moor", "Fläche", "Stratgie", "Umweltbelastung", "Verkehrsanbindung", "Berlin", "Senat", "Kindergarten",
+        "Bauamt" };
 
 }

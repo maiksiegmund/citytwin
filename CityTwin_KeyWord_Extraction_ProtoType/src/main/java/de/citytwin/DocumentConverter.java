@@ -121,6 +121,10 @@ public class DocumentConverter {
      */
     public Metadata getMetaData(final File file) throws SAXException, TikaException, IOException, Exception {
         setTikaComponents(file);
+        String filename = metadata.get("fileName");
+        if (filename == null) {
+            metadata.add("fileName", file.getName());
+        }
         return metadata;
     }
 

@@ -1,8 +1,7 @@
 package de.citytwin;
 
-import com.sun.javafx.binding.StringFormatter;
-
 import java.lang.invoke.MethodHandles;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +14,7 @@ import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
+import org.neo4j.driver.TransactionWork;
 import org.neo4j.driver.Values;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,17 +35,18 @@ public class DBController {
 
     }
 
-    private boolean existOntologyEntry(final Transaction transaction, OntologyDTO dto) {
-        Result result = transaction.run("Match (ont:OntologyEntry) where ont.name = $name",
+    private Boolean existOntologEntryyNode(Transaction transaction, OntologyDTO dto) {
+
+        Result result = transaction.run("Match (ont:OntologyEntry) where ont.name = $name return id(ont)",
                 Values.parameters("name", dto.getWord()));
         if (result.hasNext())
-            return true;
-        return false;
+            return Boolean.TRUE;
+        return Boolean.FALSE;
     }
 
-    private Result addOntologyEntry(final Transaction transaction, OntologyDTO dto) {
+    private Void createOntologyEntryNode(Transaction transaction, OntologyDTO dto) {
 
-        return transaction.run("CREATE (:OntologyEntry {isCore: $isCore, isKeyWord: $isKeyWord, isSemantic: $isSemantic, word: $word, stemm: $stemm})",
+        transaction.run("CREATE (:OntologyEntry {isCore: $isCore, isKeyWord: $isKeyWord, isSemantic: $isSemantic, word: $word, stemm: $stemm})",
                 Values.parameters(
                         "isCore",
                         dto.isCore(),
@@ -57,19 +58,20 @@ public class DBController {
                         dto.getWord(),
                         "stemm",
                         dto.getStemm()));
+        return null;
 
     }
 
-    private boolean existALKISEntry(final Transaction transaction, ALKISDTO dto) {
+    private Boolean existALKISNode(Transaction transaction, ALKISDTO dto) {
         Result result = transaction.run("Match (alkis:ALKISEntry) where alkis.name = $name",
                 Values.parameters("name", dto.getName()));
         if (result.hasNext())
-            return true;
-        return false;
+            return Boolean.TRUE;
+        return Boolean.FALSE;
     }
 
-    private Result addALKISEntry(final Transaction transaction, ALKISDTO dto) {
-        return transaction.run("CREATE (:ALKISEntry {categorie: $categorie, code: $code, name: $name})",
+    private Void createALKISNode(Transaction transaction, ALKISDTO dto) {
+        transaction.run("CREATE (:ALKISEntry {categorie: $categorie, code: $code, name: $name})",
                 Values.parameters(
                         "categorie",
                         dto.getCategorie(),
@@ -77,37 +79,40 @@ public class DBController {
                         dto.getCode(),
                         "name",
                         dto.getName()));
+        return null;
 
     }
 
-    private boolean existOntologyType(final Transaction transaction, final OntologyDTO dto) {
-        Result result = transaction.run("Match (ont:OntologyType) where ont.type = $type",
+    private Boolean existOntologyTypeNode(Transaction transaction, final OntologyDTO dto) {
+        Result result = transaction.run("Match (ont:OntologyType) where ont.type = $type return (ont)",
                 Values.parameters("type", dto.getType()));
         if (result.hasNext())
-            return true;
-        return false;
+            return Boolean.TRUE;
+        return Boolean.FALSE;
     }
 
-    private Result addOntologyType(final Transaction transaction, final OntologyDTO dto) {
-        return transaction.run("CREATE (:OntologyType {type: $type})",
+    private Void createOntologyTypeNode(Transaction transaction, final OntologyDTO dto) {
+        transaction.run("CREATE (:OntologyType {type: $type})",
                 Values.parameters(
                         "type",
                         dto.getType()));
+        return null;
 
     }
 
-    private boolean existDocument(final Transaction transaction, final Metadata metadata) {
-        Result result = transaction.run("Match (doc:Document) where doc.name = $name return doc",
+    private Boolean existDocument(Transaction transaction, final Metadata metadata) {
+        Result result = transaction.run("Match (doc:Document) where doc.fileName = $fileName return (doc)",
                 Values.parameters(
-                        "name",
-                        metadata.get("name")));
+                        "fileName",
+                        metadata.get("fileName")));
         if (result.hasNext())
-            return true;
-        return false;
+            return Boolean.TRUE;
+        return Boolean.FALSE;
     }
 
-    private Result addDocument(final Transaction transaction, final Metadata metadata) {
+    private Void createDocumentNode(Transaction transaction, final Metadata metadata) {
 
+        String query = "";
         StringBuilder stringBuilder = new StringBuilder();
         String comma = ",";
         String name = "";
@@ -115,65 +120,94 @@ public class DBController {
 
         Map<String, Object> parameters = new HashMap<String, Object>();
 
-        StringFormatter.format("{0}: ${0}", name);
+        MessageFormat.format("{0}: ${0}", name);
         for (int index = 0; index < metadata.names().length; ++index) {
-            name = metadata.names()[index];
+            name = metadata.names()[index].replace("-", "");
+            name = name.replace(":", "");
             data = metadata.get(metadata.names()[index]);
             if (index == metadata.names().length - 1) {
                 comma = "";
             }
-            stringBuilder.append(StringFormatter.format("{0}: ${0}{1}", name, comma));
+            stringBuilder.append(MessageFormat.format("{0}: ${0}{1}", name, comma));
             parameters.put(name, data);
         }
-        stringBuilder.append(StringFormatter.format("CREATE (:Document {{{0}}})", stringBuilder.toString()));
-        return transaction.run(stringBuilder.toString(), parameters);
+        query = (MessageFormat.format("CREATE (:Document '{'{0}'}')", stringBuilder.toString()));
+        transaction.run(query, parameters);
+        return null;
     }
 
-    private boolean existKeyWord(final Transaction transaction, final String name) {
+    private Boolean existKeyWordNode(Transaction transaction, final String name) {
         Result result = transaction.run("Match (keyw:Keyword) where keyw.name = $name return keyw",
                 Values.parameters(
                         "name",
                         name));
         if (result.hasNext())
-            return true;
-        return false;
+            return Boolean.TRUE;
+        return Boolean.FALSE;
     }
 
-    private Result addKeyword(final Transaction transaction, final String name) {
-        return transaction.run("CREATE (:Keyword {name: $name})",
+    private Void createKeywordNode(Transaction transaction, final String name) {
+        transaction.run("CREATE (:Keyword {name: $name})",
                 Values.parameters(
                         "name",
                         name));
+        return null;
     }
 
-    public void createOntologyEntries(List<OntologyDTO> dtos) {
+    public void addOntologyEntry(OntologyDTO dto) {
 
+        Boolean exist = false;
         try(Session session = driver.session()) {
+            exist = session.readTransaction(new TransactionWork<Boolean>() {
 
-            Map<String, OntologyDTO> distinctList = new HashMap<String, OntologyDTO>();
-            for (OntologyDTO dto : dtos) {
-                session.writeTransaction(transaction -> addOntologyEntry(transaction, dto));
-                // simple way to distinct ontology types
-                if (!distinctList.containsKey(dto.getType())) {
-                    distinctList.put(dto.getType(), dto);
+                @Override
+                public Boolean execute(Transaction transaction) {
+                    return existOntologyTypeNode(transaction, dto);
+
                 }
+            });
+            if (exist) {
+                session.writeTransaction(new TransactionWork<Void>() {
+
+                    @Override
+                    public Void execute(Transaction transaction) {
+                        // TODO Auto-generated method stub
+                        return createOntologyEntryNode(transaction, dto);
+                    }
+                });
             }
 
-            for (String key : distinctList.keySet()) {
-                session.writeTransaction(transaction -> addOntologyType(transaction, distinctList.get(key)));
-            }
-
-        } catch (Exception exception) {
-            logger.error(exception.getMessage(), exception);
         }
     }
 
     public void createALKISEntries(List<ALKISDTO> dtos) {
         try(Session session = driver.session()) {
 
+            Boolean exist = false;
             for (ALKISDTO dto : dtos) {
-                session.writeTransaction(transaction -> addALKISEntry(transaction, dto));
+
+                exist = session.readTransaction(new TransactionWork<Boolean>() {
+
+                    @Override
+                    public Boolean execute(Transaction transaction) {
+                        return existALKISNode(transaction, dto);
+
+                    }
+                });
+                if (!exist) {
+                    session.writeTransaction(new TransactionWork<Void>() {
+
+                        @Override
+                        public Void execute(Transaction transaction) {
+
+                            return createALKISNode(transaction, dto);
+                        }
+
+                    });
+                }
+
             }
+
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);
         }
@@ -186,73 +220,77 @@ public class DBController {
 
     }
 
-    private Result linkOntologyTypeAndDocument(final Transaction transaction, final OntologyDTO ontologyDTO, final Metadata documentMetadata) {
-        return transaction.run("Match (ont:OntologyType) ,(doc:Document) where ont.type = $ontologyType and doc.name = $name"
+    private Void linkOntologyTypeAndDocument(final Transaction transaction, final OntologyDTO ontologyDTO, final Metadata documentMetadata) {
+        transaction.run("Match (ont:OntologyType) ,(doc:Document) where ont.type = $ontologyType and doc.name = $name"
                 + " Create (doc)-[:listed] ->(add)",
                 Values.parameters("ontologyType", ontologyDTO.getType(), "$name", documentMetadata.get("name")));
+        return null;
     }
 
-    private boolean isLinked(final Transaction transaction, final OntologyDTO ontologyDTO, final Metadata documentMetadata) {
-        Result result = transaction.run("Match edge=(ont:OntologyType{type: $type})-[:listed]->(doc:Document{name: $name}) return edge",
-                Values.parameters("type", ontologyDTO.getType(), "name", documentMetadata.get("name")));
+    private Boolean isLinked(final Transaction transaction, final OntologyDTO ontologyDTO, final Metadata documentMetadata) {
+        Result result = transaction.run("Match edge=(ont:OntologyType{type: $type})-[:listed]->(doc:Document{fileName: $fileName}) return (edge)",
+                Values.parameters("type", ontologyDTO.getType(), "fileName", documentMetadata.get("fileName")));
         if (result.hasNext())
-            return true;
-        return false;
+            return Boolean.TRUE;
+        return Boolean.FALSE;
     }
 
-    private Result linkOntologyTypeAndKeyword(final Transaction transaction, final OntologyDTO ontologyDTO, final String keyword) {
-        return transaction.run("Match (ont:OntologyType), (keyw:Keyword) where ont.type = $ontologyType and keyw.name = $name"
+    private Void linkOntologyTypeAndKeyword(final Transaction transaction, final OntologyDTO ontologyDTO, final String keyword) {
+        transaction.run("Match (ont:OntologyType), (keyw:Keyword) where ont.type = $ontologyType and keyw.name = $name"
                 + " Create (keyw)-[:partof] ->(ont)",
                 Values.parameters("ontologyType", ontologyDTO.getType(), "$name", keyword));
+        return null;
     }
 
-    private boolean isLinked(final Transaction transaction, final OntologyDTO ontologyDTO, final String keyword) {
-        Result result = transaction.run("Match edge=(ont:OntologyType{type: $type})-[:listed]->(Keyword{name: $keyword}) return edge",
+    private Boolean isLinked(final Transaction transaction, final OntologyDTO ontologyDTO, final String keyword) {
+        Result result = transaction.run("Match edge=(ont:OntologyType{type: $type})-[:listed]->(Keyword{name: $keyword}) return (edge)",
                 Values.parameters("type", ontologyDTO.getType(), "keyword", keyword));
         if (result.hasNext())
-            return true;
-        return false;
+            return Boolean.TRUE;
+        return Boolean.FALSE;
     }
 
-    private Result linkDocumentAndKeyword(final Transaction transaction, final Metadata documentMetadata, final String keyword, final double weight) {
-        return transaction.run("Match (doc:Document), (keyw:Keyword) where doc.name = $name and keyw.name = $keyowrd"
+    private Void linkDocumentAndKeyword(final Transaction transaction, final Metadata documentMetadata, final String keyword, final double weight) {
+        transaction.run("Match (doc:Document), (keyw:Keyword) where doc.fileName = $fileName and keyw.name = $keyowrd"
                 + " Create (doc)-[:contains{weight:$weight} ] ->(keyw)",
-                Values.parameters("name",
-                        documentMetadata.get("name"),
+                Values.parameters("fileName",
+                        documentMetadata.get("fileName"),
                         "keyowrd",
                         keyword,
                         "weight",
                         weight));
+        return null;
     }
 
-    private boolean isLinked(final Transaction transaction, final Metadata documentMetadata, final String keyword) {
-        Result result = transaction.run("Match edge=(doc:Document{name: $name})-[:listed]->(Keyword{name: $keyword}) return edge",
-                Values.parameters("name", documentMetadata.get("name"), "keyword", keyword));
+    private Boolean isLinked(final Transaction transaction, final Metadata documentMetadata, final String keyword) {
+        Result result = transaction.run("Match edge=(doc:Document{fileName: $fileName})-[:contains]->(Keyword{name: $keyword}) return edge",
+                Values.parameters("fileName", documentMetadata.get("fileName"), "keyword", keyword));
         if (result.hasNext())
-            return true;
-        return false;
+            return Boolean.TRUE;
+        return Boolean.FALSE;
     }
 
-    private Result linkDocumentAndALKIS(final Transaction transaction, final Metadata documentMetadata, final ALKISDTO alkisdto, final double weight) {
-        return transaction.run("Match (doc:Document), (alkis:ALKISEntry) where doc.name = $name and keyw.name = $alkisname"
+    private Void linkDocumentAndALKIS(final Transaction transaction, final Metadata documentMetadata, final ALKISDTO alkisdto, final double weight) {
+        transaction.run("Match (doc:Document), (alkis:ALKISEntry) where doc.fileName = $fileName and keyw.name = $alkisname"
                 + " Create (doc)-[:contains{weight:$weight} ] ->(alkis)",
-                Values.parameters("name",
-                        documentMetadata.get("name"),
+                Values.parameters("fileName",
+                        documentMetadata.get("fileName"),
                         "alkisname",
                         alkisdto.getName(),
                         "weight",
                         weight));
+        return null;
     }
 
-    private boolean isLinked(final Transaction transaction, final Metadata documentMetadata, final ALKISDTO alkisdto) {
-        Result result = transaction.run("Match edge=(doc:Document{name: $filename})-[:contains]->(ALKISEntry{name: $alkisname}) return edge",
-                Values.parameters("filename", documentMetadata.get("name"), "alkisname", alkisdto.getName()));
+    private Boolean isLinked(final Transaction transaction, final Metadata documentMetadata, final ALKISDTO alkisdto) {
+        Result result = transaction.run("Match edge=(doc:Document{fileName: $fileName})-[:contains]->(ALKISEntry{name: $alkisname}) return edge",
+                Values.parameters("fileName", documentMetadata.get("fileName"), "alkisname", alkisdto.getName()));
         if (result.hasNext())
-            return true;
-        return false;
+            return Boolean.TRUE;
+        return Boolean.FALSE;
     }
 
-    private void purgeDB() {
+    private void purgHeDB() {
         try(Session session = driver.session()) {
 
             Transaction transaction = session.beginTransaction();
@@ -270,30 +308,64 @@ public class DBController {
 
         try(Session session = driver.session()) {
 
+            Boolean exist = false;
+            Boolean linked = false;
             Pair<T, Double> pair;
-            Transaction transaction = session.beginTransaction();
 
-            if (!existDocument(transaction, metadata)) {
-                addDocument(transaction, metadata);
+            exist = session.readTransaction(new TransactionWork<Boolean>() {
+
+                @Override
+                public Boolean execute(Transaction transaction) {
+                    return existDocument(transaction, metadata);
+                }
+            });
+            if (!exist) {
+                session.writeTransaction(new TransactionWork<Void>() {
+
+                    @Override
+                    public Void execute(Transaction transaction) {
+                        return createDocumentNode(transaction, metadata);
+                    }
+                });
             }
             for (String key : filteredKeyWords.keySet()) {
                 pair = filteredKeyWords.get(key);
                 T dto = pair.getLeft();
-                if (!existKeyWord(transaction, key)) {
-                    addKeyword(transaction, key);
+                exist = session.readTransaction(new TransactionWork<Boolean>() {
+
+                    @Override
+                    public Boolean execute(Transaction transaction) {
+
+                        return existKeyWordNode(transaction, key);
+                    }
+                });
+                if (!exist) {
+                    session.writeTransaction(new TransactionWork<Void>() {
+
+                        @Override
+                        public Void execute(Transaction transaction) {
+                            return createKeywordNode(transaction, key);
+                        }
+                    });
                 }
-                if (!isLinked(transaction, metadata, key)) {
-                    linkDocumentAndKeyword(transaction, metadata, key, pair.getRight());
+                linked = session.readTransaction(new TransactionWork<Boolean>() {
+
+                    @Override
+                    public Boolean execute(Transaction transaction) {
+                        return isLinked(transaction, metadata, key);
+                    }
+                });
+                if (!linked) {
+                    double weight = pair.getRight();
+                    session.writeTransaction(new TransactionWork<Void>() {
+
+                        @Override
+                        public Void execute(Transaction transaction) {
+                            return linkDocumentAndKeyword(transaction, metadata, key, weight);
+                        }
+                    });
                 }
                 if (dto instanceof OntologyDTO) {
-                    OntologyDTO ontologyDTO = (OntologyDTO)dto;
-                    if (!this.existOntologyType(transaction, ontologyDTO)) {
-                        addOntologyEntry(transaction, ontologyDTO);
-                        addOntologyType(transaction, ontologyDTO);
-                    }
-                    if (!isLinked(transaction, ontologyDTO, metadata)) {
-                        linkOntologyTypeAndDocument(transaction, ontologyDTO, metadata);
-                    }
 
                 }
 
