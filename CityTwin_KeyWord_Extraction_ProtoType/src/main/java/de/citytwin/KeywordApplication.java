@@ -1,6 +1,5 @@
 package de.citytwin;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.io.Files;
 
 import java.io.BufferedReader;
@@ -20,7 +19,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.BodyContentHandler;
 import org.javatuples.Quartet;
 import org.slf4j.Logger;
@@ -648,30 +646,32 @@ public class KeywordApplication {
 
         try {
 
-            Map<String, Pair<ALKISDTO, Double>> filteredKeyWordsAlkis = new HashMap<String, Pair<ALKISDTO, Double>>();
-            Map<String, Pair<OntologyDTO, Double>> filteredKeyWordsOntology = new HashMap<String, Pair<OntologyDTO, Double>>();
+            // Map<String, Pair<ALKISDTO, Double>> filteredKeyWordsAlkis = new HashMap<String, Pair<ALKISDTO, Double>>();
+            // Map<String, Pair<OntologyDTO, Double>> filteredKeyWordsOntology = new HashMap<String, Pair<OntologyDTO, Double>>();
+            //
+            // Pair<ALKISDTO, Double> keyWordalkisDTO = null;
+            // Pair<OntologyDTO, Double> keyWordOntologyDTO = null;
+            //
+            // DocumentConverter documentConverter = new DocumentConverter();
+            // Metadata metadata = documentConverter.getMetaData(getFiles().get(1));
+            // List<ALKISDTO> alkisdtos = documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {}, DocumentAnalyser.ALKIS_RESOURCE);
+            // List<OntologyDTO> ontologyDTOs = documentConverter.getDTOs(new TypeReference<List<OntologyDTO>>() {}, DocumentAnalyser.ONTOLOGY_RESOURCE);
+            // DBController dbController = new DBController(DocumentAnalyser.URI, DocumentAnalyser.USER, DocumentAnalyser.PASSWORD);
+            //
+            // int index = 0;
+            // for (String keyword : keywords) {
+            // keyWordalkisDTO = Pair.of(alkisdtos.get(index), index + 0.4d);
+            // filteredKeyWordsAlkis.put(keyword, keyWordalkisDTO);
+            //
+            // keyWordOntologyDTO = Pair.of(ontologyDTOs.get(index), index + 0.4d);
+            // filteredKeyWordsOntology.put(keyword, keyWordOntologyDTO);
+            //
+            // }
+            //
+            // dbController.persist(filteredKeyWordsAlkis, metadata);
+            // dbController.persist(filteredKeyWordsOntology, metadata);
 
-            Pair<ALKISDTO, Double> keyWordalkisDTO = null;
-            Pair<OntologyDTO, Double> keyWordOntologyDTO = null;
-
-            DocumentConverter documentConverter = new DocumentConverter();
-            Metadata metadata = documentConverter.getMetaData(getFiles().get(1));
-            List<ALKISDTO> alkisdtos = documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {}, DocumentAnalyser.ALKIS_RESOURCE);
-            List<OntologyDTO> ontologyDTOs = documentConverter.getDTOs(new TypeReference<List<OntologyDTO>>() {}, DocumentAnalyser.ONTOLOGY_RESOURCE);
-            DBController dbController = new DBController(DocumentAnalyser.URI, DocumentAnalyser.USER, DocumentAnalyser.PASSWORD);
-
-            int index = 0;
-            for (String keyword : keywords) {
-                keyWordalkisDTO = Pair.of(alkisdtos.get(index), index + 0.4d);
-                filteredKeyWordsAlkis.put(keyword, keyWordalkisDTO);
-
-                keyWordOntologyDTO = Pair.of(ontologyDTOs.get(index), index + 0.4d);
-                filteredKeyWordsOntology.put(keyword, keyWordOntologyDTO);
-
-            }
-
-            dbController.persist(filteredKeyWordsAlkis, metadata);
-            dbController.persist(filteredKeyWordsOntology, metadata);
+            Config.save();
 
         } catch (Exception exception) {
             // TODO Auto-generated catch block

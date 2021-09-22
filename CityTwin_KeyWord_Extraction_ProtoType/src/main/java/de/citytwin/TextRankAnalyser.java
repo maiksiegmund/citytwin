@@ -350,7 +350,7 @@ public class TextRankAnalyser {
                 // avoid circle dependency
                 tempVector[index++] = (1 - d) + d * (value);
             }
-            // avoid number overflowF
+            // avoid number overflow
             columnVector = (withVectorNormalize) ? textRankMatrix.normVector(tempVector) : tempVector.clone();
             logger.info(MessageFormat.format("iteration {0} of {1}.", currentInteration, iteration));
         }

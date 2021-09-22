@@ -275,9 +275,9 @@ public class TFIDFTextAnalyser {
         }
         result.sentences = documentCount.sentences;
         result.isNormalized = documentCount.isNormalized;
-        logger.info(MessageFormat.format("document contains {0} terms.", result.terms.size()));
+        logger.info(MessageFormat.format("document contains {0} terms overall.", result.terms.size()));
         logger.info(MessageFormat.format("document contains {0} sentences.", result.sentences.size()));
-        logger.info(MessageFormat.format("document contains {0} words.", result.countWords));
+        logger.info(MessageFormat.format("document contains {0} words distinct.", result.countWords));
 
         return result;
     }
