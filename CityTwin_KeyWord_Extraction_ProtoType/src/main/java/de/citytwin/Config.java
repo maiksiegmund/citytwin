@@ -1,12 +1,16 @@
 package de.citytwin;
 
+import com.google.common.io.Files;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
+import java.nio.charset.Charset;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,7 +34,7 @@ public class Config {
     private transient static final String VERSION = "$Revision: 1.00 $";
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
     private transient final static Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private transient final static String SEPARATOR = ";";
+    private transient static Boolean ISLISTSET = false;
 
     /**
      * R&uuml;ckgabe der Klasseninformation.
@@ -125,52 +129,53 @@ public class Config {
 
     public static Integer TF_IDF_NORMALIZATION_TYPE = 0;
 
-    public static void save() throws IllegalArgumentException, IllegalAccessException, IOException {
+    public static void save(String text) throws IOException {
 
-        StringBuilder stringBuilder = new StringBuilder();
         String filePath = System.getProperty("user.dir");
         String absoultePath = filePath + "\\" + CONFIGNAME;
-        logger.info("save config to: (" + absoultePath + ")");
 
-        Field[] staticFields = getStaticFields();
-        String fieldName = "";
-        Object obejct = null;
-        String value = "";
-        for (Field staticField : staticFields) {
-            fieldName = staticField.getName();
-            obejct = staticField.get(fieldName);
-            value = obejct.toString();
-            // List
-            if (Collection.class.isAssignableFrom(staticField.getType())) {
-                value = serialsList(obejct);
-            }
-
-            stringBuilder.append(MessageFormat.format("{0} = {1}", fieldName, value));
-            stringBuilder.append("\n");
-
-        }
         File resultfile = new File(absoultePath);
         BufferedWriter writer = new BufferedWriter(
                 new BufferedWriter(new FileWriter(resultfile, false)));
-        writer.write(stringBuilder.toString());
+        writer.write(text);
         writer.close();
+        logger.info("saved config successful: (" + absoultePath + ")");
 
     }
 
-    private static String serialsList(Object object) {
-        String result = "";
+    public static void load() throws IOException, NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException,
+            NoSuchMethodException, InvocationTargetException {
+
+        String filePath = System.getProperty("user.dir");
+        String absoultePath = filePath + "\\" + CONFIGNAME;
+        List<String> lines = (Files.readLines(new File(absoultePath), Charset.defaultCharset()));
+
+        clearLists();
+
+        for (String line : lines) {
+            if (line.startsWith("#") || line.isBlank()) {
+                continue;
+            }
+            setField(line);
+
+        }
+
+    }
+
+    private static String serialsList(Field field) throws IllegalArgumentException, IllegalAccessException {
+
+        String fieldName = field.getName();
+        Object object = field.get(fieldName);
+
         StringBuilder stringBuilder = new StringBuilder();
         List<?> values = new ArrayList<>((Collection<?>)object);
 
         for (Object value : values) {
-            stringBuilder.append(value.toString() + SEPARATOR);
+            stringBuilder.append(MessageFormat.format("{0} = {1}", fieldName, value));
             stringBuilder.append("\n");
-            stringBuilder.append("\t");
-            stringBuilder.append("\t");
-
         }
-        result = stringBuilder.toString();
-        return result.substring(0, result.length() - 2);
+
+        return stringBuilder.toString();
 
     }
 
@@ -188,6 +193,94 @@ public class Config {
         staticFields.toArray(result);
 
         return result;
+    }
+
+    private static void setField(String line)
+            throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
+
+        String[] parts = line.split("=");
+        Object fieldName = parts[0].trim();
+        Object rawValue = parts[1].trim();
+        Object value = null;
+
+        Field field = Config.class.getDeclaredField(fieldName.toString());
+        field.setAccessible(true);
+
+        if (field.getType() == Double.class) {
+            value = Double.parseDouble(rawValue.toString());
+        }
+        if (field.getType() == Boolean.class) {
+            value = Boolean.parseBoolean(rawValue.toString());
+        }
+        if (field.getType() == Integer.class) {
+            value = Integer.parseInt(rawValue.toString());
+        }
+        if (field.getType() == String.class) {
+            value = rawValue.toString();
+        }
+        if (Collection.class.isAssignableFrom(field.getType())) {
+
+            Object tst = field.get(field);
+            List lists = (List)tst;
+            lists.add(rawValue.toString());
+
+            // collection.add(value);
+        } else {
+            field.set(field, value);
+        }
+
+    }
+
+    private static void clearLists() throws IllegalArgumentException, IllegalAccessException {
+
+        Field[] fields = getStaticFields();
+        for (Field field : fields) {
+            if (Collection.class.isAssignableFrom(field.getType())) {
+
+                Collection collection = (Collection<?>)field.get(field.getName());
+                collection.clear();
+            }
+        }
+    }
+
+    public static Boolean exsit() {
+
+        String filePath = System.getProperty("user.dir");
+        String absoultePath = filePath + "\\" + CONFIGNAME;
+        File file = new File(absoultePath);
+        return file.exists();
+
+    }
+
+    public static String asString() throws IllegalArgumentException, IllegalAccessException {
+        StringBuilder stringBuilder = new StringBuilder();
+
+        Field[] staticFields = getStaticFields();
+        String fieldName = "";
+        Object obejct = null;
+        String value = "";
+
+        stringBuilder.append("# comment lines and empty lines are skipped");
+        stringBuilder.append("\n");
+        stringBuilder.append("# TF_IDF_NORMALIZATION_TYPE = (0 = NONE or 1 = LOG or 2 = DOUBEL) ");
+        stringBuilder.append("\n");
+
+        for (Field staticField : staticFields) {
+            // List
+            if (Collection.class.isAssignableFrom(staticField.getType())) {
+                stringBuilder.append(serialsList(staticField));
+                continue;
+            }
+            fieldName = staticField.getName();
+            obejct = staticField.get(fieldName);
+            value = obejct.toString();
+            stringBuilder.append(MessageFormat.format("{0} = {1}", fieldName, value));
+            stringBuilder.append("\n");
+
+        }
+
+        return stringBuilder.toString();
+
     }
 
 }

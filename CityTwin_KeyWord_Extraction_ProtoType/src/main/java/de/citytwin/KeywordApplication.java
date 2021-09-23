@@ -671,7 +671,18 @@ public class KeywordApplication {
             // dbController.persist(filteredKeyWordsAlkis, metadata);
             // dbController.persist(filteredKeyWordsOntology, metadata);
 
-            Config.save();
+            // Config.save();
+            String configContent = null;
+
+            if (Config.exsit()) {
+                Config.load();
+                configContent = Config.asString();
+            } else {
+                configContent = Config.asString();
+                Config.save(configContent);
+            }
+
+            System.out.println(configContent);
 
         } catch (Exception exception) {
             // TODO Auto-generated catch block

@@ -72,7 +72,7 @@ public class TFIDFTextAnalyser {
      * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
      */
     public static enum NormalizationType {
-        DOUBLE, LOG, NONE
+        NONE, LOG, DOUBLE
     }
 
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
