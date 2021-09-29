@@ -7,7 +7,7 @@ package de.citytwin;
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
-public class OntologyDTO {
+public class OntologyDTO implements DTO {
 
     private boolean isSemantic = false;
     private boolean isKeyWord = false;
@@ -35,6 +35,11 @@ public class OntologyDTO {
         this.stemm = stem;
         this.type = type;
         this.word = word;
+    }
+
+    @Override
+    public String getName() {
+        return word;
     }
 
     public String getStemm() {

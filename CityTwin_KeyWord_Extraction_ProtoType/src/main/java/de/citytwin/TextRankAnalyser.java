@@ -214,9 +214,9 @@ public class TextRankAnalyser {
     // matrix set by this.calculateScore(...)
     private TextRankMatrix textRankMatrix = null;
     private GermanTextProcessing textProcessing;
-    private boolean isOpenNLP = false;
-    private boolean withMatrixNormalize = false;
-    private boolean withVectorNormalize = false;
+    // private boolean isOpenNLP = false;
+    // private boolean withMatrixNormalize = false;
+    // private boolean withVectorNormalize = false;
 
     /**
      * Konstruktor.
@@ -251,7 +251,8 @@ public class TextRankAnalyser {
         // add vertices and split
         for (String sentence : sentencesLeft) {
             result.addVertex(sentence);
-            List<String> splitedTerms = (isOpenNLP) ? textProcessing.tokenizeOpenNLP(sentence) : textProcessing.tokenizeLucene(sentence);
+            // List<String> splitedTerms = (isOpenNLP) ? textProcessing.tokenizeOpenNLP(sentence) : textProcessing.tokenizeLucene(sentence);
+            List<String> splitedTerms = textProcessing.tokenizeOpenNLP(sentence);
             List<String> filtered = textProcessing.filterByStopWords(splitedTerms);
             splited.put(sentence, filtered);
         }
@@ -326,11 +327,10 @@ public class TextRankAnalyser {
      * this method calculate textrank score
      *
      * @param d
-     * @param iteration
      * @return new reference of {@code Map<String, Double>} (term : score)
      */
-    private Map<String, Double> calculateScore(Double d, int iteration) {
-        this.textRankMatrix = new TextRankMatrix(graph, this.withMatrixNormalize);
+    private Map<String, Double> calculateScore(Double d) {
+        this.textRankMatrix = new TextRankMatrix(graph, Config.TEXTRANK_WITH_MATRIX_NORMALIZE);
         Map<String, Double> results = new HashMap<String, Double>(textRankMatrix.getValues().size());
         Double[] columnVector = new Double[textRankMatrix.getValues().size()];
         Double[] tempVector = new Double[textRankMatrix.getValues().size()];
@@ -342,7 +342,7 @@ public class TextRankAnalyser {
             tempVector[i] = 1.0d;
         }
 
-        for (int currentInteration = 0; currentInteration < iteration; currentInteration++) {
+        for (int currentInteration = 0; currentInteration < Config.TEXTRANK_ITERATION; currentInteration++) {
             index = 0;
             for (String key : textRankMatrix.values.keySet()) {
                 rowVector = textRankMatrix.values.get(key);
@@ -351,8 +351,8 @@ public class TextRankAnalyser {
                 tempVector[index++] = (1 - d) + d * (value);
             }
             // avoid number overflow
-            columnVector = (withVectorNormalize) ? textRankMatrix.normVector(tempVector) : tempVector.clone();
-            logger.info(MessageFormat.format("iteration {0} of {1}.", currentInteration, iteration));
+            columnVector = (Config.TEXTRANK_WITH_VECTOR_NORMALIZE) ? textRankMatrix.normVector(tempVector) : tempVector.clone();
+            logger.info(MessageFormat.format("iteration {0} of {1}.", currentInteration, Config.TEXTRANK_ITERATION));
         }
         index = 0;
         for (String key : textRankMatrix.values.keySet()) {
@@ -413,14 +413,11 @@ public class TextRankAnalyser {
      * @return new reference of {@code Map<String, Double>} (sentences : score)
      * @throws IOException
      */
-    public Map<String, Double> getSentencesAndScores(BodyContentHandler bodyContentHandler, @Nullable Integer iteration) throws IOException {
+    public Map<String, Double> getSentencesAndScores(BodyContentHandler bodyContentHandler) throws IOException {
 
         double d = 0.85d;
-        this.withMatrixNormalize = false;
-        this.withVectorNormalize = true;
-        int currentIeteration = (iteration == null) ? iteration : 30;
         graph = buildGraph(bodyContentHandler);
-        Map<String, Double> scores = calculateScore(d, currentIeteration);
+        Map<String, Double> scores = calculateScore(d);
         Map<String, Double> result = sortbyValue(scores);
         return result;
     }
@@ -471,22 +468,15 @@ public class TextRankAnalyser {
      * this method calculate a score for terms with textRank algorithm
      *
      * @param bodyContentHandler
-     * @param wordWindowSize by default 4
-     * @param iteration by default 30
      * @return new reference of {@code Map<String, Double>} (term : score)
      * @throws IOException
      */
-    public Map<String, Double> getTermsAndScores(BodyContentHandler bodyContentHandler, @Nullable Integer wordWindowSize, @Nullable Integer iteration)
+    public Map<String, Double> getTermsAndScores(BodyContentHandler bodyContentHandler)
             throws IOException {
-
-        this.withVectorNormalize = false;
-        int currentwordWindowsSize = (wordWindowSize == null) ? wordWindowSize : 4;
-        int currentIeteration = (iteration == null) ? iteration : 30;
         double d = 0.85d;
-        this.withMatrixNormalize = true;
-        List<List<String>> textCorpus = transformText(bodyContentHandler, currentwordWindowsSize);
-        this.graph = buildGraph(textCorpus, currentwordWindowsSize);
-        Map<String, Double> scores = calculateScore(d, currentIeteration);
+        List<List<String>> textCorpus = transformText(bodyContentHandler);
+        this.graph = buildGraph(textCorpus, Config.TEXTRANK_WORDWINDOWSIZE);
+        Map<String, Double> scores = calculateScore(d);
         Map<String, Double> result = sortbyValue(scores);
         return result;
     }
@@ -609,29 +599,28 @@ public class TextRankAnalyser {
 
     /**
      * this method transform a text in a List of sentences, each sentences contains a list of terms. <br>
-     * {@code if (filteredSentences.size() >= wordWindowsSize) {results.add(filteredSentences);} }
+     * {@code if (filteredSentences.size() >= Config.TEXTRANK_WORDWINDOWSIZE) {results.add(filteredSentences);} }
      * <p>
      * filtered by pos tags {@link TextRankAnalyser#getPosTags()}
      * <p>
      * filtered by stopwordlist {@link TextRankAnalyser#stopwords}
      *
      * @param bodyContentHandler
-     * @param wordWindowsSize
      * @return new reference of {@code List<List<String>>} (sentences and they terms)
      * @throws IOException
      */
-    private List<List<String>> transformText(BodyContentHandler bodyContentHandler, int wordWindowsSize) throws IOException {
+    private List<List<String>> transformText(BodyContentHandler bodyContentHandler) throws IOException {
 
         List<List<String>> results = new ArrayList<List<String>>();
         List<String> sentences = textProcessing.tokenizeBodyContentToSencences(bodyContentHandler);
         List<String> filteredSentences = null;
 
         for (String sentence : sentences) {
-            List<String> terms = textProcessing.tryToCleanSentence(sentence, isOpenNLP, null);
+            List<String> terms = textProcessing.tryToCleanSentence(sentence);
             List<Pair<String, String>> pairs = textProcessing.getPOSTags(terms);
             filteredSentences = textProcessing.filterByPosTags(pairs);
             filteredSentences = textProcessing.filterByStopWords(filteredSentences);
-            if (filteredSentences.size() >= wordWindowsSize) {
+            if (filteredSentences.size() >= Config.TEXTRANK_WORDWINDOWSIZE) {
                 results.add(filteredSentences);
             }
 
@@ -640,25 +629,4 @@ public class TextRankAnalyser {
         return results;
 
     }
-
-    /**
-     * use lucene tokenizer
-     *
-     * @return new reference of {@link TextRankAnalyser}
-     */
-    public TextRankAnalyser withLucene() {
-        this.isOpenNLP = false;
-        return this;
-    }
-
-    /**
-     * use opennlp tokenizer
-     *
-     * @return new reference of {@link TextRankAnalyser}
-     */
-    public TextRankAnalyser withOpenNLP() {
-        this.isOpenNLP = true;
-        return this;
-    }
-
 }

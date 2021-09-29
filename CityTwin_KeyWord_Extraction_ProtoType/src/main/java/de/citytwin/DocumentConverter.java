@@ -110,6 +110,37 @@ public class DocumentConverter {
     }
 
     /**
+     * this method deserialized alkis.json file (include as resource)
+     *
+     * @param C.
+     * @throws JsonParseException
+     * @throws JsonMappingException
+     * @throws IOException
+     */
+    /**
+     * this method deserialized data transfer objects (include as resource)
+     *
+     * @param <T> {@code ALKISDTO or OntologyDTO}
+     * @param type {@code List<ALKISDTO>}
+     * @param resource
+     * @return new reference of T
+     * @throws JsonParseException
+     * @throws JsonMappingException
+     * @throws IOException
+     */
+    public <T> T getDTOs(final TypeReference<T> type, String resource) throws JsonParseException, JsonMappingException, IOException {
+
+        T results = null;
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resource);
+        results = mapper.readValue(inputStream, type);
+        inputStream.close();
+        return results;
+
+    }
+
+    /**
      * this method return metadata of file
      *
      * @param file
@@ -235,37 +266,6 @@ public class DocumentConverter {
         autoDetectParser.parse(stream, bodyContentHandler, metadata, parseContext);
         stream.close();
         return bodyContentHandler;
-    }
-
-    /**
-     * this method deserialized alkis.json file (include as resource)
-     *
-     * @param C.
-     * @throws JsonParseException
-     * @throws JsonMappingException
-     * @throws IOException
-     */
-    /**
-     * this method deserialized data transfer objects (include as resource)
-     *
-     * @param <T> {@code ALKISDTO or OntologyDTO}
-     * @param type {@code List<ALKISDTO>}
-     * @param resource
-     * @return new reference of T
-     * @throws JsonParseException
-     * @throws JsonMappingException
-     * @throws IOException
-     */
-    public <T> T getDTOs(final TypeReference<T> type, String resource) throws JsonParseException, JsonMappingException, IOException {
-
-        T results = null;
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resource);
-        results = mapper.readValue(inputStream, type);
-        inputStream.close();
-        return results;
-
     }
 
     // protected void readOntology() throws JsonParseException, JsonMappingException, IOException {

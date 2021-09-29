@@ -13,8 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.sax.BodyContentHandler;
 import org.javatuples.Quartet;
@@ -46,7 +44,7 @@ public class TFIDFTextAnalyser {
 
         public boolean isNormalized;
         public Map<Integer, List<String>> sentences;
-        // term, count, calculation, , postag, sentenceindex
+        // term, count, calculation, , postag, sentenceindex (intern use)
         public Map<String, Quartet<Integer, Double, String, Set<Integer>>> terms;
 
         public DocumentCount() {
@@ -65,31 +63,14 @@ public class TFIDFTextAnalyser {
         }
     }
 
-    /**
-     * This inner enum to choose which normalization is use ...
-     * <p>
-     *
-     * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
-     */
-    public static enum NormalizationType {
-        NONE, LOG, DOUBLE
-    }
-
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private boolean withStopWordFilter = false;
-    private boolean withOpenNLP = false;
     private boolean withStemming = false;
 
     private GermanTextProcessing textProcessing;
 
     /**
-     * constructor with <b> VERY SIMPLE</b> fluent pattern, no plausibility check
-     * <p>
-     * example
-     * <p>
-     * {@code new TFIDFTextAnalyser.withLucene().withStemming().withStopwordFilter();}
-     * <p>
+     * default constructor
      *
      * @throws IOException
      */
@@ -132,7 +113,7 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method calculate term frequency of a text. used the stopwords
+     * This method calculate term frequency of a text.
      *
      * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
      * @param bodyContentHandler {@link BodyContentHandler}
@@ -150,10 +131,8 @@ public class TFIDFTextAnalyser {
         for (Integer index : documentCount.sentences.keySet()) {
             List<String> terms = documentCount.sentences.get(index);
             int countTermsInSentence = terms.size();
-
             // count terms in sentences (d_i) of D
             for (String term : terms) {
-
                 if (!countOfTermInSentence.containsKey(term)) {
                     countOfTermInSentence.put(term, 1);
                     continue;
@@ -166,7 +145,6 @@ public class TFIDFTextAnalyser {
                 quartet = quartet.setAt1((double)countOfTermInSentence.get(term) / (double)countTermsInSentence);
                 result.terms.put(term, quartet);
             }
-
             countOfTermInSentence.clear();
         }
         logger.info("calculate term frequency finished.");
@@ -311,19 +289,35 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method calculate term frequency and inverse document frequency <br>
+     * This method calculate term frequency and inverse document frequency
+     *
+     * @param bodyContentHandler
+     * @return new reference of {@code Map<String, Double>}
+     * @throws IOException
+     */
+    public Map<String, Double> getTermsAndScores(final BodyContentHandler bodyContentHandler) throws IOException {
+        Map<String, Quartet<Integer, Double, String, Set<Integer>>> temps = getTermsCountScoreStemmOccurrence(bodyContentHandler);
+        Map<String, Double> results = new HashMap<String, Double>(temps.size());
+        Quartet<Integer, Double, String, Set<Integer>> quartet = null;
+        for (String term : temps.keySet()) {
+            quartet = temps.get(term);
+            results.put(term, quartet.getValue1());
+
+        }
+        return results;
+    }
+
+    /**
+     * This method calculate term frequency and inverse document frequency and returns a detail result information <br>
      *
      * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
      * @param bodyContentHandler {@link BodyContentHandler}
-     * @param tagFilters {@code List<String> }
-     * @param type {@link TFIDFTextAnalyser#NormalizationType}
      * @return new reference of {@code  Map<String, Quartet<Integer, Double, String, Set<Integer>>>} <br>
      *         (term : countOfTerm, score, sentenceIndex)
      * @throws IOException
      */
-    public Map<String, Quartet<Integer, Double, String, Set<Integer>>> getTermsAndScores(
-            final BodyContentHandler bodyContentHandler, @Nullable final List<String> tagFilters,
-            TFIDFTextAnalyser.NormalizationType type) throws IOException {
+    public Map<String, Quartet<Integer, Double, String, Set<Integer>>> getTermsCountScoreStemmOccurrence(
+            final BodyContentHandler bodyContentHandler) throws IOException {
 
         DocumentCount result = new DocumentCount();
 
@@ -331,7 +325,7 @@ public class TFIDFTextAnalyser {
         rawCount = (withStemming) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
         DocumentCount tf = null;
         tf = calculateTF(rawCount);
-        switch(type) {
+        switch(Config.TF_IDF_NORMALIZATION_TYPE) {
             case DOUBLE:
                 tf = doubleNormalizationTermFrequency(tf, 0.5);
                 break;
@@ -344,28 +338,19 @@ public class TFIDFTextAnalyser {
         }
         DocumentCount idf = calculateIDF(tf);
         result = calculateTFIDF(tf, idf);
-        if (tagFilters == null || tagFilters.size() == 0) {
-            return sortbyValue(result.terms, true);
-        }
 
         Map<String, Quartet<Integer, Double, String, Set<Integer>>> filtered = new HashMap<>();
 
-        for (String tagFilter : tagFilters) {
+        for (String tagFilter : Config.GERMAN_TEXT_PROCESSING_POSTAGS) {
             for (String term : result.terms.keySet()) {
                 String wordPosTag = result.terms.get(term).getValue2();
                 if (wordPosTag.equals(tagFilter)) {
                     filtered.put(term, result.terms.get(term));
-
                 }
             }
         }
-
         return sortbyValue(filtered, true);
 
-    }
-
-    public boolean getWithOpenNLP() {
-        return withOpenNLP;
     }
 
     /**
@@ -380,10 +365,6 @@ public class TFIDFTextAnalyser {
 
     public boolean isWithStemming() {
         return withStemming;
-    }
-
-    public boolean isWithStopWordFilter() {
-        return withStopWordFilter;
     }
 
     /**
@@ -415,18 +396,6 @@ public class TFIDFTextAnalyser {
         return result;
     }
 
-    public void setWithOpenNLP(boolean isOpenNLP) {
-        this.withOpenNLP = isOpenNLP;
-    }
-
-    public void setWithStemming(boolean withStemming) {
-        this.withStemming = withStemming;
-    }
-
-    public void setWithStopWordFilter(boolean withStopWordFilter) {
-        this.withStopWordFilter = withStopWordFilter;
-    }
-
     /**
      * This method sort a map by {@link Quartet#getValue1()}
      * <p>
@@ -455,15 +424,12 @@ public class TFIDFTextAnalyser {
     }
 
     /**
-     * This method transfor into DocumentCount <br>
-     * split by apache opennlp or apache lucene
-     * <p>
-     * and use a stopword filter
+     * This method transfer BodyContentHandler to DocumentCount
      *
      * @param bodyContentHandler {@link BodyContentHandler}
      * @return new reference of {@link DocumentCount}
      */
-    private DocumentCount transformText(BodyContentHandler bodyContentHandler) throws IOException {
+    private DocumentCount transformText(final BodyContentHandler bodyContentHandler) throws IOException {
 
         DocumentCount result = new DocumentCount();
         int count = 0;
@@ -471,55 +437,13 @@ public class TFIDFTextAnalyser {
         List<String> terms = null;
         int sentenceIndex = 0;
         for (String senctence : sentences) {
-            terms = textProcessing.tryToCleanSentence(senctence, withOpenNLP, null);
-            terms = (withStopWordFilter) ? textProcessing.filterByStopWords(terms) : terms;
+            terms = textProcessing.tryToCleanSentence(senctence);
+            terms = (Config.WITH_STOPWORD_FILTER) ? textProcessing.filterByStopWords(terms) : terms;
             result.sentences.put(sentenceIndex++, terms);
             count += terms.size();
         }
         result.countWords = count;
         result.isNormalized = false;
         return result;
-
     }
-
-    /**
-     * use lucene tokenizer
-     *
-     * @return new reference of {@link TFIDFTextAnalyser}
-     */
-    public TFIDFTextAnalyser withLucene() {
-        this.withOpenNLP = false;
-        return this;
-    }
-
-    /**
-     * use opennlp tokenizer
-     *
-     * @return new reference of {@link TFIDFTextAnalyser}
-     */
-    public TFIDFTextAnalyser withOpenNLP() {
-        this.withOpenNLP = true;
-        return this;
-    }
-
-    /**
-     * use snowball stemmer for each term in textcorpus
-     *
-     * @return new reference of {@link TFIDFTextAnalyser}
-     */
-    public TFIDFTextAnalyser withStemming() {
-        this.withStemming = true;
-        return this;
-    }
-
-    /**
-     * remove occurred stopwords from textcorpus
-     *
-     * @return new reference of {@link TFIDFTextAnalyser}
-     */
-    public TFIDFTextAnalyser withStopwordFilter() {
-        this.withStopWordFilter = true;
-        return this;
-    }
-
 }

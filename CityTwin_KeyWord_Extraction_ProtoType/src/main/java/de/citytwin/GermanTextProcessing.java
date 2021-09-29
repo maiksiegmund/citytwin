@@ -4,7 +4,6 @@ package de.citytwin;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -13,13 +12,11 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 
-import javax.annotation.Nullable;
-
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.custom.CustomAnalyzer;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+// import org.apache.lucene.analysis.Analyzer;
+// import org.apache.lucene.analysis.TokenStream;
+// import org.apache.lucene.analysis.custom.CustomAnalyzer;
+// import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.tika.sax.BodyContentHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,80 +55,13 @@ public class GermanTextProcessing {
      * @see <a href=https://www.cis.lmu.de/~schmid/tools/TreeTagger/data/stts_guide.pdf>german pos tags</a>
      * @return new reference of {@code List<String>}
      */
-    public static List<String> getPosTagList() {
 
-        List<String> tagFilters = new ArrayList<String>();
-
-        // german
-        // tagFilters.add("ADJA");
-        // tagFilters.add("ADJD");
-        // tagFilters.add("ADV");
-        // tagFilters.add("APPR");
-        // tagFilters.add("APPRART");
-        // tagFilters.add("APPO");
-        // tagFilters.add("APZR");
-        // tagFilters.add("ART");
-        // tagFilters.add("CARD");
-        // tagFilters.add("FM");
-        // tagFilters.add("ITJ");
-        // tagFilters.add("KOUI");
-        // tagFilters.add("KOUS");
-        // tagFilters.add("KON");
-        // tagFilters.add("KOKOM");
-        tagFilters.add("NN");
-        tagFilters.add("NE");
-        tagFilters.add("PDS");
-        tagFilters.add("PDAT");
-        tagFilters.add("PIS");
-        tagFilters.add("PIAT");
-        tagFilters.add("PIDAT");
-        // tagFilters.add("PPER");
-        // tagFilters.add("PPOSAT");
-        // tagFilters.add("PRELS");
-        // tagFilters.add("PRELAT");
-        // tagFilters.add("PRF");
-        // tagFilters.add("PWS");
-        // tagFilters.add("PWAT");
-        // tagFilters.add("PWAV");
-        // tagFilters.add("PAV");
-        // tagFilters.add("PTKZU");
-        // tagFilters.add("PTKNEG");
-        // tagFilters.add("PTKVZ");
-        // tagFilters.add("PTKANT");
-        // tagFilters.add("PTKA");
-        // tagFilters.add("TRUNC");
-        // tagFilters.add("VVFIN");
-        // tagFilters.add("VVIMP");
-        // tagFilters.add("VVINF");
-        // tagFilters.add("VVIZU");
-        // tagFilters.add("VVPP");
-        // tagFilters.add("VAFIN");
-        // tagFilters.add("VAIMP");
-        // tagFilters.add("VAINF");
-        // tagFilters.add("VAPP");
-        // tagFilters.add("VMFIN");
-        // tagFilters.add("VMINF");
-        // tagFilters.add("VMPP");
-        // tagFilters.add("XY");
-
-        return tagFilters;
-
-    }
-
-    public static Set<String> getStopwords() {
-        return stopwords;
-    }
-
-    public static void setStopwords(Set<String> stopwords) {
-        GermanTextProcessing.stopwords = stopwords;
-    }
-
-    private String cleaningPattern = "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]";
-    private int maxNewLines = 10;
+    // private String cleaningPattern = "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]";
+    // private int maxNewLines = 10;
     // threshold term lenght
-    private int minTermLenght = 2;
+    // private int minTermLenght = 2;
     // threshold of term count in a sentences
-    private int minTermCount = 5;
+    // private int minTermCount = 5;
 
     private String tokenizerName = "Letter";
 
@@ -199,7 +129,7 @@ public class GermanTextProcessing {
         List<String> results = new ArrayList<String>();
 
         for (Pair<String, String> pair : termsWithPosTags) {
-            for (String posFilter : GermanTextProcessing.getPosTagList()) {
+            for (String posFilter : Config.GERMAN_TEXT_PROCESSING_POSTAGS) {
                 if (posFilter.equals(pair.getRight())) {
                     results.add(pair.getLeft());
                 }
@@ -228,18 +158,6 @@ public class GermanTextProcessing {
         logger.info("filter by stopwords completed. (terms removal)");
         return results;
 
-    }
-
-    public String getCleaningPattern() {
-        return cleaningPattern;
-    }
-
-    public int getMaxNewLines() {
-        return maxNewLines;
-    }
-
-    public int getMinCharactersLenght() {
-        return minTermLenght;
     }
 
     /**
@@ -329,18 +247,6 @@ public class GermanTextProcessing {
 
     }
 
-    public void setCleaningPattern(String cleaningPattern) {
-        this.cleaningPattern = cleaningPattern;
-    }
-
-    public void setMaxNewLines(int maxNewLines) {
-        this.maxNewLines = maxNewLines;
-    }
-
-    public void setMinCharactersLenght(int minCharactersLenght) {
-        this.minTermLenght = minCharactersLenght;
-    }
-
     public void setTokenizerName(String tokenizerName) {
         this.tokenizerName = tokenizerName;
     }
@@ -402,7 +308,7 @@ public class GermanTextProcessing {
         for (String sentence : sentences) {
             temp = sentence.replaceAll("-\n", "");
             temp = sentence.replaceAll("\n", "");
-            if (countNewLines(sentence) < maxNewLines) {
+            if (countNewLines(sentence) < Config.GERMAN_TEXT_PROCESSING_MAX_NEWLINES) {
                 results.add(temp);
             }
         }
@@ -417,32 +323,32 @@ public class GermanTextProcessing {
      * @return new reference of {@code List<String>}
      * @throws IOException
      */
-    public List<String> tokenizeLucene(final String sentence) throws IOException {
-
-        List<String> results = new ArrayList<String>();
-        Analyzer analyzer = CustomAnalyzer.builder()
-                .withTokenizer(tokenizerName)
-                // .addTokenFilter("LowerCase")
-                // .addTokenFilter("hyphenatedwords")
-                .build();
-
-        String temp = "";
-
-        TokenStream stream = analyzer.tokenStream(null, new StringReader(sentence));
-        CharTermAttribute attr = stream.addAttribute(CharTermAttribute.class);
-        stream.reset();
-        while (stream.incrementToken()) {
-            temp = attr.toString();
-            temp = tryToRemoveHypen(temp);
-            if (temp.length() >= minTermLenght) {
-                results.add(temp);
-            }
-        }
-        analyzer.close();
-        stream.close();
-        logger.info(MessageFormat.format("tokenize completed, sentence contains {0} terms.", results.size()));
-        return results;
-    }
+    // public List<String> tokenizeLucene(final String sentence) throws IOException {
+    //
+    // List<String> results = new ArrayList<String>();
+    // Analyzer analyzer = CustomAnalyzer.builder()
+    // .withTokenizer(tokenizerName)
+    // // .addTokenFilter("LowerCase")
+    // // .addTokenFilter("hyphenatedwords")
+    // .build();
+    //
+    // String temp = "";
+    //
+    // TokenStream stream = analyzer.tokenStream(null, new StringReader(sentence));
+    // CharTermAttribute attr = stream.addAttribute(CharTermAttribute.class);
+    // stream.reset();
+    // while (stream.incrementToken()) {
+    // temp = attr.toString();
+    // temp = tryToRemoveHypen(temp);
+    // if (temp.length() >= minTermLenght) {
+    // results.add(temp);
+    // }
+    // }
+    // analyzer.close();
+    // stream.close();
+    // logger.info(MessageFormat.format("tokenize completed, sentence contains {0} terms.", results.size()));
+    // return results;
+    // }
 
     /**
      * This method split a sentence in each term by apache opennlp works better with terms like "Bebauungsplan-Entwurf"
@@ -455,9 +361,9 @@ public class GermanTextProcessing {
         String temp = "";
         List<String> results = new ArrayList<String>();
         for (String term : tokenizer.tokenize(sentence)) {
-            temp = term.trim().replaceAll(cleaningPattern, "");
+            temp = term.trim().replaceAll(Config.GERMAN_TEXT_PROCESSING_CLEANING_PATTERN, "");
             temp = tryToRemoveHypen(temp);
-            if (temp.length() >= minTermLenght) {
+            if (temp.length() >= Config.GERMAN_TEXT_PROCESSING_MIN_TERM_LENGTH) {
                 results.add(temp);
             }
 
@@ -489,17 +395,17 @@ public class GermanTextProcessing {
      * @throws IOException
      */
 
-    public List<String> tryToCleanSentence(String sentence, boolean isOpenNLP, @Nullable Integer tableOfContentThreshold) throws IOException {
+    public List<String> tryToCleanSentence(String sentence) throws IOException {
 
-        int threshold = (tableOfContentThreshold == null) ? 50 : tableOfContentThreshold;
         List<String> results = new ArrayList<String>();
-        List<String> terms = (isOpenNLP) ? tokenizeOpenNLP(sentence) : tokenizeLucene(sentence);
+        // List<String> terms = (isOpenNLP) ? tokenizeOpenNLP(sentence) : tokenizeLucene(sentence);
+        List<String> terms = tokenizeOpenNLP(sentence);
 
-        if (terms.size() <= this.minTermCount) {
+        if (terms.size() <= Config.GERMAN_TEXT_PROCESSING_MIN_TERM_COUNT) {
             return results;
 
         }
-        if (probabilityIsSentenceTabelofContent(sentence) > threshold) {
+        if (probabilityIsSentenceTabelofContent(sentence) > Config.GERMAN_TEXT_PROCESSING_TABLE_OF_CONTENT_THRESHOLD) {
             return results;
         }
         for (String term : terms) {

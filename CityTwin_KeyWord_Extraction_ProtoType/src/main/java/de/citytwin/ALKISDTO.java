@@ -7,7 +7,7 @@ package de.citytwin;
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
-public class ALKISDTO {
+public class ALKISDTO implements DTO {
 
     private String name;
     private String categorie;
@@ -38,6 +38,7 @@ public class ALKISDTO {
         return code;
     }
 
+    @Override
     public String getName() {
         return name;
     }

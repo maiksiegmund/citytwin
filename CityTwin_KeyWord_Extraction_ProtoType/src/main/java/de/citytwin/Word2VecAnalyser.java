@@ -23,7 +23,7 @@ import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Word2VecAnalyser {
+public class Word2VecAnalyser implements AutoCloseable {
 
     public class CityTwinSentenceIterator implements SentenceIterator {
 
@@ -188,6 +188,13 @@ public class Word2VecAnalyser {
         return word2vec.accuracy(questions);
     }
 
+    @Override
+    public void close() throws Exception {
+        word2vec = null;
+        textProcessing = null;
+
+    }
+
     public HashMap<String, Integer> getDefaultParameters() {
 
         HashMap<String, Integer> parameters = new HashMap<String, Integer>();
@@ -213,8 +220,15 @@ public class Word2VecAnalyser {
 
     }
 
-    private void setStopWords() {
-        stopWords.addAll(GermanTextProcessing.getStopwords());
+    /**
+     * Returns similarity of two elements, provided by ModelUtils
+     *
+     * @param left
+     * @param right
+     * @return a normalized similarity (cosine similarity)
+     */
+    public double similarity(String left, String right) {
+        return word2vec.similarity(left, right);
     }
 
     public List<String> similarWordsInVocabTo(String term, double accurany) throws IOException {
@@ -312,17 +326,6 @@ public class Word2VecAnalyser {
     public List<String> wordsNearest(String word, int count) {
         return new ArrayList<String>(word2vec.wordsNearest(word, count));
 
-    }
-
-    /**
-     * Returns similarity of two elements, provided by ModelUtils
-     *
-     * @param left
-     * @param right
-     * @return a normalized similarity (cosine similarity)
-     */
-    public double similarity(String left, String right) {
-        return word2vec.similarity(left, right);
     }
 
     public void writeModel(String destination) {

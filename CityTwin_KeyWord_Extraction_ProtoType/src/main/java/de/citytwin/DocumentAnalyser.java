@@ -11,15 +11,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-import javax.annotation.Nonnull;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.BodyContentHandler;
-import org.javatuples.Quartet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
@@ -29,60 +25,26 @@ import org.xml.sax.SAXException;
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
-public class DocumentAnalyser {
-
-    public static String ALKIS_RESOURCE = "alkis.json";
-    public static String ONTOLOGY_RESOURCE = "ontology.json";
-    public static String URI = "bolt://localhost:7687";
-    public static String USER = "neo4j";
-    public static String PASSWORD = "C1tyTw1n!";
+public class DocumentAnalyser implements AutoCloseable {
 
     public static class Builder {
 
-        private boolean withOpenNLP = false;
-        private boolean withStopwordFilter = false;
-        private boolean withStemmening = false;
-        private String pathToModel = "";
-
+        @SuppressWarnings("resource")
         public DocumentAnalyser build() throws Exception {
 
             DocumentAnalyser documentAnalyser = new DocumentAnalyser();
-            documentAnalyser.textRankAnalyser = (this.withOpenNLP) ? new TextRankAnalyser().withOpenNLP() : new TextRankAnalyser().withLucene();
+            documentAnalyser.textRankAnalyser = new TextRankAnalyser();
             documentAnalyser.tfIdfAnalyser = new TFIDFTextAnalyser();
-            documentAnalyser.tfIdfAnalyser.setWithOpenNLP(withOpenNLP);
-            documentAnalyser.tfIdfAnalyser.setWithStopWordFilter(withStopwordFilter);
-            documentAnalyser.tfIdfAnalyser.setWithStemming(withStemmening);
-            documentAnalyser.word2vecAnalyser = new Word2VecAnalyser().withModel(pathToModel);
+            documentAnalyser.word2vecAnalyser = new Word2VecAnalyser().withModel(Config.WORD2VEC_MODEL);
             documentAnalyser.documentConverter = new DocumentConverter();
             documentAnalyser.alkisDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {},
-                    DocumentAnalyser.ALKIS_RESOURCE);
+                    Config.ALKIS_RESOURCE);
             documentAnalyser.ontologyDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<OntologyDTO>>() {},
-                    DocumentAnalyser.ONTOLOGY_RESOURCE);
+                    Config.ONTOLOGY_RESOURCE);
 
             documentAnalyser.isBuilt = true;
             return documentAnalyser;
 
-        }
-
-        public Builder Model(@Nonnull String pathToModel) {
-            this.pathToModel = pathToModel;
-            return this;
-        }
-
-        public Builder withLucene() {
-            this.withOpenNLP = false;
-            return this;
-        }
-
-        public Builder withOpenNLP() {
-            this.withOpenNLP = true;
-            return this;
-
-        }
-
-        public Builder withStopwordFilter() {
-            withStopwordFilter = true;
-            return this;
         }
 
     }
@@ -102,13 +64,9 @@ public class DocumentAnalyser {
     protected List<ALKISDTO> alkisDTOs = new ArrayList<ALKISDTO>();
     protected List<OntologyDTO> ontologyDTOs = new ArrayList<OntologyDTO>();
 
-    private int textRankWordWindowSize = 5;
-    private int textRankIteration = 5;
-    private int textRankMaxLinks = 3;
-
-    private int word2vecAnalyserCount = 10;
+    // private int word2vecAnalyserCount = 10;
     // intern use (store keywords)
-    private Map<String, Quartet<Integer, Double, String, Set<Integer>>> tfIDFResults = null;
+    private Map<String, Double> tfIDFResults = null;
     // intern use (store keywords)
     private Map<String, Double> textRankResults = null;
 
@@ -123,11 +81,11 @@ public class DocumentAnalyser {
         }
 
         logger.info("seeking in- and outbound terms");
-        textRankLinkResults = textRankAnalyser.getLinkedTerms(textRankResults, textRankMaxLinks);
+        textRankLinkResults = textRankAnalyser.getLinkedTerms(textRankResults, Config.TEXTRANK_MAXLINKS);
         logger.info(MessageFormat.format("founded overall {0}", textRankLinkResults.size()));
 
-        Map<String, Pair<ALKISDTO, Double>> filteredKeyWordsAlkis = filterTextKeywordsBySimilarityALKISDTO(similarity);
-        Map<String, Pair<OntologyDTO, Double>> filteredKeyWordsOntology = filterTextKeywordsBySimilarityOntologyDTO(similarity);
+        Map<String, Pair<ALKISDTO, Double>> filteredKeyWordsAlkis = filterTextKeywordsBySimilarity(ALKISDTO.class, alkisDTOs);
+        Map<String, Pair<OntologyDTO, Double>> filteredKeyWordsOntology = filterTextKeywordsBySimilarity(OntologyDTO.class, ontologyDTOs);
 
         Pair<ALKISDTO, Double> keyWordalkisDTO = null;
         Pair<OntologyDTO, Double> keyWordOntologyDTO = null;
@@ -149,10 +107,84 @@ public class DocumentAnalyser {
                 filteredKeyWordsOntology.size(),
                 (filteredKeyWordsAlkis.size() + filteredKeyWordsOntology.size())));
 
-        DBController dbController = new DBController(DocumentAnalyser.URI, DocumentAnalyser.USER, DocumentAnalyser.PASSWORD);
+        DBController dbController = new DBController(Config.DATABASE_URI, Config.DATABASE_USER, Config.DATABASE_PASSWORD);
 
         dbController.persist(filteredKeyWordsAlkis, metadata);
         dbController.persist(null, metadata);
+
+    }
+
+    @Override
+    public void close() throws Exception {
+        word2vecAnalyser.close();
+
+    }
+
+    public <T> Map<String, Pair<T, Double>> filterTextKeywordsBySimilarity(Class<? extends DTO> clazz, List<T> dtos) {
+        Map<String, Pair<T, Double>> result = new HashMap<String, Pair<T, Double>>();
+        logger.info("filter keywords " + clazz.getClass().getName());
+        double currentSimilarity = 0.0f;
+        double similarity = Config.WORD2VEC_SIMILARITY / 100.00d;
+        for (T dto : dtos) {
+            for (String key : textRankResults.keySet()) {
+                currentSimilarity = word2vecAnalyser.similarity(((DTO)dto).getName(), key);
+                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ontologyDTO.word, currentSimilarity));
+                if (currentSimilarity > similarity) {
+                    result.put(key, Pair.of(dto, textRankResults.get(key)));
+                }
+            }
+            for (String key : tfIDFResults.keySet()) {
+                currentSimilarity = word2vecAnalyser.similarity(((DTO)dto).getName(), key);
+                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ontologyDTO.word, currentSimilarity));
+                if (currentSimilarity > similarity) {
+                    result.put(key, Pair.of(dto, tfIDFResults.get(key)));
+                }
+            }
+
+        }
+        return result;
+    }
+
+    // public Map<String, Pair<ALKISDTO, Double>> filterTextKeywordsBySimilarityALKISDTO() {
+    // Map<String, Pair<ALKISDTO, Double>> result = new HashMap<String, Pair<ALKISDTO, Double>>();
+    // logger.info("filter keywords (ALKIS)");
+    // double currentSimilarity = 0.0f;
+    // double similarity = Config.WORD2VEC_SIMILARITY / 100.00d;
+    //
+    // for (ALKISDTO alkisdto : alkisDTOs) {
+    // for (String key : textRankResults.keySet()) {
+    // currentSimilarity = word2vecAnalyser.similarity(alkisdto.getName(), key);
+    // // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, alkisdto.name, currentSimilarity));
+    // if (currentSimilarity > similarity) {
+    // result.put(key, Pair.of(alkisdto, textRankResults.get(key)));
+    // }
+    // }
+    // for (String key : tfIDFResults.keySet()) {
+    // currentSimilarity = word2vecAnalyser.similarity(alkisdto.getName(), key);
+    // // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, alkisdto.name, currentSimilarity));
+    // if (currentSimilarity > similarity) {
+    // result.put(key, Pair.of(alkisdto, tfIDFResults.get(key)));
+    // }
+    // }
+    // }
+    // return result;
+    // }
+
+    /**
+     * this method get near
+     *
+     * @param filterdWords
+     */
+    public Map<String, List<String>> getNearestTo(List<String> filterdTerms) {
+
+        Map<String, List<String>> result = new HashMap<String, List<String>>(filterdTerms.size());
+        for (String term : filterdTerms) {
+            List<String> nearestWords = word2vecAnalyser.wordsNearest(term, Config.WORD2VEC_NEARESTCOUNT);
+            result.put(term, filterdTerms);
+
+        }
+        // todo filter!
+        return result;
 
     }
 
@@ -181,55 +213,6 @@ public class DocumentAnalyser {
 
     }
 
-    public Map<String, Pair<ALKISDTO, Double>> filterTextKeywordsBySimilarityALKISDTO(double similarity) {
-        Map<String, Pair<ALKISDTO, Double>> result = new HashMap<String, Pair<ALKISDTO, Double>>();
-        logger.info("filter keywords (ALKIS)");
-        double currentSimilarity = 0.0f;
-
-        for (ALKISDTO alkisdto : alkisDTOs) {
-            for (String key : textRankResults.keySet()) {
-                currentSimilarity = word2vecAnalyser.similarity(alkisdto.getName(), key);
-                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, alkisdto.name, currentSimilarity));
-                if (currentSimilarity > similarity) {
-                    result.put(key, Pair.of(alkisdto, textRankResults.get(key)));
-                }
-            }
-            for (String key : tfIDFResults.keySet()) {
-                currentSimilarity = word2vecAnalyser.similarity(alkisdto.getName(), key);
-                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, alkisdto.name, currentSimilarity));
-                if (currentSimilarity > similarity) {
-                    result.put(key, Pair.of(alkisdto, tfIDFResults.get(key).getValue1()));
-                }
-            }
-        }
-        return result;
-    }
-
-    public Map<String, Pair<OntologyDTO, Double>> filterTextKeywordsBySimilarityOntologyDTO(double similarity) {
-        Map<String, Pair<OntologyDTO, Double>> result = new HashMap<String, Pair<OntologyDTO, Double>>();
-        logger.info("filter keywords (Ontology)");
-        double currentSimilarity = 0.0f;
-
-        for (OntologyDTO ontologyDTO : ontologyDTOs) {
-            for (String key : textRankResults.keySet()) {
-                currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.getWord(), key);
-                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ontologyDTO.word, currentSimilarity));
-                if (currentSimilarity > similarity) {
-                    result.put(key, Pair.of(ontologyDTO, textRankResults.get(key)));
-                }
-            }
-            for (String key : tfIDFResults.keySet()) {
-                currentSimilarity = word2vecAnalyser.similarity(ontologyDTO.getWord(), key);
-                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ontologyDTO.word, currentSimilarity));
-                if (currentSimilarity > similarity) {
-                    result.put(key, Pair.of(ontologyDTO, tfIDFResults.get(key).getValue1()));
-                }
-            }
-
-        }
-        return result;
-    }
-
     public void performKeyWordExtraction(final File file) throws SAXException, TikaException, Exception {
         if (!isBuilt) {
             throw new IOException("perform ... build()");
@@ -240,11 +223,11 @@ public class DocumentAnalyser {
 
         logger.info("run tf idf");
         tfIDFResults = tfIdfAnalyser
-                .getTermsAndScores(bodyContentHandler, GermanTextProcessing.getPosTagList(), TFIDFTextAnalyser.NormalizationType.NONE);
+                .getTermsAndScores(bodyContentHandler);
         logger.info(MessageFormat.format("tf idf founded {0} keywords", tfIDFResults.size()));
 
         logger.info("run text rank");
-        textRankResults = textRankAnalyser.getTermsAndScores(bodyContentHandler, textRankWordWindowSize, textRankIteration);
+        textRankResults = textRankAnalyser.getTermsAndScores(bodyContentHandler);
         logger.info(MessageFormat.format("text rank founded {0} keywords", textRankResults.size()));
 
     }
@@ -255,24 +238,6 @@ public class DocumentAnalyser {
 
     public void setOntology(List<OntologyDTO> ontologyDTOs) {
         this.ontologyDTOs = new ArrayList<OntologyDTO>(ontologyDTOs);
-    }
-
-    /**
-     * this method get near
-     *
-     * @param filterdWords
-     */
-    public Map<String, List<String>> getNearestTo(List<String> filterdTerms) {
-
-        Map<String, List<String>> result = new HashMap<String, List<String>>(filterdTerms.size());
-        for (String term : filterdTerms) {
-            List<String> nearestWords = word2vecAnalyser.wordsNearest(PASSWORD, word2vecAnalyserCount);
-            result.put(term, filterdTerms);
-
-        }
-        // todo filter!
-        return result;
-
     }
 
     /**

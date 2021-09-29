@@ -34,43 +34,38 @@ public class Config {
     private transient static final String VERSION = "$Revision: 1.00 $";
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
     private transient final static Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private transient static Boolean ISLISTSET = false;
+    private transient static final String CONFIGNAME = "documentAnalyser.cfg";
 
-    /**
-     * R&uuml;ckgabe der Klasseninformation.
-     * <p>
-     * Gibt den Klassennamen und die CVS Revisionsnummer zur&uuml;ck.
-     * <p>
-     *
-     * @return Klasseninformation
-     */
-    @Override
-    public String toString() {
-        return this.getClass().getName() + " " + VERSION;
-    }
-
-    public transient static final String CONFIGNAME = "keywordextraction.cfg";
-
+    // all public static members are saved and load
     public static String DATABASE_URI = "bolt://localhost:7687";
+
     public static String DATABASE_USER = "neo4j";
     public static String DATABASE_PASSWORD = "C1tyTw1n!";
-
     public static Boolean WITH_STOPWORD_FILTER = false;
+
     public static Boolean WITH_STEMMING = false;
-
     public static String WORD2VEC_MODEL = "D:\\Word2Vec.bin";
-    public static Integer WORD2VEC_NEARESTCOUNT = 10;
 
+    public static Integer WORD2VEC_NEARESTCOUNT = 10;
+    public static Integer WORD2VEC_SIMILARITY = 66;
     public static String ALKIS_RESOURCE = "alkis.json";
+
     public static String ONTOLOGY_RESOURCE = "ontology.json";
     public static String OUTPUT_FOLDER = "output";
     public static String INPUT_FOLDER = "D:\\vms\\sharedFolder\\";
-
     public static Integer TEXTRANK_WORDWINDOWSIZE = 5;
+
     public static Integer TEXTRANK_ITERATION = 5;
     public static Integer TEXTRANK_MAXLINKS = 3;
     public static Boolean TEXTRANK_WITH_MATRIX_NORMALIZE = false;
     public static Boolean TEXTRANK_WITH_VECTOR_NORMALIZE = false;
+    public static String GERMAN_TEXT_PROCESSING_CLEANING_PATTERN = "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]";
+
+    public static Integer GERMAN_TEXT_PROCESSING_MAX_NEWLINES = 10;
+    public static Integer GERMAN_TEXT_PROCESSING_MIN_TERM_LENGTH = 2;
+    public static Integer GERMAN_TEXT_PROCESSING_MIN_TERM_COUNT = 5;
+    public static Integer GERMAN_TEXT_PROCESSING_TABLE_OF_CONTENT_THRESHOLD = 50;
+    public static TF_IDF_NormalizationType TF_IDF_NORMALIZATION_TYPE = TF_IDF_NormalizationType.NONE;
 
     public static List<String> GERMAN_TEXT_PROCESSING_POSTAGS = new ArrayList<String>(Arrays.asList("ADJA",
             "ADJD",
@@ -122,27 +117,109 @@ public class Config {
             "VMINF",
             "VMPP",
             "XY"));
-    public static String GERMAN_TEXT_PROCESSING_CLEANING_PATTERN = "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]";
-    public static Integer GERMAN_TEXT_PROCESSING_MAX_NEWLINES = 10;
-    public static Integer GERMAN_TEXT_PROCESSING_MIN_TERM_LENGTH = 2;
-    public static Integer GERMAN_TEXT_PROCESSING_MIN_TERM_COUNT = 5;
 
-    public static Integer TF_IDF_NORMALIZATION_TYPE = 0;
+    /**
+     * this method clear default list, to avoid double entries and load entries from a file
+     *
+     * @throws IllegalArgumentException
+     * @throws IllegalAccessException
+     */
+    private static void clearLists() throws IllegalArgumentException, IllegalAccessException {
 
-    public static void save(String text) throws IOException {
+        Field[] fields = getStaticAndNonTransientFields();
+        for (Field field : fields) {
+            if (Collection.class.isAssignableFrom(field.getType())) {
+                Collection collection = (Collection<?>)field.get(field.getName());
+                collection.clear();
+            }
+        }
+    }
+
+    /**
+     * check if the configfile in current execution folder exist
+     *
+     * @return {@code true or false}
+     */
+    public static Boolean exsit() {
 
         String filePath = System.getProperty("user.dir");
         String absoultePath = filePath + "\\" + CONFIGNAME;
-
-        File resultfile = new File(absoultePath);
-        BufferedWriter writer = new BufferedWriter(
-                new BufferedWriter(new FileWriter(resultfile, false)));
-        writer.write(text);
-        writer.close();
-        logger.info("saved config successful: (" + absoultePath + ")");
+        File file = new File(absoultePath);
+        return file.exists();
 
     }
 
+    /**
+     * this method serials current config parameter
+     *
+     * @return {@code String}
+     * @throws IllegalArgumentException
+     * @throws IllegalAccessException
+     */
+    public static String getConfigContent() throws IllegalArgumentException, IllegalAccessException {
+        StringBuilder stringBuilder = new StringBuilder();
+
+        Field[] staticFields = getStaticAndNonTransientFields();
+        String fieldName = "";
+        Object obejct = null;
+        String value = "";
+
+        stringBuilder.append("# comment lines and empty lines are skipped");
+        stringBuilder.append("\n");
+        stringBuilder.append("# TF_IDF_NORMALIZATION_TYPE = NONE or LOG or DOUBEL) ");
+        stringBuilder.append("\n");
+
+        for (Field staticField : staticFields) {
+            // List
+            if (Collection.class.isAssignableFrom(staticField.getType())) {
+                stringBuilder.append(serialsList(staticField));
+                continue;
+            }
+            fieldName = staticField.getName();
+            obejct = staticField.get(fieldName);
+            value = obejct.toString();
+            stringBuilder.append(MessageFormat.format("{0} = {1}", fieldName, value));
+            stringBuilder.append("\n");
+
+        }
+
+        return stringBuilder.toString();
+
+    }
+
+    /**
+     * this method returns all saveable config parameters
+     *
+     * @return
+     */
+    private static Field[] getStaticAndNonTransientFields() {
+
+        Field[] declaredFields = Config.class.getDeclaredFields();
+        List<Field> fields = new ArrayList<Field>();
+        for (Field field : declaredFields) {
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) && !Modifier.isTransient(field.getModifiers())) {
+                fields.add(field);
+            }
+        }
+
+        Field[] result = new Field[fields.size()];
+        fields.toArray(result);
+
+        return result;
+    }
+
+    /**
+     * this method load a config file form current exececution folder <br>
+     * and set the static config fields
+     *
+     * @throws IOException
+     * @throws NoSuchFieldException
+     * @throws SecurityException
+     * @throws IllegalArgumentException
+     * @throws IllegalAccessException
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     */
     public static void load() throws IOException, NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException,
             NoSuchMethodException, InvocationTargetException {
 
@@ -162,6 +239,35 @@ public class Config {
 
     }
 
+    /**
+     * this method save current config-state in current running executionfolder as File "documentAnalyser.cfg"
+     *
+     * @throws IOException
+     * @throws IllegalArgumentException
+     * @throws IllegalAccessException
+     */
+    public static void save() throws IOException, IllegalArgumentException, IllegalAccessException {
+
+        String filePath = System.getProperty("user.dir");
+        String absoultePath = filePath + "\\" + CONFIGNAME;
+
+        File resultfile = new File(absoultePath);
+        BufferedWriter writer = new BufferedWriter(
+                new BufferedWriter(new FileWriter(resultfile, false)));
+        writer.write(getConfigContent());
+        writer.close();
+        logger.info("saved config successful: (" + absoultePath + ")");
+
+    }
+
+    /**
+     * this method serials a list, with fieldname and value
+     *
+     * @param field
+     * @return String
+     * @throws IllegalArgumentException
+     * @throws IllegalAccessException
+     */
     private static String serialsList(Field field) throws IllegalArgumentException, IllegalAccessException {
 
         String fieldName = field.getName();
@@ -179,22 +285,17 @@ public class Config {
 
     }
 
-    private static Field[] getStaticFields() {
-
-        Field[] declaredFields = Config.class.getDeclaredFields();
-        List<Field> staticFields = new ArrayList<Field>();
-        for (Field field : declaredFields) {
-            if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) && !Modifier.isTransient(field.getModifiers())) {
-                staticFields.add(field);
-            }
-        }
-
-        Field[] result = new Field[staticFields.size()];
-        staticFields.toArray(result);
-
-        return result;
-    }
-
+    /**
+     * this method set field value
+     *
+     * @param line (contains name of field and value)
+     * @throws NoSuchFieldException
+     * @throws SecurityException
+     * @throws IllegalArgumentException
+     * @throws IllegalAccessException
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     */
     private static void setField(String line)
             throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
 
@@ -218,11 +319,19 @@ public class Config {
         if (field.getType() == String.class) {
             value = rawValue.toString();
         }
+        if (field.getType().isEnum()) {
+            // to do, change to generic
+            Object object = field.get(field);
+            Enum<?> enuum = (Enum<?>)object;
+            value = Enum.valueOf(enuum.getClass(), rawValue.toString());
+            // value = TF_IDF_NormalizationType.valueOf(rawValue.toString());
+
+        }
         if (Collection.class.isAssignableFrom(field.getType())) {
 
-            Object tst = field.get(field);
-            List lists = (List)tst;
-            lists.add(rawValue.toString());
+            Object object = field.get(field);
+            List list = (List)object;
+            list.add(rawValue.toString());
 
             // collection.add(value);
         } else {
@@ -231,56 +340,27 @@ public class Config {
 
     }
 
-    private static void clearLists() throws IllegalArgumentException, IllegalAccessException {
-
-        Field[] fields = getStaticFields();
-        for (Field field : fields) {
-            if (Collection.class.isAssignableFrom(field.getType())) {
-
-                Collection collection = (Collection<?>)field.get(field.getName());
-                collection.clear();
-            }
-        }
+    /**
+     * R&uuml;ckgabe der Klasseninformation.
+     * <p>
+     * Gibt den Klassennamen und die CVS Revisionsnummer zur&uuml;ck.
+     * <p>
+     *
+     * @return Klasseninformation
+     */
+    @Override
+    public String toString() {
+        return this.getClass().getName() + " " + VERSION;
     }
 
-    public static Boolean exsit() {
+}
 
-        String filePath = System.getProperty("user.dir");
-        String absoultePath = filePath + "\\" + CONFIGNAME;
-        File file = new File(absoultePath);
-        return file.exists();
-
-    }
-
-    public static String asString() throws IllegalArgumentException, IllegalAccessException {
-        StringBuilder stringBuilder = new StringBuilder();
-
-        Field[] staticFields = getStaticFields();
-        String fieldName = "";
-        Object obejct = null;
-        String value = "";
-
-        stringBuilder.append("# comment lines and empty lines are skipped");
-        stringBuilder.append("\n");
-        stringBuilder.append("# TF_IDF_NORMALIZATION_TYPE = (0 = NONE or 1 = LOG or 2 = DOUBEL) ");
-        stringBuilder.append("\n");
-
-        for (Field staticField : staticFields) {
-            // List
-            if (Collection.class.isAssignableFrom(staticField.getType())) {
-                stringBuilder.append(serialsList(staticField));
-                continue;
-            }
-            fieldName = staticField.getName();
-            obejct = staticField.get(fieldName);
-            value = obejct.toString();
-            stringBuilder.append(MessageFormat.format("{0} = {1}", fieldName, value));
-            stringBuilder.append("\n");
-
-        }
-
-        return stringBuilder.toString();
-
-    }
-
+/**
+ * This enum to determines which normalization algorithm is use ...
+ * <p>
+ *
+ * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
+ */
+enum TF_IDF_NormalizationType {
+    NONE, LOG, DOUBLE
 }
