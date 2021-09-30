@@ -1,6 +1,8 @@
 package de.citytwin;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,7 +16,6 @@ import java.util.Map;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.BodyContentHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,39 +28,29 @@ import org.xml.sax.SAXException;
  */
 public class DocumentAnalyser implements AutoCloseable {
 
-    public static class Builder {
+    private void initialize() throws JsonParseException, JsonMappingException, IOException {
 
-        @SuppressWarnings("resource")
-        public DocumentAnalyser build() throws Exception {
-
-            DocumentAnalyser documentAnalyser = new DocumentAnalyser();
-            documentAnalyser.textRankAnalyser = new TextRankAnalyser();
-            documentAnalyser.tfIdfAnalyser = new TFIDFTextAnalyser();
-            documentAnalyser.word2vecAnalyser = new Word2VecAnalyser().withModel(Config.WORD2VEC_MODEL);
-            documentAnalyser.documentConverter = new DocumentConverter();
-            documentAnalyser.alkisDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {},
-                    Config.ALKIS_RESOURCE);
-            documentAnalyser.ontologyDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<OntologyDTO>>() {},
-                    Config.ONTOLOGY_RESOURCE);
-
-            documentAnalyser.isBuilt = true;
-            return documentAnalyser;
-
-        }
-
+        textRankAnalyser = new TextRankAnalyser();
+        tfIdfAnalyser = new TFIDFTextAnalyser();
+        word2vecAnalyser = new Word2VecAnalyser().withModel(Config.WORD2VEC_MODEL);
+        documentConverter = new DocumentConverter();
+        alkisDTOs = documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {},
+                Config.ALKIS_RESOURCE);
+        ontologyDTOs = documentConverter.getDTOs(new TypeReference<List<OntologyDTO>>() {},
+                Config.ONTOLOGY_RESOURCE);
+        isBuilt = true;
     }
 
     /** Aktuelle Versionsinformation */
     private static final String VERSION = "$Revision: 1.00 $";
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    protected TextRankAnalyser textRankAnalyser = null;
-    protected TFIDFTextAnalyser tfIdfAnalyser = null;
-    protected Word2VecAnalyser word2vecAnalyser = null;
-    protected DocumentConverter documentConverter = null;
-    protected boolean isBuilt = false;
+    private TextRankAnalyser textRankAnalyser = null;
+    private TFIDFTextAnalyser tfIdfAnalyser = null;
+    private Word2VecAnalyser word2vecAnalyser = null;
+    private DocumentConverter documentConverter = null;
+    private boolean isBuilt = false;
     private BodyContentHandler bodyContentHandler = null;
-    private Metadata metadata = null;
     private GermanTextProcessing germanTextProcessing = null;
     protected List<ALKISDTO> alkisDTOs = new ArrayList<ALKISDTO>();
     protected List<OntologyDTO> ontologyDTOs = new ArrayList<OntologyDTO>();
@@ -72,7 +63,8 @@ public class DocumentAnalyser implements AutoCloseable {
 
     private Map<String, Map<String, List<String>>> textRankLinkResults = null;
 
-    private DocumentAnalyser() {
+    public DocumentAnalyser() throws JsonParseException, JsonMappingException, IOException {
+        initialize();
     }
 
     public void analyse(double similarity) throws IOException {
@@ -106,11 +98,6 @@ public class DocumentAnalyser implements AutoCloseable {
                 filteredKeyWordsAlkis.size(),
                 filteredKeyWordsOntology.size(),
                 (filteredKeyWordsAlkis.size() + filteredKeyWordsOntology.size())));
-
-        DBController dbController = new DBController(Config.DATABASE_URI, Config.DATABASE_USER, Config.DATABASE_PASSWORD);
-
-        dbController.persist(filteredKeyWordsAlkis, metadata);
-        dbController.persist(null, metadata);
 
     }
 

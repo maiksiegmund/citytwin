@@ -35,41 +35,37 @@ import opennlp.tools.tokenize.TokenizerModel;
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
-public class GermanTextProcessing {
+public class GermanTextProcessing implements AutoCloseable {
 
     private static boolean isInitialzied = false;
 
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
     private static transient final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    /** Aktuelle Versionsinformation */
+    private static final String VERSION = "$Revision: 1.00 $";
     private static POSTaggerME posTagger = null;
     private static SentenceDetectorME sentenceDetector = null;
     private static Set<String> stopwords = new HashSet<String>();
     private static Tokenizer tokenizer = null;
     private static SnowballStemmer snowballStemmer = null;
-    /** Aktuelle Versionsinformation */
-    private static final String VERSION = "$Revision: 1.00 $";
-
-    /**
-     * this method return german pos tag List
-     *
-     * @see <a href=https://www.cis.lmu.de/~schmid/tools/TreeTagger/data/stts_guide.pdf>german pos tags</a>
-     * @return new reference of {@code List<String>}
-     */
-
-    // private String cleaningPattern = "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]";
-    // private int maxNewLines = 10;
-    // threshold term lenght
-    // private int minTermLenght = 2;
-    // threshold of term count in a sentences
-    // private int minTermCount = 5;
-
-    private String tokenizerName = "Letter";
 
     public GermanTextProcessing() throws IOException {
 
         if (!isInitialzied) {
             initialize();
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        isInitialzied = false;
+        posTagger = null;
+        sentenceDetector = null;
+        snowballStemmer = null;
+        stopwords.clear();
+        stopwords = null;
+        tokenizer = null;
+
     }
 
     /**
@@ -190,10 +186,6 @@ public class GermanTextProcessing {
         return sentenceDetector;
     }
 
-    public String getTokenizerName() {
-        return tokenizerName;
-    }
-
     /**
      * this method initialize nlp components
      *
@@ -245,10 +237,6 @@ public class GermanTextProcessing {
                 + (float)countBlanks / (float)sentence.length() * 100.0f;
         return (int)Math.ceil(accurany);
 
-    }
-
-    public void setTokenizerName(String tokenizerName) {
-        this.tokenizerName = tokenizerName;
     }
 
     /**
@@ -315,40 +303,6 @@ public class GermanTextProcessing {
         logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
         return results;
     }
-
-    /**
-     * This method splits an sentence in each term by apache lucene
-     *
-     * @param sentence
-     * @return new reference of {@code List<String>}
-     * @throws IOException
-     */
-    // public List<String> tokenizeLucene(final String sentence) throws IOException {
-    //
-    // List<String> results = new ArrayList<String>();
-    // Analyzer analyzer = CustomAnalyzer.builder()
-    // .withTokenizer(tokenizerName)
-    // // .addTokenFilter("LowerCase")
-    // // .addTokenFilter("hyphenatedwords")
-    // .build();
-    //
-    // String temp = "";
-    //
-    // TokenStream stream = analyzer.tokenStream(null, new StringReader(sentence));
-    // CharTermAttribute attr = stream.addAttribute(CharTermAttribute.class);
-    // stream.reset();
-    // while (stream.incrementToken()) {
-    // temp = attr.toString();
-    // temp = tryToRemoveHypen(temp);
-    // if (temp.length() >= minTermLenght) {
-    // results.add(temp);
-    // }
-    // }
-    // analyzer.close();
-    // stream.close();
-    // logger.info(MessageFormat.format("tokenize completed, sentence contains {0} terms.", results.size()));
-    // return results;
-    // }
 
     /**
      * This method split a sentence in each term by apache opennlp works better with terms like "Bebauungsplan-Entwurf"

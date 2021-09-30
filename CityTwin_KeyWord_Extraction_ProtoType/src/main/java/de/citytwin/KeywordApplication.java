@@ -65,6 +65,19 @@ public class KeywordApplication {
             if (Config.exsit()) {
                 Config.load();
             }
+
+
+            DocumentAnalyser documentAnalyser = new DocumentAnalyser();
+            documentAnalyser.analyse(0);
+
+
+            DBController dbController = new DBController(Config.DATABASE_URI, Config.DATABASE_USER, Config.DATABASE_PASSWORD);
+
+            dbController.persist(filteredKeyWordsAlkis, metadata);
+            dbController.persist(null, metadata);
+
+
+
         } catch (Exception exception) {
 
         }

@@ -191,6 +191,7 @@ public class Word2VecAnalyser implements AutoCloseable {
     @Override
     public void close() throws Exception {
         word2vec = null;
+        textProcessing.close();
         textProcessing = null;
 
     }

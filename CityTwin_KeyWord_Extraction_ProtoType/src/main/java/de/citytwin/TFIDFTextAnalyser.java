@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  *         <p>
  *         this class provide tf idf calculation of a german textcorpus
  */
-public class TFIDFTextAnalyser {
+public class TFIDFTextAnalyser implements AutoCloseable {
 
     /**
      * This inner class represent DocumentCount only use here. used as struct ... <br>
@@ -180,6 +180,12 @@ public class TFIDFTextAnalyser {
         }
         logger.info("caculation tf idf completed");
         return result;
+    }
+
+    @Override
+    public void close() throws Exception {
+        textProcessing.close();
+
     }
 
     /**

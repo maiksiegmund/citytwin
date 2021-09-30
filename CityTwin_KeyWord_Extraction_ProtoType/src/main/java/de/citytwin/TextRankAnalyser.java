@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
-public class TextRankAnalyser {
+public class TextRankAnalyser implements AutoCloseable {
 
     /**
      * This inner class represent textrankmatrix only use here. used as struct ... contains a graph and this adjazenz matrix
@@ -41,9 +41,9 @@ public class TextRankAnalyser {
      * @version $Revision: 1.0 $
      * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
      */
-    public class TextRankMatrix {
+    public class TextRankMatrix implements AutoCloseable {
 
-        public final transient Graph<String, DefaultWeightedEdge> graph;
+        private transient Graph<String, DefaultWeightedEdge> graph;
         // hold indexes of terms (in Map<K,V> add sequence does not correspond like stack or list)
         private Map<String, Integer> indexOfTerm;
         // simple adjazenz matrix with out term information
@@ -76,6 +76,15 @@ public class TextRankAnalyser {
             initialize();
         }
 
+        @Override
+        public void close() throws Exception {
+            graph = null;
+            indexOfTerm.clear();
+            indexOfTerm = null;
+            matrix = null;
+
+        }
+
         /**
          * @return {@code Map<String, Integer>}
          */
@@ -105,7 +114,6 @@ public class TextRankAnalyser {
          */
         private void initialize() {
             int size = graph.vertexSet().size();
-            double weight = 0.0d;
             int index = 0;
             double initializeValue = 0.0d;
             String term = "";
@@ -360,6 +368,14 @@ public class TextRankAnalyser {
         }
         logger.info("score calculation completed.");
         return results;
+    }
+
+    @Override
+    public void close() throws Exception {
+        graph = null;
+        textProcessing.close();
+        textRankMatrix.close();
+
     }
 
     /**

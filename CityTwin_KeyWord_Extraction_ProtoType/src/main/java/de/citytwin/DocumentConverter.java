@@ -30,17 +30,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
-public class DocumentConverter {
+public class DocumentConverter implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private BodyContentHandler bodyContentHandler = null;
     private AutoDetectParser autoDetectParser = null;
     private Metadata metadata = null;
-    ParseContext parseContext = null;
+    private ParseContext parseContext = null;
 
     public DocumentConverter() {
 
+    }
+
+    @Override
+    public void close() throws Exception {
+        autoDetectParser = null;
+        bodyContentHandler = null;
+        metadata = null;
+        parseContext = null;
     }
 
     /**
@@ -267,13 +275,5 @@ public class DocumentConverter {
         stream.close();
         return bodyContentHandler;
     }
-
-    // protected void readOntology() throws JsonParseException, JsonMappingException, IOException {
-    // ObjectMapper mapper = new ObjectMapper();
-    // mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    // InputStream inputStream = getClass().getClassLoader().getResourceAsStream("ontology.json");
-    // ontologyDTOs = Arrays.asList(mapper.readValue(inputStream, OntologyDTO[].class));
-    // inputStream.close();
-    // }
 
 }

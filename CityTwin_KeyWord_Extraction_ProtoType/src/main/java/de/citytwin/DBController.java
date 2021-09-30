@@ -306,21 +306,23 @@ public class DBController {
             Boolean linked = false;
             Pair<T, Double> pair;
 
-            exist = session.readTransaction(new TransactionWork<Boolean>() {
-
-                @Override
-                public Boolean execute(Transaction transaction) {
-                    return existDocument(transaction, metadata);
-                }
-            });
+            // exist = session.readTransaction(new TransactionWork<Boolean>() {
+            //
+            // @Override
+            // public Boolean execute(Transaction transaction) {
+            // return existDocument(transaction, metadata);
+            // }
+            // });
+            exist = session.readTransaction(exist(metadata));
             if (!exist) {
-                session.writeTransaction(new TransactionWork<Void>() {
-
-                    @Override
-                    public Void execute(Transaction transaction) {
-                        return createDocumentNode(transaction, metadata);
-                    }
-                });
+//                session.writeTransaction(new TransactionWork<Void>() {
+//
+//                    @Override
+//                    public Void execute(Transaction transaction) {
+//                        return createDocumentNode(transaction, metadata);
+//                    }
+//                });
+                session.writeTransaction(create(metadata));
             }
             for (String key : filteredKeyWords.keySet()) {
                 pair = filteredKeyWords.get(key);
@@ -374,6 +376,26 @@ public class DBController {
             logger.error(exception.getMessage(), exception);
         }
 
+    }
+
+    private TransactionWork<Boolean> exist(Metadata metadata) {
+        return new TransactionWork<Boolean>() {
+
+            @Override
+            public Boolean execute(Transaction transaction) {
+                return existDocument(transaction, metadata);
+            }
+        };
+    }
+
+    private TransactionWork<Void> create(Metadata metadata) {
+        return new TransactionWork<Void>() {
+
+            @Override
+            public Void execute(Transaction transaction) {
+                return createDocumentNode(transaction, metadata);
+            }
+        };
     }
 
     private void purgeDB() {
