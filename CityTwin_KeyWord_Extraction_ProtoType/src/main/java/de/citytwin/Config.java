@@ -33,7 +33,7 @@ public class Config {
     /**  */
     private transient static final String VERSION = "$Revision: 1.00 $";
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
-    private transient final static Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private transient static final String CONFIGNAME = "documentAnalyser.cfg";
 
     // all public static members are saved and load
@@ -48,24 +48,28 @@ public class Config {
 
     public static Integer WORD2VEC_NEARESTCOUNT = 10;
     public static Integer WORD2VEC_SIMILARITY = 66;
-    public static String ALKIS_RESOURCE = "alkis.json";
 
-    public static String ONTOLOGY_RESOURCE = "ontology.json";
+    public static String ALKIS_RESOURCE = "alkis.json";
+    public static String TERM_RESOURCE = "ct_terms.json";
+
     public static String OUTPUT_FOLDER = "output";
     public static String INPUT_FOLDER = "D:\\vms\\sharedFolder\\";
-    public static Integer TEXTRANK_WORDWINDOWSIZE = 5;
 
+    public static TF_IDF_NormalizationType TF_IDF_NORMALIZATION_TYPE = TF_IDF_NormalizationType.NONE;
+    public static Boolean TTF_IDF_Results = true;
+
+    public static Integer TEXTRANK_WORDWINDOWSIZE = 5;
     public static Integer TEXTRANK_ITERATION = 5;
     public static Integer TEXTRANK_MAXLINKS = 3;
     public static Boolean TEXTRANK_WITH_MATRIX_NORMALIZE = false;
     public static Boolean TEXTRANK_WITH_VECTOR_NORMALIZE = false;
-    public static String GERMAN_TEXT_PROCESSING_CLEANING_PATTERN = "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]";
+    public static Boolean TEXTRANK_Results = true;
 
+    public static String GERMAN_TEXT_PROCESSING_CLEANING_PATTERN = "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]";
     public static Integer GERMAN_TEXT_PROCESSING_MAX_NEWLINES = 10;
     public static Integer GERMAN_TEXT_PROCESSING_MIN_TERM_LENGTH = 2;
     public static Integer GERMAN_TEXT_PROCESSING_MIN_TERM_COUNT = 5;
     public static Integer GERMAN_TEXT_PROCESSING_TABLE_OF_CONTENT_THRESHOLD = 50;
-    public static TF_IDF_NormalizationType TF_IDF_NORMALIZATION_TYPE = TF_IDF_NormalizationType.NONE;
 
     public static List<String> GERMAN_TEXT_PROCESSING_POSTAGS = new ArrayList<String>(Arrays.asList("ADJA",
             "ADJD",
@@ -236,7 +240,7 @@ public class Config {
             setField(line);
 
         }
-
+        logger.info("load config successful: (" + absoultePath + ")");
     }
 
     /**
@@ -338,6 +342,12 @@ public class Config {
             field.set(field, value);
         }
 
+    }
+
+    public static String Source() {
+        String filePath = System.getProperty("user.dir");
+        String absoultePath = filePath + "\\" + CONFIGNAME;
+        return absoultePath;
     }
 
     /**

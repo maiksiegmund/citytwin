@@ -35,7 +35,7 @@ public class DBController {
 
     }
 
-    public void addOntologyEntry(OntologyDTO dto) {
+    public void addTermEntry(TermDTO dto) {
 
         Boolean exist = false;
         try(Session session = driver.session()) {
@@ -43,7 +43,7 @@ public class DBController {
 
                 @Override
                 public Boolean execute(Transaction transaction) {
-                    return existOntologyTypeNode(transaction, dto);
+                    return existOntologyNode(transaction, dto.getTerm());
 
                 }
             });
@@ -67,6 +67,16 @@ public class DBController {
         }
         driver.close();
 
+    }
+
+    private TransactionWork<Void> create(Metadata metadata) {
+        return new TransactionWork<Void>() {
+
+            @Override
+            public Void execute(Transaction transaction) {
+                return createDocumentNode(transaction, metadata);
+            }
+        };
     }
 
     public void createALKISEntries(List<ALKISDTO> dtos) {
@@ -147,31 +157,38 @@ public class DBController {
         return null;
     }
 
-    private Void createOntologyEntryNode(Transaction transaction, OntologyDTO dto) {
+    private Void createOntologyEntryNode(Transaction transaction, TermDTO dto) {
 
-        transaction.run("CREATE (:OntologyEntry {isCore: $isCore, isKeyWord: $isKeyWord, isSemantic: $isSemantic, name: $word, stemm: $stemm})",
+        transaction.run("CREATE (:OntologyEntry {isCore: $isCore, morphem: $morphem, name: $term })",
                 Values.parameters(
                         "isCore",
-                        dto.isCore(),
-                        "isKeyWord",
-                        dto.isKeyWord(),
+                        dto.isCore,
+                        "morphem",
+                        dto.morphem,
                         "isSematnic",
-                        dto.isSemantic(),
-                        "name",
-                        dto.getWord(),
-                        "stemm",
-                        dto.getStemm()));
+                        dto.term,
+                        "term"));
         return null;
 
     }
 
-    private Void createOntologyTypeNode(Transaction transaction, final OntologyDTO dto) {
-        transaction.run("CREATE (:OntologyType {name: $type})",
+    private Void createOntologyNode(Transaction transaction, final String ontology) {
+        transaction.run("CREATE (:Ontology {name: $ontology})",
                 Values.parameters(
-                        "name",
-                        dto.getType()));
+                        "ontology",
+                        ontology));
         return null;
 
+    }
+
+    private TransactionWork<Boolean> exist(Metadata metadata) {
+        return new TransactionWork<Boolean>() {
+
+            @Override
+            public Boolean execute(Transaction transaction) {
+                return existDocument(transaction, metadata);
+            }
+        };
     }
 
     private Boolean existALKISNode(Transaction transaction, ALKISDTO dto) {
@@ -205,19 +222,19 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    private Boolean existOntologEntryyNode(Transaction transaction, OntologyDTO dto) {
+    private Boolean existOntologEntryyNode(Transaction transaction, TermDTO dto) {
 
         Result result = transaction.run("Match (ont:OntologyEntry) where ont.name = $name return id(ont)",
-                Values.parameters("name", dto.getWord()));
+                Values.parameters("name", dto.getName()));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
         return Boolean.FALSE;
     }
 
-    private Boolean existOntologyTypeNode(Transaction transaction, final OntologyDTO dto) {
-        Result result = transaction.run("Match (ont:OntologyType) where ont.type = $type return (ont)",
-                Values.parameters("type", dto.getType()));
+    private Boolean existOntologyNode(Transaction transaction, final String ontology) {
+        Result result = transaction.run("Match (ont:Ontology) where ont.name = $ontology return (ont)",
+                Values.parameters("ontology", ontology));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
@@ -242,18 +259,27 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    private Boolean isLinked(Transaction transaction, final OntologyDTO ontologyDTO, final Metadata documentMetadata) {
-        Result result = transaction.run("Match edge=(ont:OntologyType{type: $type})-[:listed]->(doc:Document{fileName: $fileName}) return (edge)",
-                Values.parameters("type", ontologyDTO.getType(), "fileName", documentMetadata.get("fileName")));
+    private Boolean isLinked(Transaction transaction, final String ontology, final Metadata documentMetadata) {
+        Result result = transaction.run("Match edge=(ont:Ontology{type: $ontology})-[:listed]->(doc:Document{fileName: $fileName}) return (edge)",
+                Values.parameters("ontology", ontology, "fileName", documentMetadata.get("fileName")));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
         return Boolean.FALSE;
     }
 
-    private Boolean isLinked(Transaction transaction, final OntologyDTO ontologyDTO, final String keyword) {
-        Result result = transaction.run("Match edge=(ont:OntologyType{type: $type})-[:listed]->(Keyword{name: $keyword}) return (edge)",
-                Values.parameters("type", ontologyDTO.getType(), "keyword", keyword));
+    private Boolean isLinked(Transaction transaction, final String ontology, final String keyword) {
+        Result result = transaction.run("Match edge=(Ontology{name: $ontology})-[:listed]->(Keyword{name: $keyword}) return (edge)",
+                Values.parameters("ontology", ontology, "keyword", keyword));
+        if (result.hasNext()) {
+            return Boolean.TRUE;
+        }
+        return Boolean.FALSE;
+    }
+
+    private Boolean isLinked(Transaction transaction, final String ontology, final TermDTO dto) {
+        Result result = transaction.run("Match edge=(Ontology{name: $ontology})-[:listed]->(OntologyEntry{name: $term}) return (edge)",
+                Values.parameters("ontology", ontology, "term", dto.getTerm()));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
@@ -284,17 +310,26 @@ public class DBController {
         return null;
     }
 
-    private Void linkOntologyTypeAndDocument(Transaction transaction, final OntologyDTO ontologyDTO, final Metadata documentMetadata) {
-        transaction.run("Match (ont:OntologyType) ,(doc:Document) where ont.type = $ontologyType and doc.fileName = $fileName"
+    private Void linkOntologyAndDocument(Transaction transaction, final String ontology, final Metadata documentMetadata) {
+
+        transaction.run("Match (ont:Ontology) ,(doc:Document) where ont.name = $ontology and doc.fileName = $fileName"
                 + " Create (doc)-[:listed] ->(add)",
-                Values.parameters("ontologyType", ontologyDTO.getType(), "fileName", documentMetadata.get("fileName")));
+                Values.parameters("ontology", ontology, "fileName", documentMetadata.get("fileName")));
+
         return null;
     }
 
-    private Void linkOntologyTypeAndKeyword(Transaction transaction, final OntologyDTO ontologyDTO, final String keyword) {
-        transaction.run("Match (ont:OntologyType), (keyw:Keyword) where ont.type = $ontologyType and keyw.name = $name"
+    private Void linkOntologyAndKeyword(Transaction transaction, final String ontology, final String keyword) {
+        transaction.run("Match (ont:Ontology), (keyw:Keyword) where ont.name = $ontology and keyw.name = $name"
                 + " Create (keyw)-[:partof] ->(ont)",
-                Values.parameters("ontologyType", ontologyDTO.getType(), "$name", keyword));
+                Values.parameters("ontology", ontology, "$name", keyword));
+        return null;
+    }
+
+    private Void linkOntologyAndKeyword(Transaction transaction, final String ontology, final TermDTO keyword) {
+        transaction.run("Match (ont:Ontology), (keyw:Keyword) where ont.name = $ontology and keyw.name = $name"
+                + " Create (keyw)-[:partof] ->(ont)",
+                Values.parameters("ontology", ontology, "$name", keyword));
         return null;
     }
 
@@ -315,13 +350,13 @@ public class DBController {
             // });
             exist = session.readTransaction(exist(metadata));
             if (!exist) {
-//                session.writeTransaction(new TransactionWork<Void>() {
-//
-//                    @Override
-//                    public Void execute(Transaction transaction) {
-//                        return createDocumentNode(transaction, metadata);
-//                    }
-//                });
+                // session.writeTransaction(new TransactionWork<Void>() {
+                //
+                // @Override
+                // public Void execute(Transaction transaction) {
+                // return createDocumentNode(transaction, metadata);
+                // }
+                // });
                 session.writeTransaction(create(metadata));
             }
             for (String key : filteredKeyWords.keySet()) {
@@ -361,7 +396,7 @@ public class DBController {
                         }
                     });
                 }
-                if (dto instanceof OntologyDTO) {
+                if (dto instanceof TermDTO) {
 
                 }
 
@@ -376,26 +411,6 @@ public class DBController {
             logger.error(exception.getMessage(), exception);
         }
 
-    }
-
-    private TransactionWork<Boolean> exist(Metadata metadata) {
-        return new TransactionWork<Boolean>() {
-
-            @Override
-            public Boolean execute(Transaction transaction) {
-                return existDocument(transaction, metadata);
-            }
-        };
-    }
-
-    private TransactionWork<Void> create(Metadata metadata) {
-        return new TransactionWork<Void>() {
-
-            @Override
-            public Void execute(Transaction transaction) {
-                return createDocumentNode(transaction, metadata);
-            }
-        };
     }
 
     private void purgeDB() {

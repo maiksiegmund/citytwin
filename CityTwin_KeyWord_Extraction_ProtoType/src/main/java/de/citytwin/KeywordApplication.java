@@ -3,10 +3,14 @@ package de.citytwin;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.tika.metadata.Metadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,19 +69,18 @@ public class KeywordApplication {
             if (Config.exsit()) {
                 Config.load();
             }
-
-
+            List<File> files = new ArrayList<File>();
+            getFiles(Config.INPUT_FOLDER, files);
             DocumentAnalyser documentAnalyser = new DocumentAnalyser();
-            documentAnalyser.analyse(0);
-
-
             DBController dbController = new DBController(Config.DATABASE_URI, Config.DATABASE_USER, Config.DATABASE_PASSWORD);
+            Metadata metaData = null;
+            for (File file : files) {
 
-            dbController.persist(filteredKeyWordsAlkis, metadata);
-            dbController.persist(null, metadata);
-
-
-
+                Map<String, Pair<ALKISDTO, Double>> alkis = documentAnalyser.analyse2ALKIS(file);
+                metaData = documentAnalyser.getMetaData(file);
+                dbController.persist(alkis, metaData);
+            }
+            documentAnalyser.close();
         } catch (Exception exception) {
 
         }
