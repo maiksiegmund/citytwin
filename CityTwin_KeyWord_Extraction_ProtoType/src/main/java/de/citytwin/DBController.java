@@ -162,11 +162,10 @@ public class DBController {
         transaction.run("CREATE (:OntologyEntry {isCore: $isCore, morphem: $morphem, name: $term })",
                 Values.parameters(
                         "isCore",
-                        dto.isCore,
+                        dto.getIsCore(),
                         "morphem",
-                        dto.morphem,
-                        "isSematnic",
-                        dto.term,
+                        dto.getMorphem(),
+                        dto.getTerm(),
                         "term"));
         return null;
 

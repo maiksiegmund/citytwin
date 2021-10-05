@@ -67,7 +67,9 @@ public class KeywordApplication {
     public static void main(String[] args) {
 
         try {
-            train();
+            // train();
+
+            run();
         } catch (Exception exception) {
 
         }
@@ -95,7 +97,7 @@ public class KeywordApplication {
         textCorpus.addAll(articlesSentences);
 
         analyser.trainModel(textCorpus, parameters);
-        analyser.writeModel(Config.OUTPUT_FOLDER + "\\newTrained.bin");
+        analyser.writeModel("D:\\vms\\sharedFolder\\trainModels\\word2vecnewTrained.bin");
 
     }
 
@@ -118,8 +120,11 @@ public class KeywordApplication {
             Map<String, Pair<TermDTO, Double>> terms = documentAnalyser.analyse2Terms(file);
 
             metaData = documentAnalyser.getMetaData(file);
-            // dbController.persist(alkis, metaData);
+            dbController.<ALKISDTO> persist(alkis, metaData);
+            dbController.<TermDTO> persist(terms, metaData);
+
         }
+
     }
 
 }

@@ -5,11 +5,17 @@ import java.util.List;
 
 public class TermDTO implements DTO {
 
-    Boolean isCore = false;
+    private Boolean isCore = false;
+    private String morphem = "";
+    private String term = "";
+    private List<String> ontologies = new ArrayList<String>();
 
-    String morphem = "";
-    String term = "";
-    List<String> ontologies = new ArrayList<String>();
+    public TermDTO() {
+        isCore = false;
+        morphem = "";
+        term = "";
+        ontologies = new ArrayList<String>();
+    }
 
     public TermDTO(Boolean isCore, String morphem, String term, List<String> ontologies) {
         this.isCore = isCore;
