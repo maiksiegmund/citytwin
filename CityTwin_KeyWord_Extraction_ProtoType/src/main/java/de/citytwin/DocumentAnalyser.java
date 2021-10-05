@@ -1,8 +1,6 @@
 package de.citytwin;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,7 +25,26 @@ import org.xml.sax.SAXException;
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
-public class DocumentAnalyser implements AutoCloseable {
+public class DocumentAnalyser {
+
+    public static class Builder {
+
+        public DocumentAnalyser build() throws Exception {
+            DocumentAnalyser documentAnalyser = new DocumentAnalyser();
+            documentAnalyser.textRankAnalyser = new TextRankAnalyser();
+            documentAnalyser.tfIdfAnalyser = new TFIDFTextAnalyser();
+            documentAnalyser.word2vecAnalyser = new Word2VecAnalyser().withModel(Config.WORD2VEC_MODEL);
+            documentAnalyser.documentConverter = new DocumentConverter();
+            documentAnalyser.alkisDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {},
+                    Config.ALKIS_RESOURCE);
+            documentAnalyser.termDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<TermDTO>>() {}, Config.TERM_RESOURCE);
+
+            documentAnalyser.isBuilt = true;
+
+            return documentAnalyser;
+        }
+
+    }
 
     /** Aktuelle Versionsinformation */
     private static final String VERSION = "$Revision: 1.00 $";
@@ -36,16 +53,16 @@ public class DocumentAnalyser implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     public static String TF_IDF = "TF_IDF";
     public static String TextRank = "textRank";
-    private TextRankAnalyser textRankAnalyser = null;
-    private TFIDFTextAnalyser tfIdfAnalyser = null;
-    private Word2VecAnalyser word2vecAnalyser = null;
-    private DocumentConverter documentConverter = null;
-    private boolean isBuilt = false;
+    protected TextRankAnalyser textRankAnalyser = null;
+    protected TFIDFTextAnalyser tfIdfAnalyser = null;
+    protected Word2VecAnalyser word2vecAnalyser = null;
+    protected DocumentConverter documentConverter = null;
+    protected boolean isBuilt = false;
     private BodyContentHandler bodyContentHandler = null;
-    private GermanTextProcessing germanTextProcessing = null;
-    private List<ALKISDTO> alkisDTOs = new ArrayList<ALKISDTO>();
+    protected GermanTextProcessing germanTextProcessing = null;
+    protected List<ALKISDTO> alkisDTOs = new ArrayList<ALKISDTO>();
 
-    private List<TermDTO> termDTOs = new ArrayList<TermDTO>();
+    protected List<TermDTO> termDTOs = new ArrayList<TermDTO>();
     // private int word2vecAnalyserCount = 10;
     // intern use (store keywords)
     private Map<String, Double> tfIDFResults = null;
@@ -55,8 +72,8 @@ public class DocumentAnalyser implements AutoCloseable {
 
     private Map<String, Map<String, List<String>>> textRankLinkResults = null;
 
-    public DocumentAnalyser() throws JsonParseException, JsonMappingException, IOException {
-        initialize();
+    private DocumentAnalyser() {
+
     }
 
     public Map<String, Pair<ALKISDTO, Double>> analyse2ALKIS(final File file) throws SAXException, TikaException, Exception {
@@ -101,12 +118,6 @@ public class DocumentAnalyser implements AutoCloseable {
             result.putAll(temp);
         }
         return result;
-
-    }
-
-    @Override
-    public void close() throws Exception {
-        word2vecAnalyser.close();
 
     }
 
@@ -171,19 +182,6 @@ public class DocumentAnalyser implements AutoCloseable {
 
         return dto;
 
-    }
-
-    private void initialize() throws JsonParseException, JsonMappingException, IOException {
-
-        textRankAnalyser = new TextRankAnalyser();
-        tfIdfAnalyser = new TFIDFTextAnalyser();
-        word2vecAnalyser = new Word2VecAnalyser().withModel(Config.WORD2VEC_MODEL);
-        documentConverter = new DocumentConverter();
-        alkisDTOs = documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {},
-                Config.ALKIS_RESOURCE);
-        termDTOs = documentConverter.getDTOs(new TypeReference<List<TermDTO>>() {}, Config.TERM_RESOURCE);
-
-        isBuilt = true;
     }
 
     private void performKeyWordExtraction(final File file) throws SAXException, TikaException, Exception {

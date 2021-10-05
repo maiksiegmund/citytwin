@@ -74,19 +74,30 @@ public class KeywordApplication {
             System.out.print(Config.getConfigContent());
             List<File> files = new ArrayList<File>();
             getFiles(Config.INPUT_FOLDER, files);
-            DocumentAnalyser documentAnalyser = new DocumentAnalyser();
+            DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().build();
+
             DBController dbController = new DBController(Config.DATABASE_URI, Config.DATABASE_USER, Config.DATABASE_PASSWORD);
             Metadata metaData = null;
             for (File file : files) {
 
                 Map<String, Pair<ALKISDTO, Double>> alkis = documentAnalyser.analyse2ALKIS(file);
+                Map<String, Pair<TermDTO, Double>> terms = documentAnalyser.analyse2Terms(file);
+
                 metaData = documentAnalyser.getMetaData(file);
-                dbController.persist(alkis, metaData);
+                // dbController.persist(alkis, metaData);
             }
-            documentAnalyser.close();
+
         } catch (Exception exception) {
 
         }
+
+    }
+
+    public static void train() throws IOException {
+
+        Word2VecAnalyser analyser = new Word2VecAnalyser();
+
+        analyser.trainModel(null, null);
 
     }
 

@@ -184,7 +184,7 @@ public class TFIDFTextAnalyser implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        textProcessing.close();
+        //textProcessing.close();
 
     }
 

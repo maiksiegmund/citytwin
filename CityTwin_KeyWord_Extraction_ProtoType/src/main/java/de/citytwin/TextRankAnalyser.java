@@ -373,7 +373,6 @@ public class TextRankAnalyser implements AutoCloseable {
     @Override
     public void close() throws Exception {
         graph = null;
-        textProcessing.close();
         textRankMatrix.close();
 
     }

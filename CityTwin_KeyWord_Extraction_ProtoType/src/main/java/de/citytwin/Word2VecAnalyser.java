@@ -23,7 +23,7 @@ import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Word2VecAnalyser implements AutoCloseable {
+public class Word2VecAnalyser {
 
     public class CityTwinSentenceIterator implements SentenceIterator {
 
@@ -128,8 +128,13 @@ public class Word2VecAnalyser implements AutoCloseable {
         private GermanTextProcessing textProcessing = null;
         private TokenPreProcess tokenPreProcess = null;
 
-        CityTwinTokenizerFactory(GermanTextProcessing textProcessing) {
+        //// de.citytwin.Word2VecAnalyser.CityTwinTokenizerFactory
+        public CityTwinTokenizerFactory(GermanTextProcessing textProcessing) {
             this.textProcessing = textProcessing;
+        }
+
+        public CityTwinTokenizerFactory() throws IOException {
+            this.textProcessing = new GermanTextProcessing();
         }
 
         @Override
@@ -170,7 +175,7 @@ public class Word2VecAnalyser implements AutoCloseable {
     /** logger */
     private static final transient Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private GermanTextProcessing textProcessing = null;
+    protected GermanTextProcessing textProcessing = null;
 
     private List<String> articles = new ArrayList<String>();
 
@@ -188,13 +193,13 @@ public class Word2VecAnalyser implements AutoCloseable {
         return word2vec.accuracy(questions);
     }
 
-    @Override
-    public void close() throws Exception {
-        word2vec = null;
-        textProcessing.close();
-        textProcessing = null;
-
-    }
+    // @Override
+    // public void close() throws Exception {
+    // word2vec = null;
+    // // textProcessing.close();
+    // textProcessing = null;
+    //
+    // }
 
     public HashMap<String, Integer> getDefaultParameters() {
 
@@ -305,7 +310,6 @@ public class Word2VecAnalyser implements AutoCloseable {
      * @return
      */
     public Word2VecAnalyser withModel(String source) {
-
         word2vec = WordVectorSerializer.readWord2VecModel(source);
         return this;
     }

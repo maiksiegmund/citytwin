@@ -35,7 +35,7 @@ import opennlp.tools.tokenize.TokenizerModel;
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
-public class GermanTextProcessing implements AutoCloseable {
+public class GermanTextProcessing {
 
     private static boolean isInitialzied = false;
 
@@ -56,17 +56,17 @@ public class GermanTextProcessing implements AutoCloseable {
         }
     }
 
-    @Override
-    public void close() throws Exception {
-        isInitialzied = false;
-        posTagger = null;
-        sentenceDetector = null;
-        snowballStemmer = null;
-        stopwords.clear();
-        stopwords = null;
-        tokenizer = null;
-
-    }
+    // @Override
+    // public void close() throws Exception {
+    // isInitialzied = false;
+    // posTagger = null;
+    // sentenceDetector = null;
+    // snowballStemmer = null;
+    // stopwords.clear();
+    // stopwords = null;
+    // tokenizer = null;
+    //
+    // }
 
     /**
      * This count a specific char in a sentence,
