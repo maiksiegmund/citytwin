@@ -68,7 +68,10 @@ public class KeywordApplication {
         try {
             if (Config.exsit()) {
                 Config.load();
+            } else {
+                Config.save();
             }
+            System.out.print(Config.getConfigContent());
             List<File> files = new ArrayList<File>();
             getFiles(Config.INPUT_FOLDER, files);
             DocumentAnalyser documentAnalyser = new DocumentAnalyser();

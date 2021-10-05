@@ -33,7 +33,7 @@ public class Config {
     /**  */
     private transient static final String VERSION = "$Revision: 1.00 $";
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
-    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private transient static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private transient static final String CONFIGNAME = "documentAnalyser.cfg";
 
     // all public static members are saved and load
