@@ -1,7 +1,6 @@
 package de.citytwin;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,159 +15,11 @@ import org.deeplearning4j.models.word2vec.VocabWord;
 import org.deeplearning4j.models.word2vec.Word2Vec;
 import org.deeplearning4j.models.word2vec.wordstore.VocabCache;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
-import org.deeplearning4j.text.sentenceiterator.SentencePreProcessor;
-import org.deeplearning4j.text.tokenization.tokenizer.TokenPreProcess;
-import org.deeplearning4j.text.tokenization.tokenizer.Tokenizer;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Word2VecAnalyser {
-
-    public class CityTwinSentenceIterator implements SentenceIterator {
-
-        private List<String> sentences = null;
-        private int currentIndex = 0;
-        private SentencePreProcessor preProcessor = null;
-
-        public CityTwinSentenceIterator(List<String> sentences) {
-            this.sentences = sentences;
-            this.currentIndex = 0;
-            this.preProcessor = new CityTwinSentencePreProcessor();
-        }
-
-        @Override
-        public void finish() {
-            this.currentIndex = sentences.size();
-
-        }
-
-        @Override
-        public SentencePreProcessor getPreProcessor() {
-            return preProcessor;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return (currentIndex < this.sentences.size());
-        }
-
-        @Override
-        public String nextSentence() {
-
-            return this.sentences.get(currentIndex++);
-        }
-
-        @Override
-        public void reset() {
-            this.currentIndex = 0;
-
-        }
-
-        @Override
-        public void setPreProcessor(SentencePreProcessor preProcessor) {
-            this.preProcessor = preProcessor;
-
-        }
-
-    }
-
-    public class CityTwinSentencePreProcessor implements SentencePreProcessor {
-
-        // sentence already prepared
-        @Override
-        public String preProcess(String sentence) {
-            // TODO Auto-generated method stub
-            return sentence;
-        }
-
-    }
-
-    public static class CityTwinTokenizer implements Tokenizer {
-
-        private List<String> tokens = null;
-        private int currentIndex = 0;
-
-        public CityTwinTokenizer(GermanTextProcessing textProcessing, String toTokenize) {
-            this.tokens = textProcessing.tokenizeOpenNLP(toTokenize);
-
-        }
-
-        @Override
-        public int countTokens() {
-            return tokens.size();
-        }
-
-        @Override
-        public List<String> getTokens() {
-            // TODO Auto-generated method stub
-            return tokens;
-        }
-
-        @Override
-        public boolean hasMoreTokens() {
-            return (currentIndex < tokens.size());
-        }
-
-        @Override
-        public String nextToken() {
-            return (currentIndex < tokens.size()) ? tokens.get(currentIndex++) : "";
-        }
-
-        @Override
-        public void setTokenPreProcessor(TokenPreProcess tokenPreProcessor) {
-            // TODO Auto-generated method stub
-
-        }
-
-    }
-
-    public class CityTwinTokenizerFactory implements TokenizerFactory {
-
-        private GermanTextProcessing textProcessing = null;
-        private TokenPreProcess tokenPreProcess = null;
-
-        //// de.citytwin.Word2VecAnalyser.CityTwinTokenizerFactory
-        public CityTwinTokenizerFactory(GermanTextProcessing textProcessing) {
-            this.textProcessing = textProcessing;
-        }
-
-        public CityTwinTokenizerFactory() throws IOException {
-            this.textProcessing = new GermanTextProcessing();
-        }
-
-        @Override
-        public Tokenizer create(InputStream toTokenize) {
-            return new CityTwinTokenizer(this.textProcessing, toTokenize.toString());
-        }
-
-        @Override
-        public Tokenizer create(String toTokenize) {
-            return new CityTwinTokenizer(this.textProcessing, toTokenize);
-        }
-
-        @Override
-        public TokenPreProcess getTokenPreProcessor() {
-            // TODO Auto-generated method stub
-            return tokenPreProcess;
-        }
-
-        @Override
-        public void setTokenPreProcessor(TokenPreProcess preProcessor) {
-            tokenPreProcess = preProcessor;
-        }
-
-    }
-
-    public class CityTwinTokenPreProcess implements TokenPreProcess {
-
-        @Override
-        // input already tokenized
-        public String preProcess(String token) {
-            return token;
-        }
-
-    }
 
     /** current version information */
     private static final String VERSION = "$Revision: 1.00 $";
