@@ -67,9 +67,7 @@ public class KeywordApplication {
     public static void main(String[] args) {
 
         try {
-            train();
-
-            // run();
+            run();
         } catch (Exception exception) {
 
         }
