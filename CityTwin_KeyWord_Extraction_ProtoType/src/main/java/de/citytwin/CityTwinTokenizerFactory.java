@@ -12,13 +12,13 @@ public class CityTwinTokenizerFactory implements TokenizerFactory {
     private GermanTextProcessing textProcessing = null;
     private TokenPreProcess tokenPreProcess = null;
 
+    public CityTwinTokenizerFactory() throws IOException {
+        this.textProcessing = new GermanTextProcessing();
+    }
+
     //// de.citytwin.Word2VecAnalyser.CityTwinTokenizerFactory
     public CityTwinTokenizerFactory(GermanTextProcessing textProcessing) {
         this.textProcessing = textProcessing;
-    }
-
-    public CityTwinTokenizerFactory() throws IOException {
-        this.textProcessing = new GermanTextProcessing();
     }
 
     @Override

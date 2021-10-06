@@ -38,6 +38,7 @@ public class DocumentConverter implements AutoCloseable {
     private AutoDetectParser autoDetectParser = null;
     private Metadata metadata = null;
     private ParseContext parseContext = null;
+    private File parsedFile = null;
 
     public DocumentConverter() {
 
@@ -97,7 +98,14 @@ public class DocumentConverter implements AutoCloseable {
      * @throws Exception
      */
     public BodyContentHandler getBodyContentHandler(final File file) throws SAXException, TikaException, IOException, Exception {
-        setTikaComponents(file);
+        if (parsedFile == null) {
+            setTikaComponents(file);
+            parsedFile = file;
+        }
+        if (!parsedFile.equals(file)) {
+            setTikaComponents(file);
+            parsedFile = file;
+        }
         return bodyContentHandler;
     }
 
@@ -112,7 +120,14 @@ public class DocumentConverter implements AutoCloseable {
      * @throws Exception
      */
     public String getDocumentTitle(final File file) throws SAXException, TikaException, IOException, Exception {
-        setTikaComponents(file);
+        if (parsedFile == null) {
+            setTikaComponents(file);
+            parsedFile = file;
+        }
+        if (!parsedFile.equals(file)) {
+            setTikaComponents(file);
+            parsedFile = file;
+        }
         return metadata.get("title");
 
     }
@@ -159,10 +174,17 @@ public class DocumentConverter implements AutoCloseable {
      * @throws Exception
      */
     public Metadata getMetaData(final File file) throws SAXException, TikaException, IOException, Exception {
-        setTikaComponents(file);
-        String filename = metadata.get("fileName");
+        if (parsedFile == null) {
+            setTikaComponents(file);
+            parsedFile = file;
+        }
+        if (!parsedFile.equals(file)) {
+            setTikaComponents(file);
+            parsedFile = file;
+        }
+        String filename = metadata.get("name");
         if (filename == null) {
-            metadata.add("fileName", file.getName());
+            metadata.add("name", file.getName());
         }
         return metadata;
     }

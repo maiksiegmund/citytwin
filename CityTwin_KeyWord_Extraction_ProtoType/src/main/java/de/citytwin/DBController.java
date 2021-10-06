@@ -131,7 +131,6 @@ public class DBController {
         StringBuilder stringBuilder = new StringBuilder();
         String name = "";
         Object data = null;
-
         Map<String, Object> parameters = new HashMap<String, Object>();
 
         MessageFormat.format("{0}: ${0}", name);
@@ -139,11 +138,11 @@ public class DBController {
             name = metadata.names()[index].replace("-", "");
             name = name.replace(":", "");
             data = metadata.get(metadata.names()[index]);
-            stringBuilder.append(MessageFormat.format("{0}: ${0},", name));
+            stringBuilder.append(MessageFormat.format("{0}: ${0}, ", name));
             parameters.put(name, data);
         }
         // default property
-        stringBuilder.append(MessageFormat.format("{0}: ${0},", "name"));
+        stringBuilder.append(MessageFormat.format("{0}: ${0}", "name"));
         query = (MessageFormat.format("CREATE (:Document '{'{0}'}')", stringBuilder.toString()));
         transaction.run(query, parameters);
         return null;
@@ -200,10 +199,10 @@ public class DBController {
     }
 
     private Boolean existDocument(Transaction transaction, final Metadata metadata) {
-        Result result = transaction.run("Match (doc:Document) where doc.fileName = $fileName return (doc)",
+        Result result = transaction.run("Match (doc:Document) where doc.name = $name return (doc)",
                 Values.parameters(
-                        "fileName",
-                        metadata.get("fileName")));
+                        "name",
+                        metadata.get("name")));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
@@ -241,8 +240,8 @@ public class DBController {
     }
 
     private Boolean isLinked(Transaction transaction, final Metadata documentMetadata, final ALKISDTO alkisdto) {
-        Result result = transaction.run("Match edge=(doc:Document{fileName: $fileName})-[:contains]->(ALKISEntry{name: $alkisname}) return edge",
-                Values.parameters("fileName", documentMetadata.get("fileName"), "alkisname", alkisdto.getName()));
+        Result result = transaction.run("Match edge=(doc:Document{name: $name})-[:contains]->(ALKISEntry{name: $alkisname}) return edge",
+                Values.parameters("name", documentMetadata.get("name"), "alkisname", alkisdto.getName()));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
@@ -250,8 +249,8 @@ public class DBController {
     }
 
     private Boolean isLinked(Transaction transaction, final Metadata documentMetadata, final String keyword) {
-        Result result = transaction.run("Match edge=(doc:Document{fileName: $fileName})-[:contains]->(Keyword{name: $keyword}) return edge",
-                Values.parameters("fileName", documentMetadata.get("fileName"), "keyword", keyword));
+        Result result = transaction.run("Match edge=(doc:Document{name: $name})-[:contains]->(Keyword{name: $keyword}) return edge",
+                Values.parameters("name", documentMetadata.get("name"), "keyword", keyword));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
@@ -259,8 +258,8 @@ public class DBController {
     }
 
     private Boolean isLinked(Transaction transaction, final String ontology, final Metadata documentMetadata) {
-        Result result = transaction.run("Match edge=(ont:Ontology{type: $ontology})-[:listed]->(doc:Document{fileName: $fileName}) return (edge)",
-                Values.parameters("ontology", ontology, "fileName", documentMetadata.get("fileName")));
+        Result result = transaction.run("Match edge=(ont:Ontology{type: $ontology})-[:listed]->(doc:Document{name: $name}) return (edge)",
+                Values.parameters("ontology", ontology, "name", documentMetadata.get("name")));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
@@ -286,10 +285,10 @@ public class DBController {
     }
 
     private Void linkDocumentAndALKIS(Transaction transaction, final Metadata documentMetadata, final ALKISDTO alkisdto, final double weight) {
-        transaction.run("Match (doc:Document), (alkis:ALKISEntry) where doc.fileName = $fileName and keyw.name = $alkisname"
+        transaction.run("Match (doc:Document), (alkis:ALKISEntry) where doc.name = $name and keyw.name = $alkisname"
                 + " Create (doc)-[:contains{weight:$weight} ] ->(alkis)",
-                Values.parameters("fileName",
-                        documentMetadata.get("fileName"),
+                Values.parameters("name",
+                        documentMetadata.get("name"),
                         "alkisname",
                         alkisdto.getName(),
                         "weight",
@@ -298,10 +297,10 @@ public class DBController {
     }
 
     private Void linkDocumentAndKeyword(Transaction transaction, final Metadata documentMetadata, final String keyword, final double weight) {
-        transaction.run("Match (doc:Document), (keyw:Keyword) where doc.fileName = $fileName and keyw.name = $keyowrd"
+        transaction.run("Match (doc:Document), (keyw:Keyword) where doc.name = $name and keyw.name = $keyowrd"
                 + " Create (doc)-[:contains{weight:$weight} ] ->(keyw)",
-                Values.parameters("fileName",
-                        documentMetadata.get("fileName"),
+                Values.parameters("name",
+                        documentMetadata.get("name"),
                         "keyowrd",
                         keyword,
                         "weight",
@@ -311,9 +310,9 @@ public class DBController {
 
     private Void linkOntologyAndDocument(Transaction transaction, final String ontology, final Metadata documentMetadata) {
 
-        transaction.run("Match (ont:Ontology) ,(doc:Document) where ont.name = $ontology and doc.fileName = $fileName"
+        transaction.run("Match (ont:Ontology) ,(doc:Document) where ont.name = $ontology and doc.name = $name"
                 + " Create (doc)-[:listed] ->(add)",
-                Values.parameters("ontology", ontology, "fileName", documentMetadata.get("fileName")));
+                Values.parameters("ontology", ontology, "name", documentMetadata.get("name")));
 
         return null;
     }

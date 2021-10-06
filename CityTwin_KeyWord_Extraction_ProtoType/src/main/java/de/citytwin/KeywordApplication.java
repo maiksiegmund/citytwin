@@ -67,40 +67,20 @@ public class KeywordApplication {
     public static void main(String[] args) {
 
         try {
-            // train();
+            train();
 
-            run();
+            // run();
         } catch (Exception exception) {
 
         }
 
     }
 
-    public static void train() throws IOException {
-
-        Word2VecAnalyser analyser = new Word2VecAnalyser();
-
-        HashMap<String, Integer> parameters = analyser.getDefaultParameters();
-
-        List<String> textCorpus = new ArrayList<String>();
-        DocumentConverter documentConverter = new DocumentConverter();
-
-        GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
-
-        List<File> files = new ArrayList<File>();
-        getFiles("D:\\vms\\sharedFolder\\wikidumps\\text\\", files);
-
-        // wiki dumps
-
-        List<String> temp = documentConverter.getArticleTexts(files);
-        List<String> articlesSentences = germanTextProcessing.tokenizeArticlesToSencences(temp);
-        textCorpus.addAll(articlesSentences);
-
-        analyser.trainModel(textCorpus, parameters);
-        analyser.writeModel("D:\\vms\\sharedFolder\\trainModels\\word2vecnewTrained.bin");
-
-    }
-
+    /**
+     * this method is an example how to use documentanalyser
+     *
+     * @throws Exception
+     */
     public static void run() throws Exception {
         if (Config.exsit()) {
             Config.load();
@@ -124,6 +104,35 @@ public class KeywordApplication {
             dbController.<TermDTO> persist(terms, metaData);
 
         }
+
+    }
+
+    /**
+     * this method is an example to train a model for word2vec
+     *
+     * @throws IOException
+     */
+    public static void train() throws IOException {
+
+        Word2VecAnalyser analyser = new Word2VecAnalyser();
+
+        HashMap<String, Integer> parameters = analyser.getDefaultParameters();
+
+        DocumentConverter documentConverter = new DocumentConverter();
+
+        GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
+
+        List<File> files = new ArrayList<File>();
+        getFiles("D:\\vms\\sharedFolder\\wikidumps\\text\\", files);
+
+        // wiki dumps
+
+        List<String> temp = documentConverter.getArticleTexts(files);
+        List<String> articlesSentences = germanTextProcessing.tokenizeArticlesToSencences(temp);
+        temp.clear();
+
+        analyser.trainModel(articlesSentences, parameters);
+        analyser.writeModel("D:\\vms\\sharedFolder\\trainModels\\word2vecnewTrainedAll.bin");
 
     }
 
