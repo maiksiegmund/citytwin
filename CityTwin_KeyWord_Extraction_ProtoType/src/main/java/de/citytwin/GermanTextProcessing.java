@@ -2,6 +2,7 @@
 
 package de.citytwin;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
@@ -193,21 +194,21 @@ public class GermanTextProcessing {
      */
     private void initialize() throws IOException {
 
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("de-sent.bin");
+        InputStream inputStream = new FileInputStream(Config.NLP_SENTENCE_DETECTOR);
         SentenceModel sentenceModel = new SentenceModel(inputStream);
         sentenceDetector = new SentenceDetectorME(sentenceModel);
         inputStream.close();
 
-        inputStream = getClass().getClassLoader().getResourceAsStream("de-pos-perceptron.bin");
+        inputStream = new FileInputStream(Config.NLP_POS_TAGGER);
         posTagger = new POSTaggerME(new POSModel(inputStream));
         inputStream.close();
 
-        inputStream = getClass().getClassLoader().getResourceAsStream("de-token.bin");
+        inputStream = new FileInputStream(Config.NLP_SENTENCE_TOKENIZER);
         TokenizerModel tokenizerModel = new TokenizerModel(inputStream);
         tokenizer = new TokenizerME(tokenizerModel);
         inputStream.close();
 
-        inputStream = getClass().getClassLoader().getResourceAsStream("stopswords_de.txt");
+        inputStream = new FileInputStream(Config.STOPWORD_CATALOG);
         Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");
 
         while (scanner.hasNext()) {

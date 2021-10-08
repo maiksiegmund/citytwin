@@ -328,7 +328,7 @@ public class TFIDFTextAnalyser implements AutoCloseable {
         DocumentCount result = new DocumentCount();
 
         DocumentCount rawCount = transformText(bodyContentHandler);
-        rawCount = (withStemming) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
+        rawCount = (Config.WITH_STEMMING) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
         DocumentCount tf = null;
         tf = calculateTF(rawCount);
         switch(Config.TF_IDF_NORMALIZATION_TYPE) {

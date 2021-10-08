@@ -36,8 +36,8 @@ public class DocumentAnalyser {
             documentAnalyser.word2vecAnalyser = new Word2VecAnalyser().withModel(Config.WORD2VEC_MODEL);
             documentAnalyser.documentConverter = new DocumentConverter();
             documentAnalyser.alkisDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {},
-                    Config.ALKIS_RESOURCE);
-            documentAnalyser.termDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<TermDTO>>() {}, Config.TERM_RESOURCE);
+                    Config.ALKIS_CATALOG);
+            documentAnalyser.termDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<TermDTO>>() {}, Config.TERM_CATALOG);
 
             documentAnalyser.isBuilt = true;
 
@@ -129,7 +129,7 @@ public class DocumentAnalyser {
         for (T dto : dtos) {
             for (String key : keywords.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(((DTO)dto).getName(), key);
-                //logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ((DTO)dto).getName(), currentSimilarity));
+                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ((DTO)dto).getName(), currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(dto, keywords.get(key)));
                 }

@@ -67,7 +67,8 @@ public class KeywordApplication {
     public static void main(String[] args) {
 
         try {
-            run();
+            // run();
+            // train();
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);
         }
@@ -80,11 +81,19 @@ public class KeywordApplication {
      * @throws Exception
      */
     public static void run() throws Exception {
-        if (Config.exsit()) {
-            Config.load();
+
+        // String filePath = System.getProperty("user.dir");
+        String filePath = "D:\\keywordAnalyser";
+        String absoultePath = filePath + "\\" + Config.CONFIGNAME;
+
+        File configFile = new File(absoultePath);
+
+        if (configFile.exists()) {
+            Config.load(configFile);
         } else {
-            Config.save();
+            Config.save(configFile);
         }
+        // view config content
         System.out.print(Config.getConfigContent());
         List<File> files = new ArrayList<File>();
         getFiles(Config.INPUT_FOLDER, files);
@@ -135,7 +144,5 @@ public class KeywordApplication {
         analyser.writeModel("D:\\vms\\sharedFolder\\trainModels\\word2vecnewTrainedAll.bin");
 
     }
-
-
 
 }

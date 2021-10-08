@@ -34,7 +34,7 @@ public class Config {
     private transient static final String VERSION = "$Revision: 1.00 $";
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
     private transient static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private transient static final String CONFIGNAME = "documentAnalyser.cfg";
+    public transient static final String CONFIGNAME = "documentAnalyser.cfg";
 
     // all public static members are saved and load
     public static String DATABASE_URI = "bolt://localhost:7687";
@@ -42,18 +42,22 @@ public class Config {
     public static String DATABASE_USER = "neo4j";
     public static String DATABASE_PASSWORD = "C1tyTw1n!";
     public static Boolean WITH_STOPWORD_FILTER = false;
+    public static String STOPWORD_CATALOG = "D:\\keywordAnalyser\\stopswords_de.txt";
 
     public static Boolean WITH_STEMMING = false;
-    public static String WORD2VEC_MODEL = "D:\\Word2Vec.bin";
+    public static String WORD2VEC_MODEL = "D:\\keywordAnalyser\\word2vectestModel.bin";
 
     public static Integer WORD2VEC_NEARESTCOUNT = 10;
     public static Integer WORD2VEC_SIMILARITY = 66;
 
-    public static String ALKIS_RESOURCE = "alkis.json";
-    public static String TERM_RESOURCE = "ct_terms.json";
+    public static String ALKIS_CATALOG = "D:\\keywordAnalyser\\alkis_catalog.json";
+    public static String TERM_CATALOG = "D:\\keywordAnalyser\\ct_terms_catalog.json";
+    public static String NLP_POS_TAGGER = "D:\\keywordAnalyser\\de-pos-perceptron.bin";
+    public static String NLP_SENTENCE_DETECTOR = "D:\\keywordAnalyser\\de-sent.bin";
+    public static String NLP_SENTENCE_TOKENIZER = "D:\\keywordAnalyser\\de-token.bin";
 
-    public static String OUTPUT_FOLDER = "output";
-    public static String INPUT_FOLDER = "D:\\vms\\sharedFolder\\";
+    public static String OUTPUT_FOLDER = "D:\\keywordAnalyser\\";
+    public static String INPUT_FOLDER = "D:\\keywordAnalyser\\files";
 
     public static TF_IDF_NormalizationType TF_IDF_NORMALIZATION_TYPE = TF_IDF_NormalizationType.NONE;
     public static Boolean TTF_IDF_Results = true;
@@ -140,20 +144,6 @@ public class Config {
     }
 
     /**
-     * check if the configfile in current execution folder exist
-     *
-     * @return {@code true or false}
-     */
-    public static Boolean exsit() {
-
-        String filePath = System.getProperty("user.dir");
-        String absoultePath = filePath + "\\" + CONFIGNAME;
-        File file = new File(absoultePath);
-        return file.exists();
-
-    }
-
-    /**
      * this method serials current config parameter
      *
      * @return {@code String}
@@ -170,7 +160,7 @@ public class Config {
 
         stringBuilder.append("# comment lines and empty lines are skipped");
         stringBuilder.append("\n");
-        stringBuilder.append("# TF_IDF_NORMALIZATION_TYPE = NONE or LOG or DOUBEL) ");
+        stringBuilder.append("# TF_IDF_NORMALIZATION_TYPE = NONE or LOG or DOUBLE) ");
         stringBuilder.append("\n");
 
         for (Field staticField : staticFields) {
@@ -213,9 +203,9 @@ public class Config {
     }
 
     /**
-     * this method load a config file form current exececution folder <br>
-     * and set the static config fields
+     * this method load a config file
      *
+     * @param File
      * @throws IOException
      * @throws NoSuchFieldException
      * @throws SecurityException
@@ -224,12 +214,10 @@ public class Config {
      * @throws NoSuchMethodException
      * @throws InvocationTargetException
      */
-    public static void load() throws IOException, NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException,
+    public static void load(final File file) throws IOException, NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException,
             NoSuchMethodException, InvocationTargetException {
 
-        String filePath = System.getProperty("user.dir");
-        String absoultePath = filePath + "\\" + CONFIGNAME;
-        List<String> lines = (Files.readLines(new File(absoultePath), Charset.defaultCharset()));
+        List<String> lines = (Files.readLines(file, Charset.defaultCharset()));
 
         clearLists();
 
@@ -240,7 +228,7 @@ public class Config {
             setField(line);
 
         }
-        logger.info("load config successful: (" + absoultePath + ")");
+        logger.info("load config successful: (" + file.getAbsolutePath() + ")");
     }
 
     /**
@@ -250,17 +238,13 @@ public class Config {
      * @throws IllegalArgumentException
      * @throws IllegalAccessException
      */
-    public static void save() throws IOException, IllegalArgumentException, IllegalAccessException {
+    public static void save(File file) throws IOException, IllegalArgumentException, IllegalAccessException {
 
-        String filePath = System.getProperty("user.dir");
-        String absoultePath = filePath + "\\" + CONFIGNAME;
-
-        File resultfile = new File(absoultePath);
         BufferedWriter writer = new BufferedWriter(
-                new BufferedWriter(new FileWriter(resultfile, false)));
+                new BufferedWriter(new FileWriter(file, false)));
         writer.write(getConfigContent());
         writer.close();
-        logger.info("saved config successful: (" + absoultePath + ")");
+        logger.info("saved config successful: (" + file.getAbsolutePath() + ")");
 
     }
 

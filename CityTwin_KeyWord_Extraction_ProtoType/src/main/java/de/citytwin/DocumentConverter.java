@@ -145,18 +145,18 @@ public class DocumentConverter implements AutoCloseable {
      *
      * @param <T> {@code ALKISDTO or OntologyDTO}
      * @param type {@code List<ALKISDTO>}
-     * @param resource
+     * @param path
      * @return new reference of T
      * @throws JsonParseException
      * @throws JsonMappingException
      * @throws IOException
      */
-    public <T> T getDTOs(final TypeReference<T> type, String resource) throws JsonParseException, JsonMappingException, IOException {
+    public <T> T getDTOs(final TypeReference<T> type, String path) throws JsonParseException, JsonMappingException, IOException {
 
         T results = null;
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resource);
+        InputStream inputStream = new FileInputStream(path);
         results = mapper.readValue(inputStream, type);
         inputStream.close();
         return results;
