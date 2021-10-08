@@ -129,7 +129,7 @@ public class DocumentAnalyser {
         for (T dto : dtos) {
             for (String key : keywords.keySet()) {
                 currentSimilarity = word2vecAnalyser.similarity(((DTO)dto).getName(), key);
-                // logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ontologyDTO.word, currentSimilarity));
+                //logger.info(MessageFormat.format("term:{0} = {1} | similarity {2}", key, ((DTO)dto).getName(), currentSimilarity));
                 if (currentSimilarity > similarity) {
                     result.put(key, Pair.of(dto, keywords.get(key)));
                 }

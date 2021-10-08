@@ -69,7 +69,7 @@ public class KeywordApplication {
         try {
             run();
         } catch (Exception exception) {
-
+            logger.error(exception.getMessage(), exception);
         }
 
     }
@@ -95,13 +95,15 @@ public class KeywordApplication {
         for (File file : files) {
 
             Map<String, Pair<ALKISDTO, Double>> alkis = documentAnalyser.analyse2ALKIS(file);
-            Map<String, Pair<TermDTO, Double>> terms = documentAnalyser.analyse2Terms(file);
+            // Map<String, Pair<TermDTO, Double>> terms = documentAnalyser.analyse2Terms(file);
 
             metaData = documentAnalyser.getMetaData(file);
             dbController.<ALKISDTO> persist(alkis, metaData);
-            dbController.<TermDTO> persist(terms, metaData);
+            // dbController.<TermDTO> persist(terms, metaData);
 
         }
+        logger.info("finish");
+        dbController.close();
 
     }
 
@@ -133,5 +135,7 @@ public class KeywordApplication {
         analyser.writeModel("D:\\vms\\sharedFolder\\trainModels\\word2vecnewTrainedAll.bin");
 
     }
+
+
 
 }

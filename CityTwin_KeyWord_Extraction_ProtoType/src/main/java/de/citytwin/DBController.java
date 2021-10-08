@@ -81,14 +81,15 @@ public class DBController {
     }
 
     public void close() {
-        if (session.isOpen()) {
+
+        if (session != null && session.isOpen()) {
             session.close();
         }
         driver.close();
 
     }
 
-    public TransactionWork<Void> createALKISNode(ALKISDTO dto) {
+    private TransactionWork<Void> createALKISNode(ALKISDTO dto) {
         return new TransactionWork<Void>() {
 
             @Override
@@ -119,7 +120,7 @@ public class DBController {
 
     }
 
-    public TransactionWork<Void> createDocumentNode(Metadata metadata) {
+    private TransactionWork<Void> createDocumentNode(Metadata metadata) {
         return new TransactionWork<Void>() {
 
             @Override
@@ -159,7 +160,7 @@ public class DBController {
         return null;
     }
 
-    public TransactionWork<Void> createKeywordNode(final String name) {
+    private TransactionWork<Void> createKeywordNode(final String name) {
         return new TransactionWork<Void>() {
 
             @Override
@@ -174,18 +175,18 @@ public class DBController {
      * this method create a node with label as keyword, no properties
      *
      * @param transaction
-     * @param name
+     * @param keyword
      * @return {@code Void}
      */
-    private Void createKeywordNodeCypher(Transaction transaction, final String name) {
-        transaction.run("CREATE (:Keyword {name: $name})",
+    private Void createKeywordNodeCypher(Transaction transaction, final String keyword) {
+        transaction.run("CREATE (:Keyword {name: $keyword})",
                 Values.parameters(
-                        "name",
-                        name));
+                        "keyword",
+                        keyword));
         return null;
     }
 
-    public TransactionWork<Void> createOntologyNode(final String ontology) {
+    private TransactionWork<Void> createOntologyNode(final String ontology) {
         return new TransactionWork<Void>() {
 
             @Override
@@ -212,7 +213,7 @@ public class DBController {
 
     }
 
-    public TransactionWork<Void> createTermNode(final TermDTO dto) {
+    private TransactionWork<Void> createTermNode(final TermDTO dto) {
         return new TransactionWork<Void>() {
 
             @Override
@@ -244,7 +245,7 @@ public class DBController {
 
     }
 
-    public TransactionWork<Boolean> existALKISNode(ALKISDTO alkisDTO) {
+    private TransactionWork<Boolean> existALKISNode(ALKISDTO alkisDTO) {
 
         return new TransactionWork<Boolean>() {
 
@@ -257,7 +258,7 @@ public class DBController {
     }
 
     private Boolean existALKISNodeCypher(Transaction transaction, ALKISDTO alkisDTO) {
-        Result result = transaction.run("Match (alkis:ALKIS) where alkis.name = $name",
+        Result result = transaction.run("Match (alkis:ALKIS) where alkis.name = $name return (alkis)",
                 Values.parameters("name", alkisDTO.getName()));
         if (result.hasNext()) {
             return Boolean.TRUE;
@@ -265,7 +266,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> existDocumentNode(Metadata metadata) {
+    private TransactionWork<Boolean> existDocumentNode(Metadata metadata) {
         return new TransactionWork<Boolean>() {
 
             @Override
@@ -293,7 +294,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> existKeyWordNode(String keyword) {
+    private TransactionWork<Boolean> existKeyWordNode(String keyword) {
 
         return new TransactionWork<Boolean>() {
 
@@ -313,7 +314,7 @@ public class DBController {
      * @return
      */
     private Boolean existKeyWordNodeCypher(Transaction transaction, final String name) {
-        Result result = transaction.run("Match (word:Keyword) where keyw.name = $name return word",
+        Result result = transaction.run("Match (word:Keyword) where word.name = $name return word",
                 Values.parameters(
                         "name",
                         name));
@@ -323,7 +324,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> existOntologyNode(final String ontology) {
+    private TransactionWork<Boolean> existOntologyNode(final String ontology) {
 
         return new TransactionWork<Boolean>() {
 
@@ -351,7 +352,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> existTermNode(final TermDTO termDTO) {
+    private TransactionWork<Boolean> existTermNode(final TermDTO termDTO) {
 
         return new TransactionWork<Boolean>() {
 
@@ -379,7 +380,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> isDocumentAndALKISLinked(final Metadata metaData, final ALKISDTO alkisdto) {
+    private TransactionWork<Boolean> isDocumentAndALKISLinked(final Metadata metaData, final ALKISDTO alkisdto) {
 
         return new TransactionWork<Boolean>() {
 
@@ -408,7 +409,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> isDocumentAndKeywordLinked(final Metadata metaData, final String keyword) {
+    private TransactionWork<Boolean> isDocumentAndKeywordLinked(final Metadata metaData, final String keyword) {
 
         return new TransactionWork<Boolean>() {
 
@@ -437,7 +438,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> isDocumentAndOntologyLinked(final Metadata metaData, final String ontology) {
+    private TransactionWork<Boolean> isDocumentAndOntologyLinked(final Metadata metaData, final String ontology) {
 
         return new TransactionWork<Boolean>() {
 
@@ -450,15 +451,18 @@ public class DBController {
     }
 
     private Boolean isDocumentAndOntologyLinkedCypher(Transaction transaction, final Metadata metaData, final String ontology) {
-        Result result = transaction.run("Match edge=(:Ontology{type: $ontology})-[:belongsTo]->(:Document{name: $name}) return (edge)",
-                Values.parameters("ontology", ontology, "name", metaData.get("name")));
+        Result result = transaction.run("Match edge=(:Document{name: $docName})-[:belongsTo]->(:Ontology{name: $ontology}) return (edge)",
+                Values.parameters("docName",
+                        metaData.get("name"),
+                        "ontology",
+                        ontology));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> isDocumentAndTermLinked(final Metadata metaData, final TermDTO termDTO) {
+    private TransactionWork<Boolean> isDocumentAndTermLinked(final Metadata metaData, final TermDTO termDTO) {
 
         return new TransactionWork<Boolean>() {
 
@@ -479,15 +483,15 @@ public class DBController {
      * @return {@code Boolean}
      */
     private Boolean isDocumentAndTermLinkedCypher(Transaction transaction, final Metadata metaData, final TermDTO termDTO) {
-        Result result = transaction.run("Match edge=(:Document{name: $name})-[:contains]->(:Term{name: $term}) return edge",
-                Values.parameters("name", metaData.get("name"), "term", termDTO.getTerm()));
+        Result result = transaction.run("Match edge=(:Document{name: $docName})-[:contains]->(:Term{name: $termName}) return edge",
+                Values.parameters("docName", metaData.get("name"), "termName", termDTO.getTerm()));
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> isKeywordAndALKISLinked(final String keyword, final ALKISDTO alkisDTO) {
+    private TransactionWork<Boolean> isKeywordAndALKISLinked(final String keyword, final ALKISDTO alkisDTO) {
 
         return new TransactionWork<Boolean>() {
 
@@ -508,7 +512,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Boolean> isKeywordAndTermLinked(final String keyword, final TermDTO termDTO) {
+    private TransactionWork<Boolean> isKeywordAndTermLinked(final String keyword, final TermDTO termDTO) {
 
         return new TransactionWork<Boolean>() {
 
@@ -521,7 +525,7 @@ public class DBController {
     }
 
     private Boolean isKeywordAndTermLinkedCypher(Transaction transaction, final String keyword, final TermDTO termDTO) {
-        Result result = transaction.run("Match edge=(:word{name: $keyword})-[:belongsTo]->(:Term{name: $term}) return (edge)",
+        Result result = transaction.run("Match edge=(:Keyword{name: $keyword})-[:belongsTo]->(:Term{name: $term}) return (edge)",
                 Values.parameters("keyword", keyword, "term", termDTO.getTerm()));
         if (result.hasNext()) {
             return Boolean.TRUE;
@@ -529,7 +533,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    public TransactionWork<Void> linkDocumentAndALKIS(final Metadata metaData, final ALKISDTO alkisdto) {
+    private TransactionWork<Void> linkDocumentAndALKIS(final Metadata metaData, final ALKISDTO alkisdto) {
 
         return new TransactionWork<Void>() {
 
@@ -553,7 +557,7 @@ public class DBController {
         return null;
     }
 
-    public TransactionWork<Void> linkDocumentAndKeyword(final Metadata metaData, final String keyword, final double weight) {
+    private TransactionWork<Void> linkDocumentAndKeyword(final Metadata metaData, final String keyword, final double weight) {
 
         return new TransactionWork<Void>() {
 
@@ -578,7 +582,7 @@ public class DBController {
         return null;
     }
 
-    public TransactionWork<Void> linkDocumentAndOntology(final Metadata metaData, final String ontology) {
+    private TransactionWork<Void> linkDocumentAndOntology(final Metadata metaData, final String ontology) {
 
         return new TransactionWork<Void>() {
 
@@ -592,18 +596,18 @@ public class DBController {
 
     private Void linkDocumentAndOntologyCypher(Transaction transaction, final Metadata metaData, final String ontology) {
 
-        transaction.run("Match (doc:Document), (ont:Ontology)  where doc.name = $name and ont.name = $ontology"
+        transaction.run("Match (doc:Document), (ont:Ontology)  where doc.name = $docName and ont.name = $ontology"
                 + " Create (doc)-[:belongsTo] ->(ont)"
                 + " Create (ont)-[:affected] ->(doc)",
-                Values.parameters("ontology",
-                        ontology,
-                        "name",
-                        metaData.get("name")));
+                Values.parameters("docName",
+                        metaData.get("name"),
+                        "ontology",
+                        ontology));
 
         return null;
     }
 
-    public TransactionWork<Void> linkDocumentAndTerm(final Metadata metaData, final TermDTO termDTO) {
+    private TransactionWork<Void> linkDocumentAndTerm(final Metadata metaData, final TermDTO termDTO) {
 
         return new TransactionWork<Void>() {
 
@@ -628,7 +632,7 @@ public class DBController {
         return null;
     }
 
-    public TransactionWork<Void> linkKeywordAndALKIS(final String keyword, final ALKISDTO alkisdto, final double weight) {
+    private TransactionWork<Void> linkKeywordAndALKIS(final String keyword, final ALKISDTO alkisdto, final double weight) {
 
         return new TransactionWork<Void>() {
 
@@ -653,7 +657,7 @@ public class DBController {
         return null;
     }
 
-    public TransactionWork<Void> linkKeywordAndTerm(final String keyword, final TermDTO termDTO, final double weight) {
+    private TransactionWork<Void> linkKeywordAndTerm(final String keyword, final TermDTO termDTO, final double weight) {
 
         return new TransactionWork<Void>() {
 
@@ -739,8 +743,15 @@ public class DBController {
     private void termPart(Session session, Metadata metadata, TermDTO termDTO, String term, double weight) {
         boolean linked = false;
         boolean exist = false;
-        // link ontology and document
+
+        // ontology and document
         for (String ontology : termDTO.getOntologies()) {
+            // exist ontology
+            exist = session.readTransaction(existOntologyNode(ontology));
+            if (!exist) {
+                session.writeTransaction(createOntologyNode(ontology));
+            }
+            // link ontology and document
             linked = session.readTransaction(isDocumentAndOntologyLinked(metadata, ontology));
             if (!linked) {
                 session.writeTransaction(linkDocumentAndOntology(metadata, ontology));
