@@ -7,6 +7,7 @@ import org.deeplearning4j.text.tokenization.tokenizer.TokenPreProcess;
 import org.deeplearning4j.text.tokenization.tokenizer.Tokenizer;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 
+//TODO Javadoc! Rename without 'CityTwin'.
 public class CityTwinTokenizerFactory implements TokenizerFactory {
 
     private GermanTextProcessing textProcessing = null;
@@ -23,6 +24,7 @@ public class CityTwinTokenizerFactory implements TokenizerFactory {
 
     @Override
     public Tokenizer create(InputStream toTokenize) {
+        // replace with create(toTokenize.toString())?
         return new CityTwinTokenizer(this.textProcessing, toTokenize.toString());
     }
 

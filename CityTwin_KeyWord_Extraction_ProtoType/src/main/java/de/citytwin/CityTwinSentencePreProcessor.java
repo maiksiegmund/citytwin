@@ -2,6 +2,7 @@ package de.citytwin;
 
 import org.deeplearning4j.text.sentenceiterator.SentencePreProcessor;
 
+//TODO Javadoc! Rename without 'CityTwin'. Is this class necessary?
 public class CityTwinSentencePreProcessor implements SentencePreProcessor {
 
     /**  */

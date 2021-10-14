@@ -44,6 +44,7 @@ public class KeywordApplication {
         }
     }
 
+    // TODO necessary method? apparently not used
     /**
      * create output folder
      *
@@ -127,7 +128,7 @@ public class KeywordApplication {
 
         HashMap<String, Integer> parameters = analyser.getDefaultParameters();
 
-        DocumentConverter documentConverter = new DocumentConverter();
+        DocumentConverter documentConverter = new DocumentConverter(); // = AutoCloseable, use try with resources
 
         GermanTextProcessing germanTextProcessing = new GermanTextProcessing();
 

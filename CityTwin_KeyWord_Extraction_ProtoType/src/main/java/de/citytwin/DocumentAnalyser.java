@@ -27,12 +27,13 @@ import org.xml.sax.SAXException;
  */
 public class DocumentAnalyser {
 
+    // TODO Konstruktor nutzen!
     public static class Builder {
 
         public DocumentAnalyser build() throws Exception {
             DocumentAnalyser documentAnalyser = new DocumentAnalyser();
-            documentAnalyser.textRankAnalyser = new TextRankAnalyser();
-            documentAnalyser.tfIdfAnalyser = new TFIDFTextAnalyser();
+            documentAnalyser.textRankAnalyser = new TextRankAnalyser(); // = AutoCloseable, use try with resources
+            documentAnalyser.tfIdfAnalyser = new TFIDFTextAnalyser(); // = AutoCloseable, use try with resources
             documentAnalyser.word2vecAnalyser = new Word2VecAnalyser().withModel(Config.WORD2VEC_MODEL);
             documentAnalyser.documentConverter = new DocumentConverter();
             documentAnalyser.alkisDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {},
@@ -76,6 +77,7 @@ public class DocumentAnalyser {
 
     }
 
+    // TODO Javadoc erstellen! Schnittstelle extrahieren!
     public Map<String, Pair<ALKISDTO, Double>> analyse2ALKIS(final File file) throws SAXException, TikaException, Exception {
 
         performKeyWordExtraction(file);

@@ -5,6 +5,7 @@ import java.util.List;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
 import org.deeplearning4j.text.sentenceiterator.SentencePreProcessor;
 
+// TODO Javadoc! Consider renaming without 'CityTwin'.
 public class CityTwinSentenceIterator implements SentenceIterator {
 
     public List<String> sentences;

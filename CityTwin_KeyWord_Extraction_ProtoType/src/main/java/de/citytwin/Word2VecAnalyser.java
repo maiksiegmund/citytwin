@@ -28,11 +28,11 @@ public class Word2VecAnalyser {
 
     protected GermanTextProcessing textProcessing = null;
 
-    private List<String> articles = new ArrayList<String>();
+    private List<String> articles = new ArrayList<String>(); //not used?
 
     private List<String> stopWords = new ArrayList<String>();
 
-    private List<String> sentences = new ArrayList<String>();
+    private List<String> sentences = new ArrayList<String>(); //not used?
 
     private Word2Vec word2vec = null;
 

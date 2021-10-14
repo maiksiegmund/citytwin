@@ -34,8 +34,7 @@ public class TermDTO implements DTO {
 
     @Override
     public String getName() {
-        // TODO Auto-generated method stub
-        return term;
+        return term; // TODO Replace with getTerm()? getName necessary in interface?
     }
 
     public List<String> getOntologies() {

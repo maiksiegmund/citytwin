@@ -194,6 +194,7 @@ public class GermanTextProcessing {
      */
     private void initialize() throws IOException {
 
+        // TODO use try with resources for inputstreams
         InputStream inputStream = new FileInputStream(Config.NLP_SENTENCE_DETECTOR);
         SentenceModel sentenceModel = new SentenceModel(inputStream);
         sentenceDetector = new SentenceDetectorME(sentenceModel);
@@ -248,6 +249,7 @@ public class GermanTextProcessing {
      */
     public List<Pair<String, String>> stemm(final List<String> terms) {
 
+        //Map<String, String> as an alternative?
         List<Pair<String, String>> results = new ArrayList<Pair<String, String>>(terms.size());
         String stemmed = "";
         for (String term : terms) {

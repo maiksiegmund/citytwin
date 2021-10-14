@@ -1,6 +1,8 @@
 package de.citytwin;
 
 /**
+ * //TODO Javadoc! Consider renaming without 'DTO'.
+ * 
  * data transfer object (deserialized)
  *
  * @author Maik Siegmund, FH Erfurt
