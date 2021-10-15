@@ -1,5 +1,7 @@
 package de.citytwin;
 
+import de.citytwin.textprocessing.GermanTextProcessing;
+
 import java.util.List;
 
 import org.deeplearning4j.text.tokenization.tokenizer.TokenPreProcess;

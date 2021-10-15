@@ -2,6 +2,9 @@ package de.citytwin;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
+import de.citytwin.dto.ALKIS;
+import de.citytwin.textprocessing.GermanTextProcessing;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -36,7 +39,7 @@ public class DocumentAnalyser {
             documentAnalyser.tfIdfAnalyser = new TFIDFTextAnalyser(); // = AutoCloseable, use try with resources
             documentAnalyser.word2vecAnalyser = new Word2VecAnalyser().withModel(Config.WORD2VEC_MODEL);
             documentAnalyser.documentConverter = new DocumentConverter();
-            documentAnalyser.alkisDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<ALKISDTO>>() {},
+            documentAnalyser.alkisDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<ALKIS>>() {},
                     Config.ALKIS_CATALOG);
             documentAnalyser.termDTOs = documentAnalyser.documentConverter.getDTOs(new TypeReference<List<TermDTO>>() {}, Config.TERM_CATALOG);
 
@@ -61,7 +64,7 @@ public class DocumentAnalyser {
     protected boolean isBuilt = false;
     private BodyContentHandler bodyContentHandler = null;
     protected GermanTextProcessing germanTextProcessing = null;
-    protected List<ALKISDTO> alkisDTOs = new ArrayList<ALKISDTO>();
+    protected List<ALKIS> alkisDTOs = new ArrayList<ALKIS>();
 
     protected List<TermDTO> termDTOs = new ArrayList<TermDTO>();
     // private int word2vecAnalyserCount = 10;
@@ -78,16 +81,16 @@ public class DocumentAnalyser {
     }
 
     // TODO Javadoc erstellen! Schnittstelle extrahieren!
-    public Map<String, Pair<ALKISDTO, Double>> analyse2ALKIS(final File file) throws SAXException, TikaException, Exception {
+    public Map<String, Pair<ALKIS, Double>> analyse2ALKIS(final File file) throws SAXException, TikaException, Exception {
 
         performKeyWordExtraction(file);
-        Map<String, Pair<ALKISDTO, Double>> result = new HashMap<String, Pair<ALKISDTO, Double>>();
+        Map<String, Pair<ALKIS, Double>> result = new HashMap<String, Pair<ALKIS, Double>>();
         if (Config.TTF_IDF_Results) {
-            Map<String, Pair<ALKISDTO, Double>> temp = filterTextKeywordsBySimilarity(ALKISDTO.class, alkisDTOs, tfIDFResults);
+            Map<String, Pair<ALKIS, Double>> temp = filterTextKeywordsBySimilarity(ALKIS.class, alkisDTOs, tfIDFResults);
             result.putAll(temp);
         }
         if (Config.TEXTRANK_Results) {
-            Map<String, Pair<ALKISDTO, Double>> temp = filterTextKeywordsBySimilarity(ALKISDTO.class, alkisDTOs, textRankResults);
+            Map<String, Pair<ALKIS, Double>> temp = filterTextKeywordsBySimilarity(ALKIS.class, alkisDTOs, textRankResults);
             result.putAll(temp);
         }
         return result;
@@ -140,11 +143,11 @@ public class DocumentAnalyser {
         return result;
     }
 
-    public ALKISDTO getALKISDTO(String term) {
+    public ALKIS getALKISDTO(String term) {
         List<Pair<String, String>> stemmed = germanTextProcessing.stemm(Arrays.asList(term));
 
         Pair<String, String> pair = stemmed.get(0);
-        ALKISDTO dto = alkisDTOs.stream()
+        ALKIS dto = alkisDTOs.stream()
                 .filter(item -> pair.getLeft().equals(item.getName()) || pair.getRight().equals(item.getName()))
                 .findFirst()
                 .orElse(null);
@@ -208,8 +211,8 @@ public class DocumentAnalyser {
 
     }
 
-    public void setAlkis(List<ALKISDTO> alkisDTOs) {
-        this.alkisDTOs = new ArrayList<ALKISDTO>(alkisDTOs);
+    public void setAlkis(List<ALKIS> alkisDTOs) {
+        this.alkisDTOs = new ArrayList<ALKIS>(alkisDTOs);
     }
 
     public void setTerms(List<TermDTO> termDTOs) {

@@ -1,5 +1,8 @@
 package de.citytwin;
 
+import de.citytwin.dto.ALKIS;
+import de.citytwin.textprocessing.GermanTextProcessing;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -104,11 +107,11 @@ public class KeywordApplication {
         Metadata metaData = null;
         for (File file : files) {
 
-            Map<String, Pair<ALKISDTO, Double>> alkis = documentAnalyser.analyse2ALKIS(file);
+            Map<String, Pair<ALKIS, Double>> alkis = documentAnalyser.analyse2ALKIS(file);
             // Map<String, Pair<TermDTO, Double>> terms = documentAnalyser.analyse2Terms(file);
 
             metaData = documentAnalyser.getMetaData(file);
-            dbController.<ALKISDTO> persist(alkis, metaData);
+            dbController.<ALKIS> persist(alkis, metaData);
             // dbController.<TermDTO> persist(terms, metaData);
 
         }

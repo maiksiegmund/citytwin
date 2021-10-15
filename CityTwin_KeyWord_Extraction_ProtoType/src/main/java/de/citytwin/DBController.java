@@ -1,5 +1,7 @@
 package de.citytwin;
 
+import de.citytwin.dto.ALKIS;
+
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.HashMap;
@@ -63,7 +65,7 @@ public class DBController {
         }
     }
 
-    private void ALKISPart(Session session, Metadata metadata, ALKISDTO alkisDTO, String term, double weight) {
+    private void ALKISPart(Session session, Metadata metadata, ALKIS alkisDTO, String term, double weight) {
         boolean linked = false;
         boolean exist = false;
         // ALKIS
@@ -92,7 +94,7 @@ public class DBController {
 
     }
 
-    private TransactionWork<Void> createALKISNode(ALKISDTO dto) {
+    private TransactionWork<Void> createALKISNode(ALKIS dto) {
         return new TransactionWork<Void>() {
 
             @Override
@@ -110,7 +112,7 @@ public class DBController {
      * @param dto
      * @return
      */
-    private Void createALKISNodeCypher(Transaction transaction, ALKISDTO dto) {
+    private Void createALKISNodeCypher(Transaction transaction, ALKIS dto) {
         transaction.run("CREATE (:ALKIS {categorie: $categorie, code: $code, name: $name})",
                 Values.parameters(
                         "categorie",
@@ -248,7 +250,7 @@ public class DBController {
 
     }
 
-    private TransactionWork<Boolean> existALKISNode(ALKISDTO alkisDTO) {
+    private TransactionWork<Boolean> existALKISNode(ALKIS alkisDTO) {
 
         return new TransactionWork<Boolean>() {
 
@@ -260,7 +262,7 @@ public class DBController {
         };
     }
 
-    private Boolean existALKISNodeCypher(Transaction transaction, ALKISDTO alkisDTO) {
+    private Boolean existALKISNodeCypher(Transaction transaction, ALKIS alkisDTO) {
         Result result = transaction.run("Match (alkis:ALKIS) where alkis.name = $name return (alkis)",
                 Values.parameters("name", alkisDTO.getName()));
         if (result.hasNext()) {
@@ -383,7 +385,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    private TransactionWork<Boolean> isDocumentAndALKISLinked(final Metadata metaData, final ALKISDTO alkisdto) {
+    private TransactionWork<Boolean> isDocumentAndALKISLinked(final Metadata metaData, final ALKIS alkisdto) {
 
         return new TransactionWork<Boolean>() {
 
@@ -403,7 +405,7 @@ public class DBController {
      * @param alkisdto
      * @return {@code Boolean}
      */
-    private Boolean isDocumentAndALKISLinkedCypher(Transaction transaction, final Metadata metaData, final ALKISDTO alkisdto) {
+    private Boolean isDocumentAndALKISLinkedCypher(Transaction transaction, final Metadata metaData, final ALKIS alkisdto) {
         Result result = transaction.run("Match edge=(:Document{name: $name})-[:contains]->(:ALKIS{name: $alkisName}) return edge",
                 Values.parameters("name", metaData.get("name"), "alkisName", alkisdto.getName()));
         if (result.hasNext()) {
@@ -494,7 +496,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    private TransactionWork<Boolean> isKeywordAndALKISLinked(final String keyword, final ALKISDTO alkisDTO) {
+    private TransactionWork<Boolean> isKeywordAndALKISLinked(final String keyword, final ALKIS alkisDTO) {
 
         return new TransactionWork<Boolean>() {
 
@@ -506,7 +508,7 @@ public class DBController {
         };
     }
 
-    private Boolean isKeywordAndALKISLinkedCypher(Transaction transaction, final String keyword, final ALKISDTO alkisDTO) {
+    private Boolean isKeywordAndALKISLinkedCypher(Transaction transaction, final String keyword, final ALKIS alkisDTO) {
         Result result = transaction.run("Match edge=(:word{name: $keyword})-[:belongsTo]->(:ALKIS{name: $name}) return (edge)",
                 Values.parameters("keyword", keyword, "name", alkisDTO.getName()));
         if (result.hasNext()) {
@@ -536,7 +538,7 @@ public class DBController {
         return Boolean.FALSE;
     }
 
-    private TransactionWork<Void> linkDocumentAndALKIS(final Metadata metaData, final ALKISDTO alkisdto) {
+    private TransactionWork<Void> linkDocumentAndALKIS(final Metadata metaData, final ALKIS alkisdto) {
 
         return new TransactionWork<Void>() {
 
@@ -548,7 +550,7 @@ public class DBController {
         };
     }
 
-    private Void linkDocumentAndALKISCypher(Transaction transaction, final Metadata metaData, final ALKISDTO alkisdto) {
+    private Void linkDocumentAndALKISCypher(Transaction transaction, final Metadata metaData, final ALKIS alkisdto) {
         transaction.run("Match (doc:Document), (alkis:ALKIS) where doc.name = $docName and alkis.name = $alkisName"
                 + " Create (doc)-[:contains] ->(alkis)"
                 + " Create (alkis)-[:affected] ->(doc)",
@@ -635,7 +637,7 @@ public class DBController {
         return null;
     }
 
-    private TransactionWork<Void> linkKeywordAndALKIS(final String keyword, final ALKISDTO alkisdto, final double weight) {
+    private TransactionWork<Void> linkKeywordAndALKIS(final String keyword, final ALKIS alkisdto, final double weight) {
 
         return new TransactionWork<Void>() {
 
@@ -649,7 +651,7 @@ public class DBController {
 
     // TODO for instance: check whether this method and the linkKeywordAndTermCypher method counterpart can be generalized into a parameterized method linkKeywordAndDTOCypher, use instanceof for differentiating as the current methods implementations are identical excluding the specific "term" and "alkis" part
     // continue checking code for similiar patterns, test frequently after refactoring to ensure code is still working :)
-    private Void linkKeywordAndALKISCypher(Transaction transaction, final String keyword, final ALKISDTO alkisdto, final double weight) {
+    private Void linkKeywordAndALKISCypher(Transaction transaction, final String keyword, final ALKIS alkisdto, final double weight) {
         transaction.run("Match (word:Keyword), (alkis:ALKIS) where word.name = $keyword and alkis.name = $alkisName"
                 + " Create (doc)-[:belongsTo{weight:$weight}] ->(alkis)",
                 Values.parameters("keyword",
@@ -718,8 +720,8 @@ public class DBController {
                     termPart(session, metadata, termDTO, key, pair.getRight());
                 }
 
-                if (dto instanceof ALKISDTO) {
-                    ALKISDTO alkisDTO = (ALKISDTO)dto;
+                if (dto instanceof ALKIS) {
+                    ALKIS alkisDTO = (ALKIS)dto;
                     ALKISPart(session, metadata, alkisDTO, key, pair.getRight());
                 }
 
