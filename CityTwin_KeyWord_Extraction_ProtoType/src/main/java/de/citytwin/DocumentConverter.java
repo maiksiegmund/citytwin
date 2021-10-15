@@ -132,6 +132,7 @@ public class DocumentConverter implements AutoCloseable {
 
     }
 
+    // TODO Fix Javadoc! Wrong place for this method? (consider moving or deleting)
     /**
      * this method deserialized alkis.json file (include as resource)
      *

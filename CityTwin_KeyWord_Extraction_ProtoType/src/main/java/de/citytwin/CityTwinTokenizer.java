@@ -5,6 +5,7 @@ import java.util.List;
 import org.deeplearning4j.text.tokenization.tokenizer.TokenPreProcess;
 import org.deeplearning4j.text.tokenization.tokenizer.Tokenizer;
 
+//TODO Javadoc! Rename without 'CityTwin'.
 public class CityTwinTokenizer implements Tokenizer {
 
     private List<String> tokens = null;

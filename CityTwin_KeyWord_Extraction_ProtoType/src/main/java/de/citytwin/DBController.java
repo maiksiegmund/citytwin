@@ -19,6 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * //TODO Javadoc! Rename (DAO?)
+ * check whether methods can be generalized to avoid copy paste style code and make use of the concept of "overloading"
+ *  
  * @author Maik, FH Erfurt
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
@@ -644,6 +647,8 @@ public class DBController {
         };
     }
 
+    // TODO for instance: check whether this method and the linkKeywordAndTermCypher method counterpart can be generalized into a parameterized method linkKeywordAndDTOCypher, use instanceof for differentiating as the current methods implementations are identical excluding the specific "term" and "alkis" part
+    // continue checking code for similiar patterns, test frequently after refactoring to ensure code is still working :)
     private Void linkKeywordAndALKISCypher(Transaction transaction, final String keyword, final ALKISDTO alkisdto, final double weight) {
         transaction.run("Match (word:Keyword), (alkis:ALKIS) where word.name = $keyword and alkis.name = $alkisName"
                 + " Create (doc)-[:belongsTo{weight:$weight}] ->(alkis)",

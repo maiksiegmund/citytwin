@@ -21,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * TODO: properties-File als Konfiguration nutzen
+ * 
  * this class represent default config
  *
  * @author Maik, FH Erfurt
@@ -240,6 +242,7 @@ public class Config {
      */
     public static void save(File file) throws IOException, IllegalAccessException {
 
+        // TODO consider using try with resources instead
         BufferedWriter writer = new BufferedWriter(
                 new BufferedWriter(new FileWriter(file, false)));
         writer.write(getConfigContent());
@@ -328,6 +331,7 @@ public class Config {
 
     }
 
+    // TODO parameterize path and if not given using value from configuration?
     public static String Source() {
         String filePath = System.getProperty("user.dir");
         String absoultePath = filePath + "\\" + CONFIGNAME;
