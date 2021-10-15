@@ -74,7 +74,7 @@ public class DocumentConverter implements AutoCloseable {
                 if ("text".equals(parser.getText())) {
                     // next token is text field value
                     token = parser.nextToken();
-                    if (!parser.getText().isBlank()) {
+                    if (!parser.getText().trim().isEmpty()) {
                         results.add(parser.getText());
 
                     }

@@ -132,7 +132,7 @@ public class Config {
      * @throws IllegalArgumentException
      * @throws IllegalAccessException
      */
-    private static void clearLists() throws IllegalArgumentException, IllegalAccessException {
+    private static void clearLists() throws IllegalAccessException {
 
         Field[] fields = getStaticAndNonTransientFields();
         for (Field field : fields) {
@@ -150,7 +150,7 @@ public class Config {
      * @throws IllegalArgumentException
      * @throws IllegalAccessException
      */
-    public static String getConfigContent() throws IllegalArgumentException, IllegalAccessException {
+    public static String getConfigContent() throws IllegalAccessException {
         StringBuilder stringBuilder = new StringBuilder();
 
         Field[] staticFields = getStaticAndNonTransientFields();
@@ -214,15 +214,15 @@ public class Config {
      * @throws NoSuchMethodException
      * @throws InvocationTargetException
      */
-    public static void load(final File file) throws IOException, NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException,
-            NoSuchMethodException, InvocationTargetException {
+    public static void load(final File file) throws IOException, NoSuchFieldException, SecurityException,
+            NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
         List<String> lines = (Files.readLines(file, Charset.defaultCharset()));
 
         clearLists();
 
         for (String line : lines) {
-            if (line.startsWith("#") || line.isBlank()) {
+            if (line.startsWith("#") || line.trim().isEmpty()) {
                 continue;
             }
             setField(line);
@@ -238,7 +238,7 @@ public class Config {
      * @throws IllegalArgumentException
      * @throws IllegalAccessException
      */
-    public static void save(File file) throws IOException, IllegalArgumentException, IllegalAccessException {
+    public static void save(File file) throws IOException, IllegalAccessException {
 
         BufferedWriter writer = new BufferedWriter(
                 new BufferedWriter(new FileWriter(file, false)));
@@ -285,7 +285,7 @@ public class Config {
      * @throws InvocationTargetException
      */
     private static void setField(String line)
-            throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
+            throws NoSuchFieldException, SecurityException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
 
         String[] parts = line.split("=");
         Object fieldName = parts[0].trim();
