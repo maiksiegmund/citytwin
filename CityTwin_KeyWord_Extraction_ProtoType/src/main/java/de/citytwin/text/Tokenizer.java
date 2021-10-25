@@ -1,21 +1,23 @@
-package de.citytwin;
-
-import de.citytwin.textprocessing.GermanTextProcessing;
+package de.citytwin.text;
 
 import java.util.List;
 
 import org.deeplearning4j.text.tokenization.tokenizer.TokenPreProcess;
-import org.deeplearning4j.text.tokenization.tokenizer.Tokenizer;
 
-//TODO Javadoc! Rename without 'CityTwin'.
-public class CityTwinTokenizer implements Tokenizer {
+/**
+ * This class implements {@link org.deeplearning4j.text.tokenization.tokenizer.Tokenizer}
+ *
+ * @author Maik, FH Erfurt
+ * @version $Revision: 1.0 $
+ * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
+ */
+public class Tokenizer implements org.deeplearning4j.text.tokenization.tokenizer.Tokenizer {
 
     private List<String> tokens = null;
     private int currentIndex = 0;
 
-    public CityTwinTokenizer(GermanTextProcessing textProcessing, String toTokenize) {
-        this.tokens = textProcessing.tokenizeOpenNLP(toTokenize);
-
+    public Tokenizer(TextProcessing textProcessing, String toTokenize) {
+        this.tokens = textProcessing.tokenize2Term(toTokenize);
     }
 
     @Override
@@ -25,7 +27,6 @@ public class CityTwinTokenizer implements Tokenizer {
 
     @Override
     public List<String> getTokens() {
-        // TODO Auto-generated method stub
         return tokens;
     }
 

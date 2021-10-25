@@ -1,12 +1,12 @@
-package de.citytwin;
+package de.citytwin.converter;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import de.citytwin.text.TextProcessing;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -18,6 +18,7 @@ import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -30,18 +31,86 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
+/**
+ * this class provides convert functions
+ *
+ * @author Maik, FH Erfurt
+ * @version $Revision: 1.0 $
+ * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
+ */
 public class DocumentConverter implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+    /**
+     * this method return default properties
+     *
+     * @return new reference of {@code Properties}
+     */
+    public static Properties getDefaultProperties() {
+
+        Properties properties = new Properties();
+        properties.put("maxNewLines", 5);
+        properties.put("cleaningPattern", "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
+        properties.put("minTermLenght", 2);
+        properties.put("minTermCount", 5);
+        properties.put("tableOfContendThershold", 50);
+        return properties;
+    }
+
+    /**
+     * this method deserialized json file
+     *
+     * @param <T>
+     * @param type
+     * @param path
+     * @return
+     * @throws JsonParseException
+     * @throws JsonMappingException
+     * @throws IOException
+     */
+    public static <T> T getDTOs(final TypeReference<T> type, String path) throws JsonParseException, JsonMappingException, IOException {
+
+        InputStream inputStream = null;
+        T results = null;
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            inputStream = new FileInputStream(path);
+            results = mapper.readValue(inputStream, type);
+            return results;
+
+        } finally {
+            inputStream.close();
+        }
+
+    }
+
     private BodyContentHandler bodyContentHandler = null;
     private AutoDetectParser autoDetectParser = null;
     private Metadata metadata = null;
+
     private ParseContext parseContext = null;
     private File parsedFile = null;
+    private List<List<String>> textCorpus = null;
 
-    public DocumentConverter() {
+    private Properties properties = null;
 
+    private TextProcessing textProcessing = null;
+
+    /**
+     * Konstruktor.
+     *
+     * @param properties {@code DocumentConverter.getDefaultProperties()}
+     * @param textProcessing
+     * @throws IOException
+     */
+    public DocumentConverter(Properties properties, TextProcessing textProcessing) throws IOException {
+        if (validateProperties(properties)) {
+            this.properties = new Properties(properties.size());
+            this.properties.putAll(properties);
+            this.textProcessing = textProcessing;
+        }
     }
 
     @Override
@@ -50,45 +119,12 @@ public class DocumentConverter implements AutoCloseable {
         bodyContentHandler = null;
         metadata = null;
         parseContext = null;
+        textCorpus.clear();
+        textCorpus = null;
     }
 
     /**
-     * this method parse an list of json files and store the article texts. file content like <br>
-     * {"id":"..." , "revid": "...", "url": "http://..." , "title": "..." , "text": "..."}
-     *
-     * @param jsonFile
-     * @return new reference of {@code List<String>}
-     * @throws IOException
-     */
-    public List<String> getArticleTexts(final List<File> jsonFiles) throws IOException {
-
-        List<String> results = new ArrayList<String>();
-        ObjectMapper mapper = new ObjectMapper();
-        for (File jsonFile : jsonFiles) {
-            logger.info(MessageFormat.format("parse file {0}.", jsonFile.getName()));
-            JsonParser parser = mapper.createParser(jsonFile);
-            JsonToken token = parser.nextToken();
-
-            while (token != null) {
-                // seeking text fieldname
-                if ("text".equals(parser.getText())) {
-                    // next token is text field value
-                    token = parser.nextToken();
-                    if (!parser.getText().trim().isEmpty()) {
-                        results.add(parser.getText());
-
-                    }
-                }
-                token = parser.nextToken();
-            }
-        }
-        logger.info(MessageFormat.format("json file contains {0} atricles ", results.size()));
-        return results;
-
-    }
-
-    /**
-     * this method return BodyContentHandler of file
+     * this method return BodyContentHandler of a file
      *
      * @param file
      * @return new reference of {@code BodyContentHandler}
@@ -107,6 +143,29 @@ public class DocumentConverter implements AutoCloseable {
             parsedFile = file;
         }
         return bodyContentHandler;
+    }
+
+    /**
+     * this method tokenize bodyContentHandler in sentences and each term and remove footers, table of content
+     *
+     * @param bodyContentHandler {@code BodyContentHandler}
+     * @return {@code List<List<String>>}
+     * @throws IOException
+     */
+    public List<List<String>> getCleanedTextCorpus(BodyContentHandler bodyContentHandler) throws IOException {
+
+        textCorpus = new ArrayList<List<String>>();
+        Integer maxNewLines = (Integer)properties.get("maxNewLines");
+        String cleaningPattern = (String)properties.get("cleaningPattern");
+        Integer minTermLenght = (Integer)properties.get("minTermLenght");
+        Integer minTermCount = (Integer)properties.get("minTermCount");
+        Integer minTableOfContentThershold = (Integer)properties.get("minTableOfContentThershold");
+        List<String> sentences = textProcessing.tokenize2Sencences(bodyContentHandler, maxNewLines);
+        // tokenize sentence in each term
+        for (String sentence : sentences) {
+            textCorpus.add(textProcessing.try2CleanSentence(sentence, cleaningPattern, minTermLenght, minTermCount, minTableOfContentThershold));
+        }
+        return textCorpus;
     }
 
     /**
@@ -129,38 +188,6 @@ public class DocumentConverter implements AutoCloseable {
             parsedFile = file;
         }
         return metadata.get("title");
-
-    }
-
-    // TODO Fix Javadoc! Wrong place for this method? (consider moving or deleting)
-    /**
-     * this method deserialized alkis.json file (include as resource)
-     *
-     * @param C.
-     * @throws JsonParseException
-     * @throws JsonMappingException
-     * @throws IOException
-     */
-    /**
-     * this method deserialized data transfer objects (include as resource)
-     *
-     * @param <T> {@code ALKISDTO or OntologyDTO}
-     * @param type {@code List<ALKISDTO>}
-     * @param path
-     * @return new reference of T
-     * @throws JsonParseException
-     * @throws JsonMappingException
-     * @throws IOException
-     */
-    public <T> T getDTOs(final TypeReference<T> type, String path) throws JsonParseException, JsonMappingException, IOException {
-
-        T results = null;
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        InputStream inputStream = new FileInputStream(path);
-        results = mapper.readValue(inputStream, type);
-        inputStream.close();
-        return results;
 
     }
 
@@ -241,6 +268,29 @@ public class DocumentConverter implements AutoCloseable {
     }
 
     /**
+     * this method returns text corpus of a bodyContentHandler.
+     *
+     * @param bodyContentHandler
+     * @return {@code List<List<String>>} <br>
+     *         Sentence_0{"Hello" , "my" , "name", "is" , "rumpelstilzchen"} <br>
+     *         Sentence_1{"I" , "live" , "in", "dreamland" , "by" , "king" , "zorg"}
+     * @throws IOException
+     */
+    public List<List<String>> getTextCorpus(BodyContentHandler bodyContentHandler) throws IOException {
+
+        textCorpus = new ArrayList<List<String>>();
+        Integer maxNewLines = (Integer)properties.get("maxNewLines");
+        if (maxNewLines == null) {
+            throw new IOException("set property --> maxNewLines as Integer");
+        }
+        List<String> sentences = textProcessing.tokenize2Sencences(bodyContentHandler, maxNewLines);
+        for (String sentence : sentences) {
+            textCorpus.add(textProcessing.tokenize2Term(sentence));
+        }
+        return textCorpus;
+    }
+
+    /**
      * This method returns a configured parsercontext choose by file type
      *
      * @param file {@link File}
@@ -274,9 +324,10 @@ public class DocumentConverter implements AutoCloseable {
      * @throwIOException
      */
     public void saveAsTextFile(final BodyContentHandler bodyContentHandler, final String destination) throws IOException {
-        BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)));
-        writer.write(bodyContentHandler.toString());
-        writer.close();
+        try(BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter(destination, false)))) {
+            writer.write(bodyContentHandler.toString());
+            writer.close();
+        }
     }
 
     /**
@@ -287,16 +338,57 @@ public class DocumentConverter implements AutoCloseable {
      * @throws SAXException, TikaException, IOException, Exception
      */
     private BodyContentHandler setTikaComponents(final File file) throws SAXException, TikaException, IOException, Exception {
-        this.bodyContentHandler = new BodyContentHandler(Integer.MAX_VALUE);
-        this.autoDetectParser = new AutoDetectParser();
-        this.metadata = new Metadata();
-        this.parseContext = prepareParserContext(file);
-        FileInputStream fileInputStream = new FileInputStream(file);
-        InputStream stream = fileInputStream;
-        logger.info(MessageFormat.format("parse file: {0}", file.getAbsoluteFile()));
-        autoDetectParser.parse(stream, bodyContentHandler, metadata, parseContext);
-        stream.close();
-        return bodyContentHandler;
+        FileInputStream fileInputStream = null;
+        InputStream stream = null;
+        try {
+            this.bodyContentHandler = new BodyContentHandler(Integer.MAX_VALUE);
+            this.autoDetectParser = new AutoDetectParser();
+            this.metadata = new Metadata();
+            this.parseContext = prepareParserContext(file);
+            fileInputStream = new FileInputStream(file);
+            stream = fileInputStream;
+            logger.info(MessageFormat.format("parse file: {0}", file.getAbsoluteFile()));
+            autoDetectParser.parse(stream, bodyContentHandler, metadata, parseContext);
+            stream.close();
+            fileInputStream.close();
+            return bodyContentHandler;
+        } finally {
+            fileInputStream.close();
+            stream.close();
+        }
+
+    }
+
+    /**
+     * this method validate passing properties
+     *
+     * @param properties
+     * @return
+     * @throws IOException
+     */
+    private Boolean validateProperties(Properties properties) throws IOException {
+
+        Integer value = (Integer)properties.get("maxNewLines");
+        if (value == null) {
+            throw new IOException("set property --> maxNewLines as Integer");
+        }
+        String string = (String)properties.get("cleaningPattern");
+        if (string == null) {
+            throw new IOException("set property --> cleaningPattern as String");
+        }
+        value = (Integer)properties.get("minTermLenght");
+        if (value == null) {
+            throw new IOException("set property --> minTermLenght as Integer");
+        }
+        Integer minTermCount = (Integer)properties.get("minTermCount");
+        if (minTermCount == null) {
+            throw new IOException("set property --> minTermCount as Integer");
+        }
+        Integer minTableOfContentThershold = (Integer)properties.get("minTableOfContentThershold");
+        if (minTableOfContentThershold == null) {
+            throw new IOException("set property --> tableOfContendThershold as Integer");
+        }
+        return true;
     }
 
 }
