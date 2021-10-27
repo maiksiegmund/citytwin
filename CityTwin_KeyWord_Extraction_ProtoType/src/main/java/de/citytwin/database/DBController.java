@@ -87,10 +87,10 @@ public class DBController implements AutoCloseable {
     /**
      * this method create Node (catalog entry)
      *
-     * @param hasName
+     * @param catalogEntry
      * @return
      */
-    private TransactionWork<Void> createNode(CatalogEntryHasName hasName) {
+    private TransactionWork<Void> createNode(CatalogEntryHasName catalogEntry) {
         return new TransactionWork<Void>() {
 
             @Override
@@ -98,15 +98,15 @@ public class DBController implements AutoCloseable {
 
                 Map<String, Object> parameters = new HashMap<String, Object>();
                 String label = "";
-                if (hasName instanceof ALKIS) {
-                    ALKIS alkis = (ALKIS)hasName;
+                if (catalogEntry instanceof ALKIS) {
+                    ALKIS alkis = (ALKIS)catalogEntry;
                     parameters.put("name", alkis.getName());
                     parameters.put("categorie", alkis.getCategorie());
                     parameters.put("code", alkis.getCode());
                     label = DBController.ALKIS;
                 }
-                if (hasName instanceof Term) {
-                    Term term = (Term)hasName;
+                if (catalogEntry instanceof Term) {
+                    Term term = (Term)catalogEntry;
                     parameters.put("name", term.getName());
                     parameters.put("morphem", term.getMorphem());
                     parameters.put("isCore", term.getIsCore());
@@ -193,16 +193,16 @@ public class DBController implements AutoCloseable {
     /**
      * this method checks if a node exist (catalog entry)
      *
-     * @param hasName
+     * @param catalogEntry
      * @return
      * @throws Exception
      */
-    private TransactionWork<Boolean> existNode(CatalogEntryHasName hasName) throws Exception {
-        if (hasName instanceof Term) {
-            return existNode(hasName.getName(), DBController.TERM);
+    private TransactionWork<Boolean> existNode(CatalogEntryHasName catalogEntry) throws Exception {
+        if (catalogEntry instanceof Term) {
+            return existNode(catalogEntry.getName(), DBController.TERM);
         }
-        if (hasName instanceof ALKIS) {
-            return existNode(hasName.getName(), DBController.ALKIS);
+        if (catalogEntry instanceof ALKIS) {
+            return existNode(catalogEntry.getName(), DBController.ALKIS);
         }
         throw new Exception();
 
@@ -252,10 +252,10 @@ public class DBController implements AutoCloseable {
      * this method checks whether two nodes (document and catalog entry) are link by edge
      *
      * @param metaData
-     * @param hasName
+     * @param catalogEntry
      * @return
      */
-    private TransactionWork<Boolean> isLinked(final Metadata metaData, final CatalogEntryHasName hasName) {
+    private TransactionWork<Boolean> isLinked(final Metadata metaData, final CatalogEntryHasName catalogEntry) {
 
         return new TransactionWork<Boolean>() {
 
@@ -264,9 +264,9 @@ public class DBController implements AutoCloseable {
                 String leftLabel = DBController.DOCUMENT;
                 String leftName = metaData.get("name");
                 String edgeName = DBController.CONTAINS;
-                String rightLabel = (hasName instanceof ALKIS) ? DBController.ALKIS : "";
-                rightLabel = (hasName instanceof Term) ? DBController.TERM : "";
-                String rightName = hasName.getName();
+                String rightLabel = (catalogEntry instanceof ALKIS) ? DBController.ALKIS : "";
+                rightLabel = (catalogEntry instanceof Term) ? DBController.TERM : "";
+                String rightName = catalogEntry.getName();
                 return isLinkedCypher(transaction, leftLabel, leftName, edgeName, rightName, rightLabel);
             }
         };
@@ -298,10 +298,10 @@ public class DBController implements AutoCloseable {
      * this method checks whether two nodes (keyword and catalog entry) are link by edge
      *
      * @param keyword
-     * @param hasName
+     * @param catalogEntry
      * @return
      */
-    private TransactionWork<Boolean> isLinked(final String keyword, final CatalogEntryHasName hasName) {
+    private TransactionWork<Boolean> isLinked(final String keyword, final CatalogEntryHasName catalogEntry) {
 
         return new TransactionWork<Boolean>() {
 
@@ -310,9 +310,9 @@ public class DBController implements AutoCloseable {
                 String leftLabel = DBController.KEYWORD;
                 String leftName = keyword;
                 String edgeName = DBController.BELONGSTO;
-                String rightName = hasName.getName();
-                String rightLabel = (hasName instanceof ALKIS) ? DBController.ALKIS : "";
-                rightLabel = (hasName instanceof Term) ? DBController.TERM : "";
+                String rightName = catalogEntry.getName();
+                String rightLabel = (catalogEntry instanceof ALKIS) ? DBController.ALKIS : "";
+                rightLabel = (catalogEntry instanceof Term) ? DBController.TERM : "";
                 return isLinkedCypher(transaction, leftLabel, leftName, edgeName, rightName, rightLabel);
             }
         };
@@ -345,18 +345,18 @@ public class DBController implements AutoCloseable {
      * this method link two nodes (document and catalog entry)
      *
      * @param metaData
-     * @param hasName
+     * @param catalogEntry
      * @return
      */
-    private TransactionWork<Void> link(final Metadata metaData, final CatalogEntryHasName hasName) {
+    private TransactionWork<Void> link(final Metadata metaData, final CatalogEntryHasName catalogEntry) {
 
         return new TransactionWork<Void>() {
 
             @Override
             public Void execute(Transaction transaction) {
-                String leftLabel = (hasName instanceof ALKIS) ? DBController.ALKIS : "";
-                leftLabel = (hasName instanceof Term) ? DBController.TERM : "";
-                String leftName = hasName.getName();
+                String leftLabel = (catalogEntry instanceof ALKIS) ? DBController.ALKIS : "";
+                leftLabel = (catalogEntry instanceof Term) ? DBController.TERM : "";
+                String leftName = catalogEntry.getName();
                 String thereEdgeName = DBController.CONTAINS;
                 String returnEdgeName = DBController.AFFECT;
                 String rightName = metaData.get("name");
@@ -396,10 +396,10 @@ public class DBController implements AutoCloseable {
      * this method link two nodes (keyword and catalog entry)
      *
      * @param keyword
-     * @param hasName
+     * @param catalogEntry
      * @return
      */
-    private TransactionWork<Void> link(final String keyword, final CatalogEntryHasName hasName) {
+    private TransactionWork<Void> link(final String keyword, final CatalogEntryHasName catalogEntry) {
 
         return new TransactionWork<Void>() {
 
@@ -408,9 +408,9 @@ public class DBController implements AutoCloseable {
                 String leftLabel = DBController.KEYWORD;
                 String leftName = keyword;
                 String edgeName = DBController.BELONGSTO;
-                String rightName = hasName.getName();
-                String rightLabel = (hasName instanceof ALKIS) ? DBController.ALKIS : "";
-                rightLabel = (hasName instanceof Term) ? DBController.TERM : "";
+                String rightName = catalogEntry.getName();
+                String rightLabel = (catalogEntry instanceof ALKIS) ? DBController.ALKIS : "";
+                rightLabel = (catalogEntry instanceof Term) ? DBController.TERM : "";
                 return linkCypher(transaction, leftLabel, leftName, edgeName, null, rightName, rightLabel, null);
             }
         };
@@ -462,10 +462,10 @@ public class DBController implements AutoCloseable {
      *
      * @param keyword
      * @param metadata
-     * @param hasName
+     * @param catalogEntry
      * @param weigth
      */
-    public void persist(String keyword, Metadata metadata, @Nullable CatalogEntryHasName hasName, Double weigth) {
+    public void persist(String keyword, Metadata metadata, @Nullable CatalogEntryHasName catalogEntry, Double weigth) {
 
         try(Session session = driver.session()) {
 
@@ -487,23 +487,23 @@ public class DBController implements AutoCloseable {
             if (!linked) {
                 session.writeTransaction(link(metadata, keyword, weigth));
             }
-            if (hasName == null) {
+            if (catalogEntry == null) {
                 return;
             }
 
             // ALKIS or Term
-            exist = session.readTransaction(existNode(hasName));
+            exist = session.readTransaction(existNode(catalogEntry));
             if (exist) {
-                session.writeTransaction(createNode(hasName));
+                session.writeTransaction(createNode(catalogEntry));
             }
-            linked = session.readTransaction(isLinked(metadata, hasName));
+            linked = session.readTransaction(isLinked(metadata, catalogEntry));
             if (linked) {
-                session.writeTransaction(link(metadata, hasName));
+                session.writeTransaction(link(metadata, catalogEntry));
             }
             // keyword and ALKIS or Term
-            linked = session.readTransaction(isLinked(keyword, hasName));
+            linked = session.readTransaction(isLinked(keyword, catalogEntry));
             if (linked) {
-                session.readTransaction(link(keyword, hasName));
+                session.readTransaction(link(keyword, catalogEntry));
             }
 
         } catch (Exception exception) {

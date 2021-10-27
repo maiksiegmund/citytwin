@@ -69,21 +69,18 @@ public class DocumentConverter implements AutoCloseable {
      * @throws JsonMappingException
      * @throws IOException
      */
-    public static <T> T getDTOs(final TypeReference<T> type, String path) throws JsonParseException, JsonMappingException, IOException {
+    public static <T> T getObjects(final TypeReference<T> type, String path) throws JsonParseException, JsonMappingException, IOException {
 
-        InputStream inputStream = null;
         T results = null;
-        try {
+        try(InputStream inputStream = new FileInputStream(path);) {
             ObjectMapper mapper = new ObjectMapper();
+            // mapper.registerSubtypes(new NamedType(ALKIS.class, "de.citytwin.catalog.ALKIS"));
+            // mapper.registerSubtypes(new NamedType(Term.class, "de.citytwin.catalog.Term"));
             mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            inputStream = new FileInputStream(path);
             results = mapper.readValue(inputStream, type);
             return results;
 
-        } finally {
-            inputStream.close();
         }
-
     }
 
     private BodyContentHandler bodyContentHandler = null;

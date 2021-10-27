@@ -85,11 +85,12 @@ public class TextProcessing implements AutoCloseable {
     public TextProcessing(Properties properties) throws IOException {
 
         if (validateProperties(properties)) {
+            this.properties = new Properties(properties.size());
+            this.properties.putAll(properties);
             if (!isInitialzied) {
                 initialize();
             }
-            properties = new Properties(properties.size());
-            this.properties.putAll(properties);
+
         }
 
     }
@@ -203,9 +204,9 @@ public class TextProcessing implements AutoCloseable {
      */
     public List<String> getPosTags() {
 
-        List<String> posTags = new ArrayList<String>();
-        stopwords.addAll(posTags);
-        return posTags;
+        List<String> results = new ArrayList<String>();
+        results.addAll(posTags);
+        return results;
     }
 
     /**
@@ -261,14 +262,20 @@ public class TextProcessing implements AutoCloseable {
         try(InputStream inputStream = new FileInputStream(property);
                 Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");) {
             while (scanner.hasNext()) {
-                stopwords.add(scanner.next());
+                String stopword = scanner.next();
+                if (!stopword.trim().startsWith("#")) {
+                    stopwords.add(stopword);
+                }
             }
         }
         property = properties.getProperty("path.2.postag.file");
         try(InputStream inputStream = new FileInputStream(property);
                 Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");) {
             while (scanner.hasNext()) {
-                posTags.add(scanner.next());
+                String posTag = scanner.next();
+                if (!posTag.trim().startsWith("#")) {
+                    posTags.add(posTag);
+                }
             }
         }
         snowballStemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
@@ -333,7 +340,7 @@ public class TextProcessing implements AutoCloseable {
         for (String sentence : sentences) {
             temp = sentence.replaceAll("-\n", "");
             temp = sentence.replaceAll("\n", "");
-            if (countNewLines(sentence) <= maxNewLines) {
+            if (countNewLines(temp) <= maxNewLines) {
                 results.add(temp);
             }
         }

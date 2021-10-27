@@ -54,7 +54,8 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
      */
     public DocumentKeywordAnalyser(Properties properties, DocumentConverter documentConverter, Word2Vec word2vec) throws IOException {
         if (validateProperties(properties)) {
-            properties.putAll(properties);
+            this.properties = new Properties();
+            this.properties.putAll(properties);
             this.documentConverter = documentConverter;
             this.word2vec = word2vec;
         }
@@ -73,19 +74,20 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
         Map<String, Double> filteredKeywords = new HashMap<String, Double>();
         double currentSimilarity = 0.0f;
         Double similarity = (Integer)properties.get("similarity") / 100.0d;
-        CatalogEntryHasName hasName = null;
 
         for (String keyword : keywords.keySet()) {
-            hasName = catalog.getEntry(keyword);
-            if (hasName != null) {
-                currentSimilarity = word2vec.similarity(keyword, hasName.getName());
+            for (String name : catalog.getNames()) {
+                currentSimilarity = word2vec.similarity(keyword, name);
                 if (currentSimilarity > similarity) {
-                    filteredKeywords.put(keyword, keywords.get(keyword));
+                    filteredKeywords.put(name, keywords.get(keyword));
                 }
             }
-        }
+            if (catalog.contains(keyword)) {
+                filteredKeywords.put(keyword, keywords.get(keyword));
+            }
 
-        return null;
+        }
+        return filteredKeywords;
 
     }
 

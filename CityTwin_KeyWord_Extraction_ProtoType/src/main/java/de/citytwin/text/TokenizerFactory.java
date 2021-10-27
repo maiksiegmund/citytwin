@@ -17,6 +17,10 @@ public class TokenizerFactory implements org.deeplearning4j.text.tokenization.to
     private TextProcessing textProcessing = null;
     private TokenPreProcess tokenPreProcess = null;
 
+    public TokenizerFactory() {
+
+    }
+
     public TokenizerFactory(TextProcessing textProcessing) {
         this.textProcessing = textProcessing;
     }

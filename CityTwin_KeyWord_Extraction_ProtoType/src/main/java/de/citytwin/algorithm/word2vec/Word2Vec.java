@@ -115,6 +115,7 @@ public class Word2Vec implements AutoCloseable {
     public void saveModel(String destination) throws IOException {
         if (word2vec != null) {
             WordVectorSerializer.writeWord2VecModel(word2vec, destination);
+            return;
         }
         throw new IOException("no model set");
     }

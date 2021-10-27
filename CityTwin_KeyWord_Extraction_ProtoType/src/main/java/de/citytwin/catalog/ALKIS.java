@@ -12,6 +12,7 @@ public class ALKIS implements CatalogEntryHasName {
     private String name;
     private String categorie;
     private Integer code;
+    private String type;
 
     /**
      * Konstruktor.
@@ -20,6 +21,7 @@ public class ALKIS implements CatalogEntryHasName {
         this.name = "";
         this.categorie = "";
         this.code = 0;
+        this.type = "ALKIS";
     }
 
     /**
@@ -29,11 +31,12 @@ public class ALKIS implements CatalogEntryHasName {
      * @param categorie
      * @param code
      */
-    public ALKIS(String name, String categorie, Integer code) {
+    public ALKIS(String name, String categorie, Integer code, String type) {
         super();
         this.name = name;
         this.categorie = categorie;
         this.code = code;
+        this.type = type;
     }
 
     /**
@@ -59,6 +62,13 @@ public class ALKIS implements CatalogEntryHasName {
     }
 
     /**
+     * @return
+     */
+    public String getType() {
+        return type;
+    }
+
+    /**
      * this method set categorie
      *
      * @param categorie {@code String}
@@ -81,14 +91,24 @@ public class ALKIS implements CatalogEntryHasName {
      *
      * @param categorie {@code String}
      */
+
     public void setName(String name) {
         this.name = name;
     }
 
+    /**
+     * this method set type
+     *
+     * @param categorie {@code String}
+     */
+    public void setType(String type) {
+        this.type = type;
+    }
+
     @Override
     public String toString() {
-        return "ALKISDTO [" + (name != null ? "name=" + name + ", " : "") + (categorie != null ? "categorie=" + categorie + ", " : "")
-                + (code != null ? "code=" + code : "") + "]";
+        return "ALKIS [" + (name != null ? "name=" + name + ", " : "") + (categorie != null ? "categorie=" + categorie + ", " : "")
+                + (code != null ? "code=" + code + ", " : "") + (type != null ? "type=" + type : "") + "]";
     }
 
 }

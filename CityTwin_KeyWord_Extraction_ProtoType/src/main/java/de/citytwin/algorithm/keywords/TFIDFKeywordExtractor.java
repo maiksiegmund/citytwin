@@ -108,8 +108,8 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
     public TFIDFKeywordExtractor(Properties properties, TextProcessing textProcessing) throws IOException {
         if (validateProperties(properties)) {
             this.textProcessing = textProcessing;
-            properties = new Properties();
-            properties.putAll(properties);
+            this.properties = new Properties();
+            this.properties.putAll(properties);
         }
     }
 
@@ -289,7 +289,9 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
         DocumentCount idf = calculateIDF(tf);
         tfidf = calculateTFIDF(tf, idf);
 
-        for (String posTag : textProcessing.getPosTags()) {
+        List<String> temp = textProcessing.getPosTags();
+
+        for (String posTag : temp) {
             for (String term : tfidf.terms.keySet()) {
                 String posTagOfTerm = tfidf.terms.get(term).getValue2();
                 if (posTagOfTerm.equals(posTag)) {

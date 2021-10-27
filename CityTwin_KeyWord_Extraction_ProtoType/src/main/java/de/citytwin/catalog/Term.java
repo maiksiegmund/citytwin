@@ -10,12 +10,14 @@ import java.util.List;
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
+
 public class Term implements CatalogEntryHasName {
 
     private Boolean isCore = false;
     private String morphem = "";
     private String term = "";
     private List<String> ontologies = new ArrayList<String>();
+    private String type = "";
 
     /**
      * constructor.
@@ -25,6 +27,7 @@ public class Term implements CatalogEntryHasName {
         morphem = "";
         term = "";
         ontologies = new ArrayList<String>();
+        type = "Term";
     }
 
     /**
@@ -35,11 +38,12 @@ public class Term implements CatalogEntryHasName {
      * @param term
      * @param ontologies
      */
-    public Term(Boolean isCore, String morphem, String term, List<String> ontologies) {
+    public Term(Boolean isCore, String morphem, String term, List<String> ontologies, String type) {
         this.isCore = isCore;
         this.morphem = morphem;
         this.term = term;
         this.ontologies.addAll(ontologies);
+        this.type = type;
     }
 
     /**
@@ -56,8 +60,6 @@ public class Term implements CatalogEntryHasName {
         return morphem;
     }
 
-    /* (non-Javadoc)
-     * @see de.citytwin.catalog.HasName#getName() */
     @Override
     public String getName() {
         return term;
@@ -75,6 +77,13 @@ public class Term implements CatalogEntryHasName {
      */
     public String getTerm() {
         return term;
+    }
+
+    /**
+     * @return
+     */
+    public String getType() {
+        return type;
     }
 
     /**
@@ -105,9 +114,18 @@ public class Term implements CatalogEntryHasName {
         this.term = term;
     }
 
+    /**
+     * @param type
+     */
+    public void setType(String type) {
+        this.type = type;
+    }
+
     @Override
     public String toString() {
-        return "Term [isCore=" + isCore + ", morphem=" + morphem + ", term=" + term + ", ontologies=" + ontologies + "]";
+        return "Term [" + (isCore != null ? "isCore=" + isCore + ", " : "") + (morphem != null ? "morphem=" + morphem + ", " : "")
+                + (term != null ? "term=" + term + ", " : "") + (ontologies != null ? "ontologies=" + ontologies + ", " : "")
+                + (type != null ? "type=" + type : "") + "]";
     }
 
 }

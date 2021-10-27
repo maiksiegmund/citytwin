@@ -19,6 +19,7 @@ import de.citytwin.text.TextProcessing;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,7 +48,27 @@ public class Example {
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     /**
+     * this method is an example to create alkis catalog
+     * edit parameters
+     *
+     * @throws IOException
+     * @throws Exception
+     */
+    public static void createALKISCatalog() throws IOException, Exception {
+
+        Properties properties = PropertiesLGF1000561.getProperties();
+
+        try(Catalog<ALKIS> catalog = new Catalog<ALKIS>(properties, ALKIS.class)) {
+
+            ALKIS alkis = (ALKIS)catalog.getEntry("Wasser");
+            System.out.println(alkis.toString());
+        }
+
+    }
+
+    /**
      * this method is an example to analyses a single document
+     * edit parameters
      *
      * @return
      * @throws IOException
@@ -56,22 +77,22 @@ public class Example {
     public static Map<String, Double> doDocumentAnalyse() throws IOException, Exception {
 
         Map<String, Double> filteredKeywords = null;
-        Properties properties = new Properties();
-        properties.putAll(Word2Vec.getDefaultProperties());
-        properties.putAll(TextProcessing.getDefaultProperties());
+        Properties properties = PropertiesLGF1000561.getProperties();
+        // properties.putAll(Word2Vec.getDefaultProperties());
+        // properties.putAll(TextProcessing.getDefaultProperties());
         properties.putAll(DocumentKeywordAnalyser.getDefaultProperties());
         properties.putAll(DocumentConverter.getDefaultProperties());
         properties.putAll(TFIDFKeywordExtractor.getDefaultProperties());
-        properties.putAll(Catalog.getDefaultProperties(Term.class));
+        // properties.putAll(Catalog.getDefaultProperties(Term.class));
 
-        File file = new File("..\\Documents\\Strategie.pdf");
+        File file = new File("D:\\vms\\sharedFolder\\dokumente\\2_begruendung-9-11-ve.pdf");
 
         try(
                 Word2Vec word2Vec = new Word2Vec(properties);
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
                 DocumentKeywordAnalyser documentKeywordAnalyser = new DocumentKeywordAnalyser(properties, documentConverter, word2Vec);
-                Catalog<Term> catalog = new Catalog<Term>(properties, Term.class);) {
+                Catalog<Term> catalog = new Catalog<Term>(properties, Term.class)) {
 
             KeywordExtractor keywordExtractor = new TFIDFKeywordExtractor(properties, textProcessing);
 
@@ -79,6 +100,7 @@ public class Example {
             filteredKeywords = documentKeywordAnalyser.filterKeywords(temp, catalog);
 
         }
+        logger.info("document analysed");
         return filteredKeywords;
 
     }
@@ -110,17 +132,17 @@ public class Example {
 
     /**
      * this method is an example to run textRank algorithm on a single document
-     *
+     * edit parameters
      * @return
      * @throws Exception
      */
     public static Map<String, Double> runTextRank() throws Exception {
 
         Map<String, Double> keywords = new HashMap<String, Double>();
-        Properties properties = new Properties();
-        File file = new File("..\\Documents\\Strategie.pdf");
+        Properties properties = PropertiesLGF1000561.getProperties();
+        File file = new File("D:\\vms\\sharedFolder\\dokumente\\2_begruendung-9-11-ve.pdf");
 
-        properties.putAll(TextProcessing.getDefaultProperties());
+        // properties.putAll(TextProcessing.getDefaultProperties());
         properties.putAll(DocumentConverter.getDefaultProperties());
         properties.putAll(TextRankKeywordExtractor.getDefaultProperties());
 
@@ -130,16 +152,54 @@ public class Example {
                 TextRankKeywordExtractor textRankKeywordExtractor = new TextRankKeywordExtractor(properties, textProcessing);) {
 
             BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
+
             List<List<String>> textCorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler);
+
             keywords = textRankKeywordExtractor.getKeywords(textCorpus);
+
+            logger.info("textRank finish");
         }
 
-        logger.info("textRank finish");
         return keywords;
     }
 
     /**
-     * this method is an example to save results in neo4j database by testdata!
+     * this method is an example to run textRank algorithm on a single document
+     * edit parameters!
+     *
+     * @return
+     * @throws Exception
+     */
+    public static Map<String, Double> runTFIDF() throws Exception {
+
+        Map<String, Double> keywords = new HashMap<String, Double>();
+        Properties properties = PropertiesLGF1000561.getProperties();
+        File file = new File("D:\\vms\\sharedFolder\\dokumente\\2_begruendung-9-11-ve.pdf");
+
+        // properties.putAll(TextProcessing.getDefaultProperties());
+        properties.putAll(DocumentConverter.getDefaultProperties());
+        properties.putAll(TFIDFKeywordExtractor.getDefaultProperties());
+
+        try(
+                TextProcessing textProcessing = new TextProcessing(properties);
+                DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
+                TFIDFKeywordExtractor tfidfKeywordExtractor = new TFIDFKeywordExtractor(properties, textProcessing);) {
+
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
+
+            List<List<String>> textCorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler);
+
+            keywords = tfidfKeywordExtractor.getKeywords(textCorpus);
+
+            logger.info("TFIDF finish");
+        }
+
+        return keywords;
+    }
+
+    /**
+     * this method is an example to save results in neo4j database
+     * used testdata
      *
      * @throws IOException
      * @throws Exception
@@ -187,11 +247,10 @@ public class Example {
     public static void trainWord2Vec() throws Exception {
 
         Properties properties = new Properties();
-        properties.putAll(Word2Vec.getDefaultProperties());
-        properties.putAll(TextProcessing.getDefaultProperties());
+        properties.putAll(PropertiesLGF1000561.getProperties());
 
         List<File> files = new ArrayList<File>();
-        Example.getFiles("D:\\vms\\sharedFolder\\wikidumps\\text\\", files);
+        Example.getFiles("D:\\vms\\sharedFolder\\wikidumps\\text\\test", files);
 
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
@@ -199,14 +258,14 @@ public class Example {
 
             List<String> articlesSentences = new ArrayList<String>();
             for (File file : files) {
-                List<WikiArticle> articles = DocumentConverter.getDTOs(new TypeReference<List<WikiArticle>>() {}, file.getAbsolutePath());
+                List<WikiArticle> articles = DocumentConverter.getObjects(new TypeReference<List<WikiArticle>>() {}, file.getAbsolutePath());
                 for (WikiArticle article : articles) {
                     articlesSentences.addAll(textProcessing.tokenize2Sencences(article.getText()));
                 }
             }
             HashMap<String, Integer> trainParameters = Word2Vec.getDefaultTrainParameters();
             word2Vec.trainModel(articlesSentences, trainParameters, textProcessing);
-            word2Vec.saveModel("D:\\vms\\sharedFolder\\trainModels\\word2vec.bin");
+            word2Vec.saveModel("D:\\vms\\sharedFolder\\trainModels\\word2vec_" + LocalDate.now() + ".bin");
             logger.info("word2vec model trained successfully");
         }
 

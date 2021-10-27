@@ -8,8 +8,10 @@ import de.citytwin.converter.DocumentConverter;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * this class is a subject specific catalog
@@ -30,7 +32,7 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
      */
     public static <T> Properties getDefaultProperties(Class<?> clazz) {
         Properties properties = new Properties();
-        properties.put("path.2." + clazz.getName() + "catalog.file", "..\\t_catalog.json");
+        properties.put("path.2." + clazz.getSimpleName() + ".catalog.file", "..\\t_catalog.json");
         return properties;
     }
 
@@ -47,17 +49,33 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
      * @throws IOException
      */
     public Catalog(Properties properties, Class<T> clazz) throws IOException {
+        className = clazz.getSimpleName();
         if (validateProperties(properties)) {
+            this.properties = new Properties();
+            this.properties.putAll(properties);
             initialize();
-            className = clazz.getName();
+
         }
 
     }
 
     @Override
     public void close() throws Exception {
+        properties.clear();
+        properties = null;
         catalog.clear();
         catalog = null;
+
+    }
+
+    /**
+     * this method check if the catalog contains the value
+     *
+     * @param name
+     * @return
+     */
+    public Boolean contains(String name) {
+        return catalog.containsKey(name);
 
     }
 
@@ -72,6 +90,15 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
     }
 
     /**
+     * this methods return the keys
+     *
+     * @return
+     */
+    public Set<String> getNames() {
+        return this.catalog.keySet();
+    }
+
+    /**
      * this method initialize the catalog
      *
      * @throws JsonParseException
@@ -79,8 +106,13 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
      * @throws IOException
      */
     private void initialize() throws JsonParseException, JsonMappingException, IOException {
-        String path = (String)properties.get("path.2." + className + "catalog.file");
-        catalog = DocumentConverter.getDTOs(new TypeReference<HashMap<String, T>>() {}, path);
+        String path = (String)properties.get("path.2." + className + ".catalog.file");
+        List<T> temps = DocumentConverter.getObjects(new TypeReference<List<T>>() {}, path);
+
+        catalog = new HashMap<String, T>();
+        for (T t : temps) {
+            catalog.put(t.getName(), t);
+        }
     }
 
     /**
@@ -92,7 +124,7 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
      */
     private Boolean validateProperties(Properties properties) throws IOException {
 
-        String property = (String)properties.get("path.2." + className + "catalog.file");
+        String property = (String)properties.get("path.2." + className + ".catalog.file");
         if (property == null) {
             throw new IOException("set property --> path.2.catalog.file as String");
         }

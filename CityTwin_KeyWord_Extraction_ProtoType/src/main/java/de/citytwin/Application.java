@@ -22,8 +22,10 @@ public class Application {
 
         try {
 
-            Example.trainWord2Vec();
+            // Example.trainWord2Vec();
             Example.doDocumentAnalyse();
+            // Example.runTFIDF();
+            // Example.runTextRank();
 
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);
