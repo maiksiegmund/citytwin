@@ -1,7 +1,5 @@
 package de.citytwin;
 
-import de.citytwin.example.Example;
-
 import java.lang.invoke.MethodHandles;
 
 import org.slf4j.Logger;
@@ -10,7 +8,7 @@ import org.slf4j.LoggerFactory;
 /**
  * main
  *
- * @author Maik, FH Erfurt
+ * @author Maik Siegmund, FH Erfurt
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
@@ -23,9 +21,10 @@ public class Application {
         try {
 
             // Example.trainWord2Vec();
-            Example.doDocumentAnalyse();
+            // Example.doDocumentAnalyse();
             // Example.runTFIDF();
             // Example.runTextRank();
+            // Example.saveAnalyseResult();
 
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);

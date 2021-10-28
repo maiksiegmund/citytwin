@@ -26,9 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * this db controller is only for tests
+ * this class provides funtion to create a graph on neo4j db (very simple)
  *
- * @author Maik, FH Erfurt
+ * @author Maik Siegmund, FH Erfurt
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
@@ -37,6 +37,7 @@ public class DBController implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     public static String DOCUMENT = "Document";
     public static String ALKIS = "ALKIS";
+    public static String ONTOLOGY = "Ontology";
 
     public static String TERM = "Term";
     public static String KEYWORD = "Keyword";
@@ -238,7 +239,7 @@ public class DBController implements AutoCloseable {
      * @return
      */
     private Boolean existNodeCypher(Transaction transaction, String name, String label) {
-        String query = MessageFormat.format("Match ({0}:{1}) where {0}.name = ${2} return ({0})", label.toLowerCase(), label, name);
+        String query = MessageFormat.format("Match ({0}:{1}) where {0}.name = $name return ({0})", label.toLowerCase(), label, name);
 
         Result result = transaction.run(query,
                 Values.parameters("name", name));
@@ -331,7 +332,7 @@ public class DBController implements AutoCloseable {
      */
     private Boolean isLinkedCypher(Transaction transaction, String leftLabel, String leftName, String edgeName, String rightName, String rightLabel) {
         String query = MessageFormat
-                .format("Match edge=(:{0}{name: $leftName})-[:{1}]->(:{2}{name: $rightName}) return edge", leftLabel, edgeName, rightLabel);
+                .format("Match edge=(:{0}'{'name: $leftName'}')-[:{1}]->(:{2}'{'name: $rightName'}') return edge", leftLabel, edgeName, rightLabel);
 
         Result result = transaction.run(query,
                 Values.parameters("leftName", leftName, "rightName", rightName));
@@ -357,12 +358,37 @@ public class DBController implements AutoCloseable {
                 String leftLabel = (catalogEntry instanceof ALKIS) ? DBController.ALKIS : "";
                 leftLabel = (catalogEntry instanceof Term) ? DBController.TERM : "";
                 String leftName = catalogEntry.getName();
-                String thereEdgeName = DBController.CONTAINS;
-                String returnEdgeName = DBController.AFFECT;
+                String thereEdgeName = DBController.AFFECT;
+                String returnEdgeName = DBController.CONTAINS;
                 String rightName = metaData.get("name");
                 String rightLabel = DBController.DOCUMENT;
                 Double weight = null;
                 return linkCypher(transaction, leftLabel, leftName, thereEdgeName, returnEdgeName, rightName, rightLabel, weight);
+            }
+        };
+    }
+
+    /**
+     * this method link two nodes (document and ontology)t
+     *
+     * @param metaData
+     * @param keyword
+     * @param weight
+     * @return
+     */
+    private TransactionWork<Void> link(final Metadata metaData, final String ontology) {
+
+        return new TransactionWork<Void>() {
+
+            @Override
+            public Void execute(Transaction transaction) {
+                String leftLabel = DBController.DOCUMENT;
+                String leftName = metaData.get("name");
+                String thereEdgeName = DBController.BELONGSTO;
+                String returnEdgeName = DBController.AFFECT;
+                String rightName = ontology;
+                String rightLabel = DBController.ONTOLOGY;
+                return linkCypher(transaction, leftLabel, leftName, thereEdgeName, returnEdgeName, rightName, rightLabel, null);
             }
         };
     }
@@ -444,7 +470,7 @@ public class DBController implements AutoCloseable {
 
         String thereEdgeNameQuery = MessageFormat.format(" Create (leftNode)-[:{0}] ->(rightNode)", thereEdgeName);
         if (weight != null) {
-            thereEdgeNameQuery = MessageFormat.format(" Create (leftNode)-[:{0}{1}] ->(rightNode)", thereEdgeName, weightProperty);
+            thereEdgeNameQuery = MessageFormat.format(" Create (leftNode)-[:{0}'{'{1}'}'] ->(rightNode)", thereEdgeName, weightProperty);
             parameters.put("weight", weight);
         }
         String returnEdgeNameQuery = "";
@@ -458,7 +484,7 @@ public class DBController implements AutoCloseable {
     }
 
     /**
-     * this method build a graph
+     * this method build a graph only an example
      *
      * @param keyword
      * @param metadata
@@ -470,7 +496,7 @@ public class DBController implements AutoCloseable {
         try(Session session = driver.session()) {
 
             Boolean exist = false;
-            Boolean linked = false;
+            Boolean isLinked = false;
 
             // document
             exist = session.readTransaction(existNode(metadata));
@@ -483,8 +509,8 @@ public class DBController implements AutoCloseable {
                 session.writeTransaction(createNode(keyword, DBController.KEYWORD));
             }
             // link keyword and document
-            linked = session.readTransaction(isLinked(metadata, DBController.AFFECT, keyword, DBController.DOCUMENT));
-            if (!linked) {
+            isLinked = session.readTransaction(isLinked(metadata, DBController.CONTAINS, keyword, DBController.KEYWORD));
+            if (!isLinked) {
                 session.writeTransaction(link(metadata, keyword, weigth));
             }
             if (catalogEntry == null) {
@@ -493,17 +519,32 @@ public class DBController implements AutoCloseable {
 
             // ALKIS or Term
             exist = session.readTransaction(existNode(catalogEntry));
-            if (exist) {
+            if (!exist) {
                 session.writeTransaction(createNode(catalogEntry));
             }
-            linked = session.readTransaction(isLinked(metadata, catalogEntry));
-            if (linked) {
+            isLinked = session.readTransaction(isLinked(metadata, catalogEntry));
+            if (!isLinked) {
                 session.writeTransaction(link(metadata, catalogEntry));
             }
             // keyword and ALKIS or Term
-            linked = session.readTransaction(isLinked(keyword, catalogEntry));
-            if (linked) {
-                session.readTransaction(link(keyword, catalogEntry));
+            isLinked = session.readTransaction(isLinked(keyword, catalogEntry));
+            if (!isLinked) {
+                session.writeTransaction(link(keyword, catalogEntry));
+            }
+            // ontology
+            if (catalogEntry instanceof Term) {
+                Term term = (Term)catalogEntry;
+                for (String ontology : term.getOntologies()) {
+                    exist = session.readTransaction(existNode(ontology, DBController.ONTOLOGY));
+                    if (!exist) {
+                        session.writeTransaction(createNode(ontology, DBController.ONTOLOGY));
+                    }
+
+                    isLinked = session.readTransaction(isLinked(metadata, DBController.BELONGSTO, ontology, DBController.ONTOLOGY));
+                    if (!isLinked) {
+                        session.writeTransaction(link(metadata, ontology));
+                    }
+                }
             }
 
         } catch (Exception exception) {

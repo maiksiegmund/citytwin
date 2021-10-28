@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 /**
  * wrapper class of {@link org.deeplearning4j.models.word2vec.Word2Vec}
  *
- * @author Maik, FH Erfurt
+ * @author Maik Siegmund, FH Erfurt
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */

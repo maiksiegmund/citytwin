@@ -3,7 +3,7 @@ package de.citytwin.catalog;
 /**
  * this class present a simple data object
  *
- * @author Maik, SRP GmbH, Berlin
+ * @author Maik Siegmund, FH Erfurt
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */

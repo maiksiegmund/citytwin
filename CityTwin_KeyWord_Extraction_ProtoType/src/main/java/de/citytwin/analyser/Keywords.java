@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * this interface provides methods for keyword extraction and filtering
  *
- * @author Maik, FH Erfurt
+ * @author Maik Siegmund, FH Erfurt
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */

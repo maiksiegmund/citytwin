@@ -19,6 +19,7 @@ import de.citytwin.text.TextProcessing;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.text.MessageFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,7 +37,7 @@ import org.slf4j.LoggerFactory;
 /**
  * this class show some example for usage
  *
- * @author Maik, FH Erfurt
+ * @author Maik Siegmund, FH Erfurt
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
@@ -48,15 +49,15 @@ public class Example {
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     /**
-     * this method is an example to create alkis catalog
-     * edit parameters
+     * this method is an example to create alkis catalog edit parameters
      *
      * @throws IOException
      * @throws Exception
      */
     public static void createALKISCatalog() throws IOException, Exception {
 
-        Properties properties = PropertiesLGF1000561.getProperties();
+        Properties properties = new Properties();
+        properties.putAll(Catalog.getDefaultProperties(ALKIS.class));
 
         try(Catalog<ALKIS> catalog = new Catalog<ALKIS>(properties, ALKIS.class)) {
 
@@ -67,8 +68,7 @@ public class Example {
     }
 
     /**
-     * this method is an example to analyses a single document
-     * edit parameters
+     * this method is an example to analysis a single document edit parameters
      *
      * @return
      * @throws IOException
@@ -77,13 +77,13 @@ public class Example {
     public static Map<String, Double> doDocumentAnalyse() throws IOException, Exception {
 
         Map<String, Double> filteredKeywords = null;
-        Properties properties = PropertiesLGF1000561.getProperties();
-        // properties.putAll(Word2Vec.getDefaultProperties());
-        // properties.putAll(TextProcessing.getDefaultProperties());
+        Properties properties = new Properties();
+        properties.putAll(Word2Vec.getDefaultProperties());
+        properties.putAll(TextProcessing.getDefaultProperties());
         properties.putAll(DocumentKeywordAnalyser.getDefaultProperties());
         properties.putAll(DocumentConverter.getDefaultProperties());
-        properties.putAll(TFIDFKeywordExtractor.getDefaultProperties());
-        // properties.putAll(Catalog.getDefaultProperties(Term.class));
+        properties.putAll(TextRankKeywordExtractor.getDefaultProperties());
+        properties.putAll(Catalog.getDefaultProperties(Term.class));
 
         File file = new File("D:\\vms\\sharedFolder\\dokumente\\2_begruendung-9-11-ve.pdf");
 
@@ -94,13 +94,18 @@ public class Example {
                 DocumentKeywordAnalyser documentKeywordAnalyser = new DocumentKeywordAnalyser(properties, documentConverter, word2Vec);
                 Catalog<Term> catalog = new Catalog<Term>(properties, Term.class)) {
 
-            KeywordExtractor keywordExtractor = new TFIDFKeywordExtractor(properties, textProcessing);
+            KeywordExtractor keywordExtractor = new TextRankKeywordExtractor(properties, textProcessing);
 
             Map<String, Double> temp = documentKeywordAnalyser.getKeywords(file, keywordExtractor);
             filteredKeywords = documentKeywordAnalyser.filterKeywords(temp, catalog);
 
         }
         logger.info("document analysed");
+        for (String key : filteredKeywords.keySet()) {
+            System.out.println(MessageFormat.format("keyword {0} \t\t\t  score:{1} ", key, filteredKeywords.get(key)));
+        }
+        System.out.println(MessageFormat.format("founded keywords {0}", filteredKeywords.size()));
+
         return filteredKeywords;
 
     }
@@ -131,18 +136,18 @@ public class Example {
     }
 
     /**
-     * this method is an example to run textRank algorithm on a single document
-     * edit parameters
+     * this method is an example to run textRank algorithm on a single document edit parameters
+     *
      * @return
      * @throws Exception
      */
     public static Map<String, Double> runTextRank() throws Exception {
 
         Map<String, Double> keywords = new HashMap<String, Double>();
-        Properties properties = PropertiesLGF1000561.getProperties();
+        Properties properties = new Properties();
         File file = new File("D:\\vms\\sharedFolder\\dokumente\\2_begruendung-9-11-ve.pdf");
 
-        // properties.putAll(TextProcessing.getDefaultProperties());
+        properties.putAll(TextProcessing.getDefaultProperties());
         properties.putAll(DocumentConverter.getDefaultProperties());
         properties.putAll(TextRankKeywordExtractor.getDefaultProperties());
 
@@ -164,8 +169,7 @@ public class Example {
     }
 
     /**
-     * this method is an example to run textRank algorithm on a single document
-     * edit parameters!
+     * this method is an example to run textRank algorithm on a single document edit parameters!
      *
      * @return
      * @throws Exception
@@ -173,10 +177,10 @@ public class Example {
     public static Map<String, Double> runTFIDF() throws Exception {
 
         Map<String, Double> keywords = new HashMap<String, Double>();
-        Properties properties = PropertiesLGF1000561.getProperties();
+        Properties properties = new Properties();
         File file = new File("D:\\vms\\sharedFolder\\dokumente\\2_begruendung-9-11-ve.pdf");
 
-        // properties.putAll(TextProcessing.getDefaultProperties());
+        properties.putAll(TextProcessing.getDefaultProperties());
         properties.putAll(DocumentConverter.getDefaultProperties());
         properties.putAll(TFIDFKeywordExtractor.getDefaultProperties());
 
@@ -198,15 +202,13 @@ public class Example {
     }
 
     /**
-     * this method is an example to save results in neo4j database
-     * used testdata
+     * this method is an example to save results in neo4j database used testdata
      *
      * @throws IOException
      * @throws Exception
      */
     public static void saveAnalyseResult() throws IOException, Exception {
 
-        File file = new File("..\\Documents\\Strategie.pdf");
         Properties properties = new Properties();
         properties.putAll(Catalog.getDefaultProperties(ALKIS.class));
         properties.putAll(Catalog.getDefaultProperties(Term.class));
@@ -215,12 +217,22 @@ public class Example {
 
         // test data
         Metadata metaData = new Metadata();
-        metaData.add("Title", "Strategie.pdf");
-        metaData.add("Date", "01.01.1970");
-        metaData.add("Author", "Senat Berlin");
-        metaData.add("name", file.getName());
+        metaData.add("title", "Strategie.pdf");
+        metaData.add("date", "01.01.1970");
+        metaData.add("author", "Senat Berlin");
+        metaData.add("name", "2_begruendung-9-11-ve.pdf");
 
-        Map<String, Double> filteredkeywords = Example.doDocumentAnalyse();
+        Map<String, Double> filteredkeywords = new HashMap<String, Double>();
+        filteredkeywords.put("Siedlungsentwicklung", 0.019d);
+        filteredkeywords.put("Kita", 0.019d);
+        filteredkeywords.put("Grundstückspreise", 0.019d);
+        filteredkeywords.put("Wohnräume", 0.019d);
+        filteredkeywords.put("Flora", 0.019d);
+        filteredkeywords.put("Schulstandorte", 0.019d);
+        filteredkeywords.put("Grenzwerte", 0.019d);
+        filteredkeywords.put("Wasserversorgungsleitung", 0.019d);
+        filteredkeywords.put("Verkehrserschließung", 0.019d);
+        filteredkeywords.put("Lichtsignalanlage", 0.019d);
 
         try(
                 DBController dbController = new DBController(properties);
@@ -229,10 +241,10 @@ public class Example {
 
         {
             for (String keyword : filteredkeywords.keySet()) {
-                CatalogEntryHasName hasName = termCatalog.getEntry(keyword);
-                dbController.persist(keyword, metaData, hasName, filteredkeywords.get(keyword));
-                hasName = ALKSICatalog.getEntry(keyword);
-                dbController.persist(keyword, metaData, hasName, filteredkeywords.get(keyword));
+                CatalogEntryHasName catalogEntryHasName = termCatalog.getEntry(keyword);
+                dbController.persist(keyword, metaData, catalogEntryHasName, filteredkeywords.get(keyword));
+                catalogEntryHasName = ALKSICatalog.getEntry(keyword);
+                dbController.persist(keyword, metaData, catalogEntryHasName, filteredkeywords.get(keyword));
             }
 
         }
@@ -247,10 +259,11 @@ public class Example {
     public static void trainWord2Vec() throws Exception {
 
         Properties properties = new Properties();
-        properties.putAll(PropertiesLGF1000561.getProperties());
+        properties.putAll(TextProcessing.getDefaultProperties());
+        properties.putAll(Word2Vec.getDefaultProperties());
 
         List<File> files = new ArrayList<File>();
-        Example.getFiles("D:\\vms\\sharedFolder\\wikidumps\\text\\test", files);
+        Example.getFiles("D:\\vms\\sharedFolder\\wikidumps\\text", files);
 
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);

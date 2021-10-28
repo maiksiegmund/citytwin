@@ -5,9 +5,9 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
- * this interface is for catalog entry
+ * interface catalog entry
  *
- * @author Maik,FH Erfurt
+ * @author Maik Siegmund,FH Erfurt
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */

@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * this class is a keyword extrator by tf idf algorithm <br>
  *
  * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf wiki</a>
- * @author Maik,FH Erfurt
+ * @author Maik Siegmund, FH Erfurt
  * @version $Revision: 1.0 $
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
