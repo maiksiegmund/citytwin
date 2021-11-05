@@ -1,8 +1,8 @@
 package de.citytwin.analyser;
 
-import de.citytwin.algorithm.keywords.KeywordExtractor;
 import de.citytwin.catalog.Catalog;
 import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.keywords.KeywordExtractor;
 
 import java.io.File;
 import java.io.IOException;

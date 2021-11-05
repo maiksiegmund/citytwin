@@ -1,10 +1,10 @@
 package de.citytwin.analyser;
 
-import de.citytwin.algorithm.keywords.KeywordExtractor;
 import de.citytwin.algorithm.word2vec.Word2Vec;
 import de.citytwin.catalog.Catalog;
 import de.citytwin.catalog.CatalogEntryHasName;
 import de.citytwin.converter.DocumentConverter;
+import de.citytwin.keywords.KeywordExtractor;
 
 import java.io.File;
 import java.io.IOException;
@@ -100,7 +100,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     }
 
     /**
-     * this method get nearst to a given word
+     * this method get nearest to a given word
      *
      * @param filterdWords
      * @throws IOException

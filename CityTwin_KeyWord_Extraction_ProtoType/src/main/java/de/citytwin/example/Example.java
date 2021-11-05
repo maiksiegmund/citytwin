@@ -2,11 +2,12 @@ package de.citytwin.example;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
-import de.citytwin.algorithm.keywords.KeywordExtractor;
+import de.citytwin.algorithm.LocationEntitiesExtractor;
 import de.citytwin.algorithm.keywords.TFIDFKeywordExtractor;
 import de.citytwin.algorithm.keywords.TextRankKeywordExtractor;
 import de.citytwin.algorithm.word2vec.Word2Vec;
 import de.citytwin.analyser.DocumentKeywordAnalyser;
+import de.citytwin.analyser.DocumentNameFinderAnalyser;
 import de.citytwin.catalog.ALKIS;
 import de.citytwin.catalog.Catalog;
 import de.citytwin.catalog.CatalogEntryHasName;
@@ -14,6 +15,7 @@ import de.citytwin.catalog.Term;
 import de.citytwin.catalog.WikiArticle;
 import de.citytwin.converter.DocumentConverter;
 import de.citytwin.database.DBController;
+import de.citytwin.keywords.KeywordExtractor;
 import de.citytwin.text.TextProcessing;
 
 import java.io.File;
@@ -26,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 
@@ -282,6 +285,43 @@ public class Example {
             logger.info("word2vec model trained successfully");
         }
 
+    }
+
+    /**
+     * this method is an example to run location finding on a single document edit parameters!
+     *
+     * @throws Exception
+     */
+    public static void doLocationFinding() throws IOException, Exception {
+        Properties properties = new Properties();
+        properties.putAll(TextProcessing.getDefaultProperties());
+        properties.putAll(DocumentConverter.getDefaultProperties());
+        properties.putAll(LocationEntitiesExtractor.getDefaultProperties());
+
+        // properties.put("path.2.ner.location.file", "D:\\VMS\\trained_model\\de-ner-location_maxent.bin");
+        properties.put("path.2.ner.location.file", "D:\\VMS\\trained_model\\de-ner-location_naivebayes.bin");
+
+        properties.put("path.2.sentence.detector.file", "D:\\VMS\\trained_model\\de-sent.bin");
+        properties.put("path.2.pos-tagger.file", "D:\\VMS\\trained_model\\de-pos-maxent.bin");
+        properties.put("path.2.sentence.tokenizer.file", "D:\\VMS\\trained_model\\de-token.bin");
+        properties.put("path.2.stopword.file", "D:\\VMS\\trained_model\\de-stopswords.txt");
+        properties.put("path.2.postag.file", "D:\\VMS\\trained_model\\de-posTags.txt");
+        properties.put("minProbability", 0.95d);
+
+        try(
+                TextProcessing textProcessing = new TextProcessing(properties);
+                DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
+                DocumentNameFinderAnalyser documentNameFinderAnalyser = new DocumentNameFinderAnalyser(documentConverter);
+                LocationEntitiesExtractor locationEntitiesExtractor = new LocationEntitiesExtractor(properties);) {
+
+            File file = new File("D:\\VMS\\sharedFolder\\2_begruendung-9-11-ve.pdf");
+            Set<String> locations = documentNameFinderAnalyser.getNamedEntities(file, locationEntitiesExtractor);
+            for (String location : locations) {
+                System.out.println(MessageFormat.format("location: {0}", location));
+            }
+            System.out.println(MessageFormat.format("count: {0}", locations.size()));
+
+        }
     }
 
     /**

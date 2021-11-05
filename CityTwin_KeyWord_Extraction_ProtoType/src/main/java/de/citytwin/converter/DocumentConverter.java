@@ -54,7 +54,7 @@ public class DocumentConverter implements AutoCloseable {
         properties.put("cleaningPattern", "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
         properties.put("minTermLenght", 2);
         properties.put("minTermCount", 5);
-        properties.put("tableOfContendThershold", 50);
+        properties.put("tableOfContentThershold", 50);
         return properties;
     }
 

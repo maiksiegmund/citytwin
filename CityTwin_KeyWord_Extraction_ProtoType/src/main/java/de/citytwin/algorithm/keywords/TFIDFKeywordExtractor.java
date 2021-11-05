@@ -1,5 +1,6 @@
 package de.citytwin.algorithm.keywords;
 
+import de.citytwin.keywords.KeywordExtractor;
 import de.citytwin.text.TextProcessing;
 
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package de.citytwin.algorithm.keywords;
+package de.citytwin.keywords;
 
 import java.util.List;
 import java.util.Map;
