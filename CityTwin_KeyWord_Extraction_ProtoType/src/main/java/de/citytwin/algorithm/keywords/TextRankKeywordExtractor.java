@@ -428,14 +428,14 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
      * @see <a href=https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf> textRank Paper, chapter 4</a>
      * @param lefts {@code List<String>}
      * @param rights {@code List<String>}
-     * @return similartity
+     * @return similarity
      */
     private Double getSimilartity(List<String> lefts, List<String> rights) {
 
         if (lefts.size() == 0 || rights.size() == 0) {
             return 0.0d;
         }
-        double countOfTermInBothList = 0;
+        double countOfEqualsTerms = 0;
 
         Set<String> mergedTerms = new HashSet<String>();
         for (String term : lefts) {
@@ -445,19 +445,18 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
             mergedTerms.add(term);
         }
         for (String term : mergedTerms) {
-            if (isTermInBothLists(term, lefts, rights)) {
-                countOfTermInBothList++;
+            if (isTermInBoth(term, lefts, rights)) {
+                countOfEqualsTerms++;
             }
         }
-        if (countOfTermInBothList < 1.0d) {
+        if (countOfEqualsTerms < 1.0d) {
             return 0.0d;
         }
-        getSimilartity(lefts, rights);
         double leftSize = lefts.size();
         double rightSize = rights.size();
         leftSize = (leftSize > 1.9d) ? Math.log10(leftSize) : 0.0d;
         rightSize = (rightSize > 1.9d) ? Math.log10(rightSize) : 0.0d;
-        return (leftSize + rightSize > 0.0d) ? countOfTermInBothList / (leftSize + rightSize) : 0.0d;
+        return (leftSize + rightSize > 0.0d) ? countOfEqualsTerms / (leftSize + rightSize) : 0.0d;
 
     }
 
@@ -499,12 +498,9 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
      * @param rightTerms
      * @return
      */
-    private boolean isTermInBothLists(String term, List<String> leftTerms, List<String> rightTerms) {
+    private boolean isTermInBoth(String term, List<String> leftTerms, List<String> rightTerms) {
 
-        if (leftTerms.contains(term) && rightTerms.contains(term)) {
-            return true;
-        }
-        return false;
+        return leftTerms.contains(term) && rightTerms.contains(term);
     }
 
     /**

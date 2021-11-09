@@ -313,7 +313,7 @@ public class DBController implements AutoCloseable {
                 String edgeName = DBController.BELONGSTO;
                 String rightName = catalogEntry.getName();
                 String rightLabel = (catalogEntry instanceof ALKIS) ? DBController.ALKIS : "";
-                rightLabel = (catalogEntry instanceof Term) ? DBController.TERM : "";
+                rightLabel = (catalogEntry instanceof Term) ? DBController.TERM : rightLabel;
                 return isLinkedCypher(transaction, leftLabel, leftName, edgeName, rightName, rightLabel);
             }
         };
