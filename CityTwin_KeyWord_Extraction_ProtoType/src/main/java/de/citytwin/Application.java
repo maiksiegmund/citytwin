@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
  * main
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
+ * @version $Revision: 1.0 $ TODO revision versions can all be removed as they are used only in conjunction witc cvs version control system
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public class Application {
