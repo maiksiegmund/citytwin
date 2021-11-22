@@ -97,7 +97,7 @@ public class Example {
                 DocumentKeywordAnalyser documentKeywordAnalyser = new DocumentKeywordAnalyser(properties, documentConverter, word2Vec);
                 Catalog<Term> catalog = new Catalog<Term>(properties, Term.class)) {
 
-            KeywordExtractor keywordExtractor = new TextRankKeywordExtractor(properties, textProcessing);
+            KeywordExtractor keywordExtractor = new TextRankKeywordExtractor(properties, textProcessing); //parameterize KeywordExtractor implementation using properties
 
             Map<String, Double> temp = documentKeywordAnalyser.getKeywords(file, keywordExtractor);
             filteredKeywords = documentKeywordAnalyser.filterKeywords(temp, catalog);

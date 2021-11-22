@@ -220,7 +220,7 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
     public final static String IN = "in";
     public final static String OUT = "out";
     private static transient final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private static final String VERSION = "$Revision: 1.00 $";
+    private static final String VERSION = "$Revision: 1.00 $"; //can be removed safely
     private static final double DEFAULT_EDGE_WEIGHT = 1.0d;
     private static final double D = 0.85d;
 

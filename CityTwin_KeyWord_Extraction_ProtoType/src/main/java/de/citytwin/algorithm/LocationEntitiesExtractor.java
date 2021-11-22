@@ -35,7 +35,10 @@ public class LocationEntitiesExtractor implements NamedEntitiesExtractor, AutoCl
 
     public static Properties getDefaultProperties() {
         Properties properties = new Properties();
+        // TODO extract properties key values to an external class, say for instance ApplicationProperties.class containing all possible property keys
         properties.put("path.2.ner.location.file", "..\\location-model.bin");
+        // e. g.
+        //properties.put(ApplicationProperties.PATH_2_NER_LOCATION_FILE, "..\\location-model.bin");
         properties.put("minProbability", 0.95d);
         return properties;
     }

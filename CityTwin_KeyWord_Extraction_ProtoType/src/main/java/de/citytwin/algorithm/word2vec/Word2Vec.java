@@ -150,6 +150,7 @@ public class Word2Vec implements AutoCloseable {
         throw new IOException("no model set");
     }
 
+
     /**
      * R&uuml;ckgabe der Klasseninformation.
      * <p>
@@ -159,7 +160,7 @@ public class Word2Vec implements AutoCloseable {
      * @return Klasseninformation
      */
     @Override
-    public String toString() {
+    public String toString() {  //TODO can be removed altogether
         return this.getClass().getName() + " " + VERSION;
     }
 
