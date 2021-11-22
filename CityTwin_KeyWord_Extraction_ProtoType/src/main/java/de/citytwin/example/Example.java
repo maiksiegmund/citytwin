@@ -212,11 +212,12 @@ public class Example {
      */
     public static void saveAnalyseResult() throws IOException, Exception {
 
-        Properties properties = new Properties();
-        properties.putAll(Catalog.getDefaultProperties(ALKIS.class));
-        properties.putAll(Catalog.getDefaultProperties(Term.class));
-        properties.putAll(DBController.getDefaultProperties());
-        properties.putAll(DocumentConverter.getDefaultProperties());
+        // Properties properties = new Properties();
+        Properties properties = PropertiesLGF1000561.getProperties();
+        // properties.putAll(Catalog.getDefaultProperties(ALKIS.class));
+        // properties.putAll(Catalog.getDefaultProperties(Term.class));
+        // properties.putAll(DBController.getDefaultProperties());
+        // properties.putAll(DocumentConverter.getDefaultProperties());
 
         // test data
         Metadata metaData = new Metadata();
@@ -245,8 +246,8 @@ public class Example {
         {
             for (String keyword : filteredkeywords.keySet()) {
                 CatalogEntryHasName catalogEntryHasName = termCatalog.getEntry(keyword);
-                dbController.persist(keyword, metaData, catalogEntryHasName, filteredkeywords.get(keyword));
-                catalogEntryHasName = ALKSICatalog.getEntry(keyword);
+                // dbController.persist(keyword, metaData, catalogEntryHasName, filteredkeywords.get(keyword));
+                catalogEntryHasName = ALKSICatalog.getEntry("Wasser");
                 dbController.persist(keyword, metaData, catalogEntryHasName, filteredkeywords.get(keyword));
             }
 
@@ -323,6 +324,51 @@ public class Example {
 
         }
     }
+
+    public static void createPartOfCityGraph() throws Exception {
+        Properties properties = PropertiesLGF1000561.getProperties();
+        properties.putAll(DocumentConverter.getDefaultProperties());
+        String documentPath = properties.getProperty("path.2.documents");
+        List<File> files = new ArrayList<File>();
+        getFiles(documentPath, files);
+
+        try(
+                Word2Vec word2Vec = new Word2Vec(properties);
+                TextProcessing textProcessing = new TextProcessing(properties);
+                DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
+                DocumentKeywordAnalyser documentKeywordAnalyser = new DocumentKeywordAnalyser(properties, documentConverter, word2Vec);
+                Catalog<Term> termCatalog = new Catalog<Term>(properties, Term.class);
+                Catalog<ALKIS> aLKIScatalog = new Catalog<ALKIS>(properties, ALKIS.class);
+                DBController dbController = new DBController(properties)) {
+
+            KeywordExtractor tfiddkeywordExtractor = new TFIDFKeywordExtractor(properties, textProcessing);
+            KeywordExtractor textRankkeywordExtractor = new TextRankKeywordExtractor(properties, textProcessing);
+
+            for (File file : files) {
+                // tf idf
+                Map<String, Double> keywords = documentKeywordAnalyser.getKeywords(file, tfiddkeywordExtractor);
+                // textRank
+                keywords.putAll(documentKeywordAnalyser.getKeywords(file, textRankkeywordExtractor));
+                // ALKIS
+                Map<String, Double> filteredKeywords = documentKeywordAnalyser.filterKeywords(keywords, aLKIScatalog);
+                // CT_terms
+                filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(keywords, termCatalog));
+                Metadata metaData = documentConverter.getMetaData(file);
+                // ALKIS
+                for (String keyword : filteredKeywords.keySet()) {
+                    CatalogEntryHasName catalogEntryHasName = aLKIScatalog.getEntry(keyword);
+                    dbController.persist(keyword, metaData, catalogEntryHasName, filteredKeywords.get(keyword));
+                    catalogEntryHasName = termCatalog.getEntry(keyword);
+                    dbController.persist(keyword, metaData, catalogEntryHasName, filteredKeywords.get(keyword));
+                }
+
+            }
+
+        }
+
+    }
+
+
 
     /**
      * R&uuml;ckgabe der Klasseninformation.

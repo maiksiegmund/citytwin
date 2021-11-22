@@ -27,7 +27,8 @@ public class Application {
             // Example.runTFIDF();
             // Example.runTextRank();
             // Example.saveAnalyseResult();
-            Example.doLocationFinding();
+            // Example.doLocationFinding();
+            Example.createPartOfCityGraph();
 
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);

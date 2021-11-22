@@ -133,7 +133,11 @@ public class DBController implements AutoCloseable {
                 Map<String, Object> parameters = new HashMap<String, Object>();
 
                 for (String name : metadata.names()) {
-                    parameters.put(name, metadata.get(name));
+                    String cleaned = name.replace("-","");
+                    cleaned = cleaned.replace(":", "");
+                    cleaned = cleaned.replace("-", "");
+
+                    parameters.put(cleaned, metadata.get(name));
                 }
                 return createNodeCypher(transaction, label, parameters);
             }
@@ -266,7 +270,7 @@ public class DBController implements AutoCloseable {
                 String leftName = metaData.get("name");
                 String edgeName = DBController.CONTAINS;
                 String rightLabel = (catalogEntry instanceof ALKIS) ? DBController.ALKIS : "";
-                rightLabel = (catalogEntry instanceof Term) ? DBController.TERM : "";
+                rightLabel = (catalogEntry instanceof Term) ? DBController.TERM : rightLabel;
                 String rightName = catalogEntry.getName();
                 return isLinkedCypher(transaction, leftLabel, leftName, edgeName, rightName, rightLabel);
             }
@@ -356,7 +360,7 @@ public class DBController implements AutoCloseable {
             @Override
             public Void execute(Transaction transaction) {
                 String leftLabel = (catalogEntry instanceof ALKIS) ? DBController.ALKIS : "";
-                leftLabel = (catalogEntry instanceof Term) ? DBController.TERM : "";
+                leftLabel = (catalogEntry instanceof Term) ? DBController.TERM : leftLabel;
                 String leftName = catalogEntry.getName();
                 String thereEdgeName = DBController.AFFECT;
                 String returnEdgeName = DBController.CONTAINS;
@@ -436,7 +440,7 @@ public class DBController implements AutoCloseable {
                 String edgeName = DBController.BELONGSTO;
                 String rightName = catalogEntry.getName();
                 String rightLabel = (catalogEntry instanceof ALKIS) ? DBController.ALKIS : "";
-                rightLabel = (catalogEntry instanceof Term) ? DBController.TERM : "";
+                rightLabel = (catalogEntry instanceof Term) ? DBController.TERM : rightLabel;
                 return linkCypher(transaction, leftLabel, leftName, edgeName, null, rightName, rightLabel, null);
             }
         };
