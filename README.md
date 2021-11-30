@@ -22,24 +22,7 @@ nlp features:
 - [FasterXML](https://github.com/FasterXML/jackson-core/blob/2.13/)
 
 ## usage
-```java
-public static void main(String[] args) {
-
-        try {
-            // select a file
-            File file = new File("...");
-            DocumentAnalyser documentAnalyser = new DocumentAnalyser.Builder().build();
-            // filter by alkis catalog
-            Map<String, Pair<ALKISDTO, Double>> alkis = documentAnalyser.analyse2ALKIS(file);
-            // filter by ct_term catalog
-            Map<String, Pair<TermDTO, Double>> terms = documentAnalyser.analyse2Terms(file);
-           
-        } catch (Exception exception) {
-            // toDO Exception handling
-        }
-
-    }
-``` 
+[example](https://github.com/maiksiegmund/citytwin/blob/main/CityTwin_KeyWord_Extraction_ProtoType/src/main/java/de/citytwin/example/Example.java)
 
 ## resources 
 
