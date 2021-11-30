@@ -1,5 +1,6 @@
 package de.citytwin.algorithm.keywords;
 
+import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.keywords.KeywordExtractor;
 import de.citytwin.text.TextProcessing;
 
@@ -28,8 +29,6 @@ import org.slf4j.LoggerFactory;
  *
  * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf wiki</a>
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
 
@@ -48,14 +47,13 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
     class DocumentCount {
 
         public int countWords;
-
         public boolean isNormalized;
         public Map<Integer, List<String>> sentences;
         // term, count, calculation, , postag, sentenceindex (intern use)
         public Map<String, Quartet<Integer, Double, String, Set<Integer>>> terms;
 
         /**
-         * Konstruktor.
+         * constructor.
          */
         public DocumentCount() {
             terms = new HashMap<String, Quartet<Integer, Double, String, Set<Integer>>>();
@@ -65,7 +63,7 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
         }
 
         /**
-         * Konstruktor.
+         * constructor.
          *
          * @param documentCount
          */
@@ -78,7 +76,7 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
         }
     }
 
-    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     /**
      * the method return default properties
@@ -87,20 +85,21 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
      */
     public static Properties getDefaultProperties() {
         Properties properties = new Properties();
-        properties.put("withStopwordFilter", false);
-        properties.put("withStemming", false);
-        properties.put("normalization", "none");
+        properties.setProperty(ApplicationConfiguration.WITH_STOPWORDFILTER, "false");
+        properties.setProperty(ApplicationConfiguration.WITH_STEMMING, "false");
+        properties.setProperty(ApplicationConfiguration.NORMALIZATION_TYPE, "none");
         return properties;
     }
 
-    Properties properties = null;
     // tf idf normalization factor
     private final Double k = 0.5;
-
     private TextProcessing textProcessing = null;
+    Boolean withStopwordFilter = null;
+    Boolean withStemming = null;
+    String normalizationType = null;
 
     /**
-     * Konstruktor.
+     * constructor
      *
      * @param properties = {@code TFIDFKeywordExtractor.getDefaultProperties()}
      * @param textProcessing
@@ -109,8 +108,6 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
     public TFIDFKeywordExtractor(Properties properties, TextProcessing textProcessing) throws IOException {
         if (validateProperties(properties)) {
             this.textProcessing = textProcessing;
-            this.properties = new Properties();
-            this.properties.putAll(properties);
         }
     }
 
@@ -129,21 +126,15 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
         result.sentences = documentCount.sentences;
         result.countWords = documentCount.countWords;
         result.isNormalized = documentCount.isNormalized;
-
-        int currentIndex = 0;
-
         Quartet<Integer, Double, String, Set<Integer>> quartet = null;
 
         for (String term : documentCount.terms.keySet()) {
             quartet = documentCount.terms.get(term);
-            logger.info(
-                    MessageFormat.format("processing {0} of {1} terms. ", ++currentIndex, documentCount.terms.size()));
             value = Math.log10((double)documentCount.sentences.size() / quartet.getValue3().size());
             quartet = quartet.setAt1(value);
             result.terms.put(term, quartet);
-
         }
-        logger.info("calculate smoot inverse document frequency completed.");
+        LOGGER.info("calculate smoot inverse document frequency completed.");
         return result;
     }
 
@@ -182,7 +173,7 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
             }
             countOfTermInSentence.clear();
         }
-        logger.info("calculate term frequency finished.");
+        LOGGER.info("calculate term frequency completed.");
         result.isNormalized = false;
         return result;
     }
@@ -213,19 +204,17 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
             quartetTf = quartetTf.setAt1(value);
             result.terms.put(term, quartetTf);
         }
-        logger.info("caculation tf idf completed");
+        LOGGER.info("caculation tf idf completed");
         return result;
     }
 
     @Override
     public void close() throws Exception {
-        properties.clear();
-        this.properties = null;
 
     }
 
     /**
-     * This method normalized a term freuency. <br>
+     * This method normalized a term frequency. <br>
      * equation <strong> k +( 1 - k) f(t,d) / (max(f(t,d))) </strong>
      *
      * @see <a href=https://en.wikipedia.org/wiki/Tf%E2%80%93idf> tf idf calculation on wikipedia</a>
@@ -258,7 +247,7 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
             result.terms.put(term, quartet);
         }
         result.isNormalized = true;
-        logger.info("double normalization completed.");
+        LOGGER.info("double normalization completed.");
         return result;
     }
 
@@ -266,17 +255,13 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
     public Map<String, Double> getKeywords(List<List<String>> textcorpus) throws Exception {
 
         HashMap<String, Double> extractedKeywords = new HashMap<String, Double>();
-        Boolean withStopwordFilter = (Boolean)properties.get("withStopwordFilter");
-        Boolean withStemming = (Boolean)properties.get("withStemming");
-        String normalization = (String)properties.get("normalization");
-
         DocumentCount tfidf = new DocumentCount();
         DocumentCount rawCount = prepareText(textcorpus, withStopwordFilter);
         rawCount = (withStemming) ? getstemmedRawCount(rawCount) : getRawCount(rawCount);
 
         DocumentCount tf = null;
         tf = calculateTF(rawCount);
-        switch(normalization.toLowerCase()) {
+        switch(normalizationType.toLowerCase()) {
             case "double":
                 tf = doubleNormalizationTermFrequency(tf, k);
                 break;
@@ -300,12 +285,14 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
                 }
             }
         }
+
         Map<String, Double> sortedMap = extractedKeywords.entrySet()
                 .stream()
                 .sorted(Comparator.comparingDouble(v -> -v.getValue()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (left, right) -> {
                     throw new AssertionError();
                 }, LinkedHashMap::new));
+        LOGGER.info(MessageFormat.format("keywords found {0}", sortedMap.size()));
         return sortedMap;
 
     }
@@ -343,9 +330,13 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
         }
         result.sentences = documentCount.sentences;
         result.isNormalized = documentCount.isNormalized;
-        logger.info(MessageFormat.format("document contains {0} terms overall.", result.terms.size()));
-        logger.info(MessageFormat.format("document contains {0} sentences.", result.sentences.size()));
-        logger.info(MessageFormat.format("document contains {0} words distinct.", result.countWords));
+        LOGGER.info(MessageFormat.format(
+                "terms overall:  {0} \n" +
+                        "sentences       {1} \n" +
+                        "terms distinct  {2} ",
+                result.terms.size(),
+                result.sentences.size(),
+                result.countWords));
 
         return result;
     }
@@ -403,7 +394,7 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
             result.terms.put(term, quartet);
         }
         result.isNormalized = true;
-        logger.info("log normalization completed.");
+        LOGGER.info("log normalization completed.");
         return result;
     }
 
@@ -413,9 +404,8 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
      * @param textCorpus
      * @param filterByStopWords
      * @return
-     * @throws IOException
      */
-    private DocumentCount prepareText(final List<List<String>> textCorpus, Boolean filterByStopWords) throws IOException {
+    private DocumentCount prepareText(final List<List<String>> textCorpus, Boolean filterByStopWords) {
 
         DocumentCount result = new DocumentCount();
         int count = 0;
@@ -458,24 +448,28 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
     }
 
     /**
-     * this method validate passing properties
+     * this method validate passing properties and set them
      *
      * @param properties
      * @return
-     * @throws IOException
+     * @throws IllegalArgumentException
      */
-    public Boolean validateProperties(Properties properties) throws IOException {
-        Boolean withStopwordFilter = (Boolean)properties.get("withStopwordFilter");
-        if (withStopwordFilter == null) {
-            throw new IOException("set property --> withStopwordFilter as Boolean");
+    public Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+        String property = null;
+        property = properties.getProperty(ApplicationConfiguration.WITH_STOPWORDFILTER);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.WITH_STOPWORDFILTER);
         }
-        Boolean withStemming = (Boolean)properties.get("withStemming");
-        if (withStemming == null) {
-            throw new IOException("set property --> withStemming as Boolean");
+        withStopwordFilter = Boolean.parseBoolean(property);
+
+        property = properties.getProperty(ApplicationConfiguration.WITH_STEMMING);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.WITH_STEMMING);
         }
-        String normalization = (String)properties.get("normalization");
-        if (normalization == null) {
-            throw new IOException("set property --> normalization as String (none, log, double)");
+        withStemming = Boolean.parseBoolean(property);
+        normalizationType = properties.getProperty(ApplicationConfiguration.NORMALIZATION_TYPE);
+        if (normalizationType == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.NORMALIZATION_TYPE);
         }
         return true;
     }

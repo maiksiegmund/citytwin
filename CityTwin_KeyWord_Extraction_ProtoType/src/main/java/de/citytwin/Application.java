@@ -1,7 +1,5 @@
 package de.citytwin;
 
-import de.citytwin.example.Example;
-
 import java.lang.invoke.MethodHandles;
 
 import org.slf4j.Logger;
@@ -11,8 +9,6 @@ import org.slf4j.LoggerFactory;
  * main
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $ TODO revision versions can all be removed as they are used only in conjunction witc cvs version control system
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public class Application {
 
@@ -28,7 +24,10 @@ public class Application {
             // Example.runTextRank();
             // Example.saveAnalyseResult();
             // Example.doLocationFinding();
-            Example.createPartOfCityGraph();
+            // Example.createPartOfCityGraph();
+            // 1. Example.storePreparedProperties(new File("application.properties"));
+            /** set program argument -p documentInformationRetrieval.properties */
+            // 2. Example.createPartOfCityGraph(args);
 
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);

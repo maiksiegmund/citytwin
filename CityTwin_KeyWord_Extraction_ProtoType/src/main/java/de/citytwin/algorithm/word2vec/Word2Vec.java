@@ -1,5 +1,6 @@
 package de.citytwin.algorithm.word2vec;
 
+import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.text.SentenceIterator;
 import de.citytwin.text.TextProcessing;
 import de.citytwin.text.TokenPreProcess;
@@ -25,15 +26,12 @@ import org.slf4j.LoggerFactory;
  * wrapper class of {@link org.deeplearning4j.models.word2vec.Word2Vec}
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public class Word2Vec implements AutoCloseable {
 
     /** current version information */
-    private static final String VERSION = "$Revision: 1.00 $";
     /** logger */
-    private static final transient Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final transient Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     /**
      * this method return default properties
@@ -43,7 +41,7 @@ public class Word2Vec implements AutoCloseable {
     public static Properties getDefaultProperties() {
 
         Properties properties = new Properties();
-        properties.put("path.2.word2vec.file", "..\\word2vec.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_WORD_2_VEC_FILE, "..\\word2vec.bin");
         return properties;
 
     }
@@ -68,6 +66,7 @@ public class Word2Vec implements AutoCloseable {
     }
 
     private org.deeplearning4j.models.word2vec.Word2Vec word2vec = null;
+    private String path2Word2VecFile = null;
 
     /**
      * Konstruktor.
@@ -77,10 +76,9 @@ public class Word2Vec implements AutoCloseable {
      */
     public Word2Vec(Properties properties) throws IOException {
         if (validateProperties(properties)) {
-            String path2File = (String)properties.get("path.2.word2vec.file");
-            File file = new File(path2File);
+            File file = new File(path2Word2VecFile);
             if (file.exists()) {
-                word2vec = WordVectorSerializer.readWord2VecModel(path2File);
+                word2vec = WordVectorSerializer.readWord2VecModel(path2Word2VecFile);
             }
         }
     }
@@ -150,20 +148,6 @@ public class Word2Vec implements AutoCloseable {
         throw new IOException("no model set");
     }
 
-
-    /**
-     * R&uuml;ckgabe der Klasseninformation.
-     * <p>
-     * Gibt den Klassennamen und die CVS Revisionsnummer zur&uuml;ck.
-     * <p>
-     *
-     * @return Klasseninformation
-     */
-    @Override
-    public String toString() {  //TODO can be removed altogether
-        return this.getClass().getName() + " " + VERSION;
-    }
-
     /**
      * this method train a model of a given text corpus
      *
@@ -204,22 +188,22 @@ public class Word2Vec implements AutoCloseable {
             word2vec.setSentenceIterator(sentenceIterator);
         }
         word2vec.fit();
-        logger.info("model trained");
+        LOGGER.info("model trained");
 
     }
 
     /**
-     * this method validate passing properties
+     * this method validate passing properties and set them
      *
      * @param properties
      * @return
      * @throws IOException
      */
-    private Boolean validateProperties(Properties properties) throws IOException {
+    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
 
-        String property = (String)properties.get("path.2.word2vec.file");
-        if (property == null) {
-            throw new IOException("set property --> path.2.word2vec.file as String");
+        path2Word2VecFile = properties.getProperty(ApplicationConfiguration.PATH_2_WORD_2_VEC_FILE);
+        if (path2Word2VecFile == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.PATH_2_WORD_2_VEC_FILE);
         }
         return true;
 

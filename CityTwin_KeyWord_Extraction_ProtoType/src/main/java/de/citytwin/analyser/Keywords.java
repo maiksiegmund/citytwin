@@ -12,8 +12,6 @@ import java.util.Map;
  * this interface provides methods for keyword extraction and filtering
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public interface Keywords {
 
@@ -25,7 +23,7 @@ public interface Keywords {
      * @return
      * @throws IOException
      */
-    public Map<String, Double> filterKeywords(Map<String, Double> keywords, Catalog<? extends CatalogEntryHasName> catalog) throws IOException;
+    public Map<String, Double> filterKeywords(Map<String, Double> keywords, Catalog<? extends CatalogEntryHasName> catalog) throws Exception;
 
     /**
      * this method extract keywords from a file

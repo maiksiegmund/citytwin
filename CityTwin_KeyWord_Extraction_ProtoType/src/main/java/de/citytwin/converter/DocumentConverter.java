@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.text.TextProcessing;
 
 import java.io.BufferedWriter;
@@ -35,12 +36,10 @@ import org.xml.sax.SAXException;
  * this class provides convert functions
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public class DocumentConverter implements AutoCloseable {
 
-    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     /**
      * this method return default properties
@@ -50,11 +49,11 @@ public class DocumentConverter implements AutoCloseable {
     public static Properties getDefaultProperties() {
 
         Properties properties = new Properties();
-        properties.put("maxNewLines", 5);
-        properties.put("cleaningPattern", "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
-        properties.put("minTermLenght", 2);
-        properties.put("minTermCount", 5);
-        properties.put("tableOfContentThershold", 50); //typo should be tableOfContentThreshhold?
+        properties.setProperty(ApplicationConfiguration.MAX_NEW_LINES, "5");
+        properties.setProperty(ApplicationConfiguration.CLEANING_PATTERN, "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
+        properties.setProperty(ApplicationConfiguration.MIN_TERM_LENGTH, "2");
+        properties.setProperty(ApplicationConfiguration.MIN_TERM_COUNT, "5");
+        properties.setProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT, "50");
         return properties;
     }
 
@@ -64,7 +63,7 @@ public class DocumentConverter implements AutoCloseable {
      * @param <T>
      * @param type
      * @param path
-     * @return
+     * @return T
      * @throws JsonParseException
      * @throws JsonMappingException
      * @throws IOException
@@ -74,29 +73,28 @@ public class DocumentConverter implements AutoCloseable {
         T results = null;
         try(InputStream inputStream = new FileInputStream(path);) {
             ObjectMapper mapper = new ObjectMapper();
-            // mapper.registerSubtypes(new NamedType(ALKIS.class, "de.citytwin.catalog.ALKIS"));
-            // mapper.registerSubtypes(new NamedType(Term.class, "de.citytwin.catalog.Term"));
             mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
             results = mapper.readValue(inputStream, type);
             return results;
-
         }
     }
 
     private BodyContentHandler bodyContentHandler = null;
     private AutoDetectParser autoDetectParser = null;
     private Metadata metadata = null;
-
     private ParseContext parseContext = null;
     private File parsedFile = null;
     private List<List<String>> textCorpus = null;
-
-    private Properties properties = null;
-
     private TextProcessing textProcessing = null;
 
+    private Integer maxNewLines = null;
+    private String cleaningPattern = null;
+    private Integer minTermLength = null;
+    private Integer minTermCount = null;
+    private Integer minTableOfContent = null;
+
     /**
-     * Konstruktor.
+     * constructor.
      *
      * @param properties {@code DocumentConverter.getDefaultProperties()}
      * @param textProcessing
@@ -104,8 +102,6 @@ public class DocumentConverter implements AutoCloseable {
      */
     public DocumentConverter(Properties properties, TextProcessing textProcessing) throws IOException {
         if (validateProperties(properties)) {
-            this.properties = new Properties(properties.size());
-            this.properties.putAll(properties);
             this.textProcessing = textProcessing;
         }
     }
@@ -152,16 +148,12 @@ public class DocumentConverter implements AutoCloseable {
     public List<List<String>> getCleanedTextCorpus(BodyContentHandler bodyContentHandler) throws IOException {
 
         textCorpus = new ArrayList<List<String>>();
-        Integer maxNewLines = (Integer)properties.get("maxNewLines");
-        String cleaningPattern = (String)properties.get("cleaningPattern");
-        Integer minTermLenght = (Integer)properties.get("minTermLenght");
-        Integer minTermCount = (Integer)properties.get("minTermCount");
-        Integer minTableOfContentThershold = (Integer)properties.get("minTableOfContentThershold");
         List<String> sentences = textProcessing.tokenize2Sencences(bodyContentHandler, maxNewLines);
         // tokenize sentence in each term
         for (String sentence : sentences) {
-            textCorpus.add(textProcessing.try2CleanSentence(sentence, cleaningPattern, minTermLenght, minTermCount, minTableOfContentThershold));
+            textCorpus.add(textProcessing.try2CleanSentence(sentence, cleaningPattern, minTermLength, minTermCount, minTableOfContent));
         }
+        LOGGER.info("text corpus cleaned");
         return textCorpus;
     }
 
@@ -276,10 +268,6 @@ public class DocumentConverter implements AutoCloseable {
     public List<List<String>> getTextCorpus(BodyContentHandler bodyContentHandler) throws IOException {
 
         textCorpus = new ArrayList<List<String>>();
-        Integer maxNewLines = (Integer)properties.get("maxNewLines");
-        if (maxNewLines == null) {
-            throw new IOException("set property --> maxNewLines as Integer");
-        }
         List<String> sentences = textProcessing.tokenize2Sencences(bodyContentHandler, maxNewLines);
         for (String sentence : sentences) {
             textCorpus.add(textProcessing.tokenize2Term(sentence));
@@ -328,63 +316,62 @@ public class DocumentConverter implements AutoCloseable {
     }
 
     /**
-     * This method convert a file to plain text. used apache tika
+     * This method convert a file to plain text
      *
      * @param file {@link File}
      * @return new reference of {@link BodyContentHandler}
      * @throws SAXException, TikaException, IOException, Exception
      */
     private BodyContentHandler setTikaComponents(final File file) throws SAXException, TikaException, IOException, Exception {
-        FileInputStream fileInputStream = null;
-        InputStream stream = null;
-        try {
+
+        try(FileInputStream fileInputStream = new FileInputStream(file)) {
             this.bodyContentHandler = new BodyContentHandler(Integer.MAX_VALUE);
             this.autoDetectParser = new AutoDetectParser();
             this.metadata = new Metadata();
             this.parseContext = prepareParserContext(file);
-            fileInputStream = new FileInputStream(file);
-            stream = fileInputStream;
-            logger.info(MessageFormat.format("parse file: {0}", file.getAbsoluteFile()));
-            autoDetectParser.parse(stream, bodyContentHandler, metadata, parseContext);
-            stream.close();
-            fileInputStream.close();
+            autoDetectParser.parse(fileInputStream, bodyContentHandler, metadata, parseContext);
+            LOGGER.info(MessageFormat.format("file --> {0} --> parsed", file.getAbsoluteFile()));
             return bodyContentHandler;
-        } finally {
-            fileInputStream.close();
-            stream.close();
         }
 
     }
 
     /**
-     * this method validate passing properties
+     * this method validate passing properties and set them
      *
      * @param properties
      * @return
-     * @throws IOException
+     * @throws IllegalArgumentException
      */
-    private Boolean validateProperties(Properties properties) throws IOException {
+    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
 
-        Integer value = (Integer)properties.get("maxNewLines");
-        if (value == null) {
-            throw new IOException("set property --> maxNewLines as Integer");
+        String property = properties.getProperty(ApplicationConfiguration.MAX_NEW_LINES);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_NEW_LINES);
         }
-        String string = (String)properties.get("cleaningPattern");
-        if (string == null) {
-            throw new IOException("set property --> cleaningPattern as String");
+        maxNewLines = Integer.parseInt(property);
+        cleaningPattern = properties.getProperty(ApplicationConfiguration.CLEANING_PATTERN);
+        if (cleaningPattern == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.CLEANING_PATTERN);
         }
-        value = (Integer)properties.get("minTermLenght");
-        if (value == null) {
-            throw new IOException("set property --> minTermLenght as Integer");
+        property = properties.getProperty(ApplicationConfiguration.MIN_TERM_LENGTH);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_LENGTH);
         }
-        Integer minTermCount = (Integer)properties.get("minTermCount");
-        if (minTermCount == null) {
-            throw new IOException("set property --> minTermCount as Integer");
+        minTermLength = Integer.parseInt(property);
+
+        property = properties.getProperty(ApplicationConfiguration.MIN_TERM_COUNT);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_COUNT);
         }
-        Integer minTableOfContentThershold = (Integer)properties.get("minTableOfContentThershold");
-        if (minTableOfContentThershold == null) {
-            throw new IOException("set property --> tableOfContendThershold as Integer");
+        minTermCount = Integer.parseInt(property);
+
+        property = properties.getProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
         }
+        minTableOfContent = Integer.parseInt(property);
+
         return true;
     }
 

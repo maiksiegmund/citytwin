@@ -5,6 +5,11 @@ import de.citytwin.namedentities.NamedEntitiesExtractor;
 import java.io.File;
 import java.util.Set;
 
+/**
+ * this interface provides methods for named entities extraction
+ *
+ * @author Maik Siegmund, FH Erfurt
+ */
 public interface NamedEntities {
 
     /**

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
+import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
 
 import java.io.IOException;
@@ -17,11 +18,11 @@ import java.util.Set;
  * this class is a subject specific catalog
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  * @param <T>
  */
 public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
+
+    private static final String classSimpleName = "Term";
 
     /**
      * this method return default properties
@@ -32,14 +33,20 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
      */
     public static <T> Properties getDefaultProperties(Class<?> clazz) {
         Properties properties = new Properties();
-        properties.put("path.2." + clazz.getSimpleName() + ".catalog.file", "..\\t_catalog.json");
+        // hard coded
+        if (clazz.getSimpleName().equals(classSimpleName)) {
+            properties.put(ApplicationConfiguration.PATH_2_Term_CATALOG_FILE, "..\\Term_catalog.json");
+
+        } else {
+            properties.put(ApplicationConfiguration.PATH_2_ALKIS_CATALOG_FILE, "..\\ALKIS_catalog.json");
+
+        }
         return properties;
     }
 
-    private Properties properties = null;
     private Map<String, T> catalog = null;
-
-    private String className = "";
+    private String path2catalogFile = null;
+    private Class<T> clazz = null;
 
     /**
      * constructor.
@@ -49,10 +56,8 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
      * @throws IOException
      */
     public Catalog(Properties properties, Class<T> clazz) throws IOException {
-        className = clazz.getSimpleName();
+        this.clazz = clazz;
         if (validateProperties(properties)) {
-            this.properties = new Properties();
-            this.properties.putAll(properties);
             initialize();
 
         }
@@ -61,8 +66,6 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        properties.clear();
-        properties = null;
         catalog.clear();
         catalog = null;
 
@@ -106,9 +109,7 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
      * @throws IOException
      */
     private void initialize() throws JsonParseException, JsonMappingException, IOException {
-        String path = (String)properties.get("path.2." + className + ".catalog.file");
-        List<T> temps = DocumentConverter.getObjects(new TypeReference<List<T>>() {}, path);
-
+        List<T> temps = DocumentConverter.getObjects(new TypeReference<List<T>>() {}, path2catalogFile);
         catalog = new HashMap<String, T>();
         for (T t : temps) {
             catalog.put(t.getName(), t);
@@ -116,17 +117,20 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
     }
 
     /**
-     * this method validate the passing properties
+     * this method validate the passing properties and set them
      *
      * @param properties
      * @return
      * @throws IOException
      */
-    private Boolean validateProperties(Properties properties) throws IOException {
-
-        String property = (String)properties.get("path.2." + className + ".catalog.file");
-        if (property == null) {
-            throw new IOException("set property --> path.2.catalog.file as String");
+    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+        // hard coded type information
+        String property = (clazz.getSimpleName().equals(classSimpleName)) ? ApplicationConfiguration.PATH_2_Term_CATALOG_FILE
+                : ApplicationConfiguration.PATH_2_ALKIS_CATALOG_FILE;
+        path2catalogFile = properties.getProperty(property);
+        if (path2catalogFile == null) {
+            throw new IllegalArgumentException(
+                    "set property --> " + ApplicationConfiguration.PATH_2_Term_CATALOG_FILE + " or " + ApplicationConfiguration.PATH_2_ALKIS_CATALOG_FILE);
         }
         return true;
     }

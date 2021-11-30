@@ -2,6 +2,8 @@
 
 package de.citytwin.text;
 
+import de.citytwin.config.ApplicationConfiguration;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,12 +40,10 @@ import opennlp.tools.tokenize.TokenizerModel;
  * this class provides text processing methods
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public class TextProcessing implements AutoCloseable {
 
-    private static transient final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static transient final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     /**
      * this method create default properties
@@ -52,45 +52,43 @@ public class TextProcessing implements AutoCloseable {
      */
     public static Properties getDefaultProperties() {
         Properties properties = new Properties();
-        properties.put("path.2.sentence.detector.file", "..\\de-sent.bin");
-        properties.put("path.2.pos-tagger.file", "..\\de-posperceptron.bin");
-        properties.put("path.2.sentence.tokenizer.file", "..\\de-token.bin");
-        properties.put("path.2.stopword.file", "..\\de-stopswords.txt");
-        properties.put("path.2.postag.file", "..\\de-postags.txt");
-        properties.put("cleaningPattern", "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
-        properties.put("minTermLenght", 2);
-        properties.put("minTermCount", 5);
-        properties.put("minTableOfContentThershold", 50);
-
+        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "..\\de-sent.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "..\\de-posperceptron.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "..\\de-token.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "..\\de-stopswords.txt");
+        properties.setProperty(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "..\\de-postags.txt");
+        properties.setProperty(ApplicationConfiguration.CLEANING_PATTERN, "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
+        properties.setProperty(ApplicationConfiguration.MIN_TERM_LENGTH, "2");
+        properties.setProperty(ApplicationConfiguration.MIN_TERM_COUNT, "5");
+        properties.setProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT, "50");
         return properties;
     }
 
     private boolean isInitialzied = false;
-    private final String VERSION = "$Revision: 1.00 $";
     private POSTaggerME posTagger = null;
     private SentenceDetectorME sentenceDetector = null;
     private Set<String> stopwords = new HashSet<String>();
     private Set<String> posTags = new HashSet<String>();
     private Tokenizer tokenizer = null;
     private SnowballStemmer snowballStemmer = null;
-
-    private Properties properties = null;
+    private String path2SentenceDetectorFile = null;
+    private String path2PosTaggerFile = null;
+    private String path2SentenceTokenizerFile = null;
+    private String path2StopwordsFile = null;
+    private String path2PosTagsFile = null;
 
     /**
-     * parameter Constructor
+     * Constructor.
      *
-     * @param properties = {@code TextProcessing.getDefaultProperties()}
+     * @param properties {@code TextProcessing.getDefaultProperties()}
      * @throws IOException
      */
     public TextProcessing(Properties properties) throws IOException {
 
         if (validateProperties(properties)) {
-            this.properties = new Properties(properties.size());
-            this.properties.putAll(properties);
             if (!isInitialzied) {
                 initialize();
             }
-
         }
 
     }
@@ -100,8 +98,6 @@ public class TextProcessing implements AutoCloseable {
         this.posTagger = null;
         this.posTags.clear();
         this.posTags = null;
-        this.properties.clear();
-        this.properties = null;
         this.sentenceDetector = null;
         this.snowballStemmer = null;
         this.stopwords.clear();
@@ -172,7 +168,7 @@ public class TextProcessing implements AutoCloseable {
                 results.add(pair.getLeft());
             }
         }
-        logger.info("filter by pos tags completed. (terms keeping)");
+        LOGGER.info("filter by pos tags completed. (terms keeping)");
         return results;
     }
 
@@ -192,7 +188,7 @@ public class TextProcessing implements AutoCloseable {
                 results.add(term);
             }
         }
-        logger.info("filter by stopwords completed. (terms removal)");
+        LOGGER.info("filter by stopwords completed. (terms removal)");
         return results;
 
     }
@@ -225,7 +221,7 @@ public class TextProcessing implements AutoCloseable {
             Pair<String, String> pair = Pair.of(term, tags[tagIndex++]);
             results.add(pair);
         }
-        logger.info("pos tagging completed.");
+        LOGGER.info("pos tagging completed.");
         return results;
     }
 
@@ -243,23 +239,18 @@ public class TextProcessing implements AutoCloseable {
      */
     private void initialize() throws IOException {
 
-        String property = "";
-        property = properties.getProperty("path.2.sentence.detector.file");
-        try(InputStream inputStream = new FileInputStream(property);) {
+        try(InputStream inputStream = new FileInputStream(path2SentenceDetectorFile);) {
             SentenceModel sentenceModel = new SentenceModel(inputStream);
             sentenceDetector = new SentenceDetectorME(sentenceModel);
         }
-        property = properties.getProperty("path.2.pos-tagger.file");
-        try(InputStream inputStream = new FileInputStream(property);) {
+        try(InputStream inputStream = new FileInputStream(path2PosTaggerFile);) {
             posTagger = new POSTaggerME(new POSModel(inputStream));
         }
-        property = properties.getProperty("path.2.sentence.tokenizer.file");
-        try(InputStream inputStream = new FileInputStream(property);) {
+        try(InputStream inputStream = new FileInputStream(path2SentenceTokenizerFile);) {
             TokenizerModel tokenizerModel = new TokenizerModel(inputStream);
             tokenizer = new TokenizerME(tokenizerModel);
         }
-        property = properties.getProperty("path.2.stopword.file");
-        try(InputStream inputStream = new FileInputStream(property);
+        try(InputStream inputStream = new FileInputStream(path2StopwordsFile);
                 Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");) {
             while (scanner.hasNext()) {
                 String stopword = scanner.next();
@@ -268,8 +259,7 @@ public class TextProcessing implements AutoCloseable {
                 }
             }
         }
-        property = properties.getProperty("path.2.postag.file");
-        try(InputStream inputStream = new FileInputStream(property);
+        try(InputStream inputStream = new FileInputStream(path2PosTagsFile);
                 Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");) {
             while (scanner.hasNext()) {
                 String posTag = scanner.next();
@@ -289,7 +279,7 @@ public class TextProcessing implements AutoCloseable {
      * @param sentence
      * @return {@code int} in percent
      */
-    public int probabilityIsSentenceTabelofContent(final String sentence) {
+    public int probabilityOfSentenceTabelofContent(final String sentence) {
 
         int countDots = this.countChar(sentence, '.');
         int countDigits = this.countDigits(sentence);
@@ -344,7 +334,7 @@ public class TextProcessing implements AutoCloseable {
                 results.add(temp);
             }
         }
-        logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
+        LOGGER.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
         return results;
     }
 
@@ -360,7 +350,7 @@ public class TextProcessing implements AutoCloseable {
         for (String sentence : sentences) {
             results.add(sentence);
         }
-        logger.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
+        LOGGER.info(MessageFormat.format("textcorpus contains {0} sentences.", results.size()));
         return results;
     }
 
@@ -376,7 +366,7 @@ public class TextProcessing implements AutoCloseable {
         for (String term : tokenizer.tokenize(sentence)) {
             results.add(term);
         }
-        logger.info(MessageFormat.format("tokenize completed, sentence contains {0} terms", results.size()));
+        LOGGER.info(MessageFormat.format("tokenize completed, sentence contains {0} terms", results.size()));
         return results;
     }
 
@@ -400,21 +390,8 @@ public class TextProcessing implements AutoCloseable {
             }
 
         }
-        logger.info(MessageFormat.format("tokenize completed, sentence contains {0} terms", results.size()));
+        LOGGER.info(MessageFormat.format("tokenize completed, sentence contains {0} terms", results.size()));
         return results;
-    }
-
-    /**
-     * R&uuml;ckgabe der Klasseninformation.
-     * <p>
-     * Gibt den Klassennamen und die CVS Revisionsnummer zur&uuml;ck.
-     * <p>
-     *
-     * @return Klasseninformation
-     */
-    @Override
-    public String toString() {
-        return this.getClass().getName() + " " + VERSION;
     }
 
     /**
@@ -422,23 +399,23 @@ public class TextProcessing implements AutoCloseable {
      *
      * @param sentence
      * @param cleaningPattern
-     * @param minTermLenght
+     * @param minTermLength
      * @param minTermCount
-     * @param minTableOfContentThershold
+     * @param minTableOfContent
      * @return new refernece of {@code List <String>}
      * @throws IOException
      */
-    public List<String> try2CleanSentence(String sentence, String cleaningPattern, int minTermLenght, int minTermCount, int minTableOfContentThershold)
+    public List<String> try2CleanSentence(String sentence, String cleaningPattern, int minTermLength, int minTermCount, int minTableOfContent)
             throws IOException {
 
         List<String> results = new ArrayList<String>();
-        List<String> terms = tokenize2Term(sentence, cleaningPattern, minTermLenght);
+        List<String> terms = tokenize2Term(sentence, cleaningPattern, minTermLength);
 
         if (terms.size() <= minTermCount) {
             return results;
 
         }
-        if (probabilityIsSentenceTabelofContent(sentence) >= minTableOfContentThershold) {
+        if (probabilityOfSentenceTabelofContent(sentence) >= minTableOfContent) {
             return results;
         }
         for (String term : terms) {
@@ -472,43 +449,54 @@ public class TextProcessing implements AutoCloseable {
         return term;
     }
 
-    private Boolean validateProperties(Properties properties) throws IOException {
-        String property = (String)properties.get("path.2.sentence.detector.file");
-        if (property == null) {
-            throw new IOException("set property --> path.2.sentence.detector.file as String");
+    /**
+     * this method validate passing properties and set them
+     *
+     * @param properties
+     * @return
+     * @throws IllegalArgumentException
+     */
+    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+
+        path2SentenceDetectorFile = properties.getProperty(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE);
+        if (path2SentenceDetectorFile == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE);
         }
-        property = (String)properties.get("path.2.pos-tagger.file");
-        if (property == null) {
-            throw new IOException("set property --> path.2.pos-tagger.file as String");
+        path2PosTaggerFile = properties.getProperty(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE);
+        if (path2PosTaggerFile == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.PATH_2_POS_TAGGER_FILE);
         }
-        property = (String)properties.get("path.2.sentence.tokenizer.file");
-        if (property == null) {
-            throw new IOException("set property --> path.2.sentence.tokenizer.file as String");
+        path2SentenceTokenizerFile = properties.getProperty(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE);
+        if (path2SentenceTokenizerFile == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE);
         }
-        property = (String)properties.get("path.2.stopwords.file");
-        if (stopwords == null) {
-            throw new IOException("set property --> path.2.stopword.file as String");
+        path2StopwordsFile = properties.getProperty(ApplicationConfiguration.PATH_2_STOPWORDS_FILE);
+        if (path2StopwordsFile == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.PATH_2_STOPWORDS_FILE);
         }
-        property = (String)properties.get("path.2.postag.file");
-        if (stopwords == null) {
-            throw new IOException("set property --> path.2.postag.file as String");
+        path2PosTagsFile = properties.getProperty(ApplicationConfiguration.PATH_2_POSTAGS_FILE);
+        if (path2PosTagsFile == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.PATH_2_POSTAGS_FILE);
         }
-        property = (String)properties.get("cleaningPattern");
-        if (stopwords == null) {
-            throw new IOException("set property --> cleaningPattern as String");
-        }
-        Integer value = (Integer)properties.get("minTermLenght");
-        if (value == null) {
-            throw new IOException("set property --> minTermLenght as Integer");
-        }
-        value = (Integer)properties.get("minTermCount");
-        if (value == null) {
-            throw new IOException("set property --> minTermCount as Integer");
-        }
-        value = (Integer)properties.get("minTableOfContentThershold");
-        if (value == null) {
-            throw new IOException("set property --> minTableOfContentThershold as Integer");
-        }
+        // cleaningPattern = properties.getProperty(ApplicationConfiguration.CLEANING_PATTERN);
+        // if (cleaningPattern == null) {
+        // throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.CLEANING_PATTERN);
+        // }
+        // String property = properties.getProperty(ApplicationConfiguration.MIN_TERM_LENGTH);
+        // if (property == null) {
+        // throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_LENGTH);
+        // }
+        // minTermLength = Integer.parseInt(property);
+        // property = properties.getProperty(ApplicationConfiguration.MIN_TERM_COUNT);
+        // if (property == null) {
+        // throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_COUNT);
+        // }
+        // minTermCount = Integer.parseInt(property);
+        // property = properties.getProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
+        // if (property == null) {
+        // throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
+        // }
+        // minTableOfContent = Integer.parseInt(property);
 
         return true;
     }

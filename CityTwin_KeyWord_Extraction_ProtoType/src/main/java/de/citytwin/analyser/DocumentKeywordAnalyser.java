@@ -3,12 +3,14 @@ package de.citytwin.analyser;
 import de.citytwin.algorithm.word2vec.Word2Vec;
 import de.citytwin.catalog.Catalog;
 import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
 import de.citytwin.keywords.KeywordExtractor;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,30 +24,26 @@ import org.slf4j.LoggerFactory;
  * this class provides methods to analyse a file
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
 
-    /** Aktuelle Versionsinformation */
-    private static final String VERSION = "$Revision: 1.00 $";
     /** Klassenspezifischer, aktueller Logger (Server: org.apache.log4j.Logger; Client: java.util.logging.Logger) */
-    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static Properties getDefaultProperties() {
         Properties properties = new Properties();
-        properties.put("similarity", 66);
-        properties.put("maxNearest", 10);
+        properties.setProperty(ApplicationConfiguration.SIMILARITY, "66");
+        properties.setProperty(ApplicationConfiguration.MAX_NEAREST, "10");
         return properties;
     }
 
-    private Properties properties = null;
     private DocumentConverter documentConverter = null;
-
     private Word2Vec word2vec = null;
+    private Double similarity = null;
+    private Integer maxNearest = null;
 
     /**
-     * Konstruktor.
+     * constructor.
      *
      * @param properties = {@code DocumentKeywordAnalyser.getDefaultProperties()}
      * @param documentConverter
@@ -54,8 +52,6 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
      */
     public DocumentKeywordAnalyser(Properties properties, DocumentConverter documentConverter, Word2Vec word2vec) throws IOException {
         if (validateProperties(properties)) {
-            this.properties = new Properties();
-            this.properties.putAll(properties);
             this.documentConverter = documentConverter;
             this.word2vec = word2vec;
         }
@@ -63,7 +59,6 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        properties = null;
         documentConverter = null;
         word2vec = null;
     }
@@ -73,7 +68,6 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
 
         Map<String, Double> filteredKeywords = new HashMap<String, Double>();
         double currentSimilarity = 0.0f;
-        Double similarity = (Integer)properties.get("similarity") / 100.0d;
 
         for (String keyword : keywords.keySet()) {
             for (String name : catalog.getNames()) {
@@ -87,6 +81,17 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
             }
 
         }
+
+        LOGGER.info(MessageFormat.format(
+                "keywords removed: {0} \n" +
+                        "similarity:       {1} \n" +
+                        "origin contains:  {2} \n" +
+                        "remain contains:  {3}",
+                keywords.size() - filteredKeywords.size(),
+                similarity,
+                keywords.size(),
+                filteredKeywords.size()));
+
         return filteredKeywords;
 
     }
@@ -107,7 +112,6 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
      */
     public Map<String, List<String>> getNearestTo(List<String> keywords) throws IOException {
 
-        Integer maxNearest = (Integer)properties.get("maxNearest");
         Map<String, List<String>> result = new HashMap<String, List<String>>(keywords.size());
         for (String keyword : keywords) {
             List<String> nearestWords = word2vec.wordsNearest(keyword, maxNearest);
@@ -119,34 +123,23 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     }
 
     /**
-     * R&uuml;ckgabe der Klasseninformation.
-     * <p>
-     * Gibt den Klassennamen und die CVS Revisionsnummer zur&uuml;ck.
-     * <p>
-     *
-     * @return Klasseninformation
-     */
-    @Override
-    public String toString() {
-        return this.getClass().getName() + " " + VERSION;
-    }
-
-    /**
-     * this method validate passing properties
+     * this method validate passing properties and set them
      *
      * @param properties
      * @return
      * @throws IOException
      */
-    private Boolean validateProperties(Properties properties) throws IOException {
-        Integer value = (Integer)properties.get("similarity");
-        if (value == null) {
-            throw new IOException("set property --> normalization as Integer");
+    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+        String property = properties.getProperty(ApplicationConfiguration.SIMILARITY);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.SIMILARITY);
         }
-        value = (Integer)properties.get("maxNearest");
-        if (value == null) {
-            throw new IOException("set property --> maxNearest as Integer");
+        similarity = Double.parseDouble(property) / 100.0d;
+        property = properties.getProperty(ApplicationConfiguration.MAX_NEAREST);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_NEAREST);
         }
+        maxNearest = Integer.parseInt(property);
         return true;
     }
 

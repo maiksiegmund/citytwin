@@ -1,5 +1,6 @@
 package de.citytwin.algorithm.keywords;
 
+import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.keywords.KeywordExtractor;
 import de.citytwin.text.TextProcessing;
 
@@ -31,12 +32,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * this class is a keyword extrator by textRank <br>
+ * this class is a keyword extractor by textRank <br>
  *
  * @see <a href=https://web.eecs.umich.edu/~mihalcea/papers/mihalcea.emnlp04.pdf> textRank Paper</a>
  * @author maik siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable {
 
@@ -44,8 +43,6 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
      * This inner class represent textrank matrix contains a graph and this adjazenz matrix
      *
      * @author maik siegmund, FH Erfurt
-     * @version $Revision: 1.0 $
-     * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
      */
     public class TextRankMatrix implements AutoCloseable {
 
@@ -70,7 +67,7 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
         private boolean withNormalize = false;
 
         /**
-         * Konstruktor.
+         * constructor.
          *
          * @param graph
          * @param withNormalize
@@ -219,8 +216,8 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
 
     public final static String IN = "in";
     public final static String OUT = "out";
-    private static transient final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private static final String VERSION = "$Revision: 1.00 $"; //can be removed safely
+
+    private static transient final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final double DEFAULT_EDGE_WEIGHT = 1.0d;
     private static final double D = 0.85d;
 
@@ -231,23 +228,23 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
      */
     public static Properties getDefaultProperties() {
         Properties properties = new Properties();
-        properties.put("minTermCount", 5);
-        properties.put("wordWindowsSize", 5);
-        properties.put("iteration", 10);
-        properties.put("withVectorNormalization", true);
-
+        properties.setProperty(ApplicationConfiguration.MIN_TERM_COUNT, "5");
+        properties.setProperty(ApplicationConfiguration.WORD_WINDOW_SIZE, "5");
+        properties.setProperty(ApplicationConfiguration.ITERATION, "10");
+        properties.setProperty(ApplicationConfiguration.WITH_VECTOR_NORMALIZATION, "true");
         return properties;
     }
 
     private Graph<String, DefaultWeightedEdge> graph = null;
     private TextRankMatrix textRankMatrix = null;
-
     private TextProcessing textProcessing = null;
-
-    private Properties properties = null;
+    private Integer minTermCount = null;
+    private Integer wordWindowSize = null;
+    private Integer iteration = null;
+    private Boolean withVectorNormalization = null;
 
     /**
-     * Konstruktor.
+     * constructor.
      *
      * @param properties = {@code TextRankKeywordExtractor.getDefaultProperties()}
      * @param textProcessing
@@ -256,8 +253,6 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
     public TextRankKeywordExtractor(Properties properties, TextProcessing textProcessing) throws IOException {
 
         if (validateProperties(properties)) {
-            this.properties = new Properties(properties);
-            this.properties.putAll(properties);
             this.textProcessing = textProcessing;
         }
 
@@ -308,8 +303,7 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
             }
             slidingWordIndex = 0;
         }
-
-        logger.info(MessageFormat.format("graph completed contains {0} nodes.", result.vertexSet().size()));
+        LOGGER.info(MessageFormat.format("graph completed contains {0} nodes.", result.vertexSet().size()));
         return result;
     }
 
@@ -342,13 +336,13 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
             }
             // avoid number overflow
             columnVector = (withVectorNormalization) ? textRankMatrix.normVector(tempVector) : tempVector.clone();
-            logger.info(MessageFormat.format("iteration {0} of {1}.", currentInteration, iteration));
+            LOGGER.info(MessageFormat.format("iteration {0} of {1}.", currentInteration, iteration));
         }
         index = 0;
         for (String key : textRankMatrix.values.keySet()) {
             results.put(key, columnVector[index++]);
         }
-        logger.info("score calculation completed.");
+        LOGGER.info("score calculation completed.");
         return results;
     }
 
@@ -361,13 +355,8 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
     @Override
     public Map<String, Double> getKeywords(List<List<String>> textcorpus) throws Exception {
 
-        Integer minTermCount = (Integer)properties.get("minTermCount");
-        Integer wordWindowsSize = (Integer)properties.get("wordWindowsSize");
-        Integer iteration = (Integer)properties.get("iteration");
-        Boolean withVectorNormalization = (Boolean)properties.get("withVectorNormalization");
-
         List<List<String>> preparedTextCorpus = prepareText(textcorpus, minTermCount);
-        graph = buildGraph(preparedTextCorpus, wordWindowsSize);
+        graph = buildGraph(preparedTextCorpus, wordWindowSize);
         Map<String, Double> scores = calculateScore(D, iteration, withVectorNormalization);
 
         Map<String, Double> sortedMap = scores.entrySet()
@@ -376,6 +365,7 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (left, right) -> {
                     throw new AssertionError();
                 }, LinkedHashMap::new));
+        LOGGER.info(MessageFormat.format("keywords found:   {0}", sortedMap.size()));
         return sortedMap;
     }
 
@@ -419,6 +409,7 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
             links.put(TextRankKeywordExtractor.OUT, outbounds);
             result.put(entry.getKey(), links);
         }
+        LOGGER.info("get linked terms completed");
         return result;
     }
 
@@ -547,9 +538,8 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
      * @param sentences
      * @param minTermCount
      * @return
-     * @throws IOException
      */
-    private List<List<String>> prepareText(final List<List<String>> sentences, int minTermCount) throws IOException {
+    private List<List<String>> prepareText(final List<List<String>> sentences, int minTermCount) {
 
         List<List<String>> results = new ArrayList<List<String>>();
         List<String> filteredSentences = null;
@@ -564,50 +554,44 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
             }
 
         }
-        logger.info(MessageFormat.format("text corpus transformation completed contains {0} sentences ", results.size()));
+        LOGGER.info(MessageFormat.format("text corpus transformation completed contains {0} sentences ", results.size()));
         return results;
 
     }
 
     /**
-     * R&uuml;ckgabe der Klasseninformation.
-     * <p>
-     * Gibt den Klassennamen und die CVS Revisionsnummer zur&uuml;ck.
-     * <p>
-     *
-     * @return Klasseninformation
-     */
-    @Override
-    public String toString() {
-        return this.getClass().getName() + " " + VERSION;
-    }
-
-    /**
-     * this method validate passing properties
+     * this method validate passing properties and set them
      *
      * @param properties
      * @return
-     * @throws IOException
+     * @throws IllegalArgumentException
      */
-    private Boolean validateProperties(Properties properties) throws IOException {
+    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
 
-        Integer minTermCount = (Integer)properties.get("minTermCount");
-        if (minTermCount == null) {
-            throw new IOException("set property --> minTermCount as Integer");
+        String property = null;
+        property = properties.getProperty(ApplicationConfiguration.MIN_TERM_COUNT);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_COUNT);
         }
-        Integer wordWindowsSize = (Integer)properties.get("wordWindowsSize");
-        if (wordWindowsSize == null) {
-            throw new IOException("set property --> wordWindowsSize as Integer");
-        }
-        Integer iteration = (Integer)properties.get("iteration");
-        if (iteration == null) {
-            throw new IOException("set property --> iteration as Integer");
-        }
-        Boolean value = (Boolean)properties.get("withVectorNormalization");
-        if (value == null) {
-            throw new IOException("set property --> withVectorNormalization as Boolean");
-        }
+        minTermCount = Integer.parseInt(property);
 
+        property = properties.getProperty(ApplicationConfiguration.WORD_WINDOW_SIZE);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.WORD_WINDOW_SIZE);
+        }
+        wordWindowSize = Integer.parseInt(property);
+
+        property = properties.getProperty(ApplicationConfiguration.ITERATION);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.ITERATION);
+        }
+        iteration = Integer.parseInt(property);
+
+        property = properties.getProperty(ApplicationConfiguration.WITH_VECTOR_NORMALIZATION);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.WITH_VECTOR_NORMALIZATION);
+        }
+        withVectorNormalization = Boolean.parseBoolean(property);
         return true;
     }
 }

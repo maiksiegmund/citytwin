@@ -4,8 +4,6 @@ package de.citytwin.catalog;
  * this class present a simple data object
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 public class ALKIS implements CatalogEntryHasName {
 
@@ -15,7 +13,7 @@ public class ALKIS implements CatalogEntryHasName {
     private String type;
 
     /**
-     * Konstruktor.
+     * constructor.
      */
     public ALKIS() {
         this.name = "";
