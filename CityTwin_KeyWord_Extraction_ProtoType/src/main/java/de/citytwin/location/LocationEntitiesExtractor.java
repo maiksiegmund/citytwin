@@ -1,4 +1,4 @@
-package de.citytwin.algorithm;
+package de.citytwin.location;
 
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.namedentities.NamedEntitiesExtractor;
@@ -123,4 +123,7 @@ public class LocationEntitiesExtractor implements NamedEntitiesExtractor, AutoCl
         minProbability = Double.parseDouble(property);
         return true;
     }
+
+
+
 }

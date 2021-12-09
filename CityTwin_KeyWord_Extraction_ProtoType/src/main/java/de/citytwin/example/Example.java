@@ -2,21 +2,21 @@ package de.citytwin.example;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
-import de.citytwin.algorithm.LocationEntitiesExtractor;
 import de.citytwin.algorithm.keywords.TFIDFKeywordExtractor;
 import de.citytwin.algorithm.keywords.TextRankKeywordExtractor;
 import de.citytwin.algorithm.word2vec.Word2Vec;
 import de.citytwin.analyser.DocumentKeywordAnalyser;
-import de.citytwin.analyser.DocumentNameFinderAnalyser;
-import de.citytwin.catalog.ALKIS;
+import de.citytwin.analyser.DocumentLocationAnalyser;
 import de.citytwin.catalog.Catalog;
 import de.citytwin.catalog.CatalogEntryHasName;
-import de.citytwin.catalog.Term;
-import de.citytwin.catalog.WikiArticle;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
-import de.citytwin.database.DBController;
+import de.citytwin.database.Neo4JController;
 import de.citytwin.keywords.KeywordExtractor;
+import de.citytwin.location.LocationEntitiesExtractor;
+import de.citytwin.model.ALKIS;
+import de.citytwin.model.Term;
+import de.citytwin.model.WikiArticle;
 import de.citytwin.text.TextProcessing;
 
 import java.io.File;
@@ -157,7 +157,7 @@ public class Example {
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
                 DocumentKeywordAnalyser documentKeywordAnalyser = new DocumentKeywordAnalyser(properties, documentConverter, word2Vec);
-                DBController dbController = new DBController(properties)) {
+                Neo4JController dbController = new Neo4JController(properties)) {
 
             Map<String, Double> keywords = new HashMap<String, Double>();
 
@@ -254,7 +254,7 @@ public class Example {
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
-                DocumentNameFinderAnalyser documentNameFinderAnalyser = new DocumentNameFinderAnalyser(documentConverter);
+                DocumentLocationAnalyser documentNameFinderAnalyser = new DocumentLocationAnalyser(properties, documentConverter);
                 LocationEntitiesExtractor locationEntitiesExtractor = new LocationEntitiesExtractor(properties);) {
 
             File file = new File("D:\\VMS\\sharedFolder\\2_begruendung-9-11-ve.pdf");
@@ -402,7 +402,7 @@ public class Example {
         filteredkeywords.put("Lichtsignalanlage", 0.019d);
 
         try(
-                DBController dbController = new DBController(properties);
+                Neo4JController dbController = new Neo4JController(properties);
                 Catalog<Term> termCatalog = new Catalog<Term>(properties, Term.class);
                 Catalog<ALKIS> ALKSICatalog = new Catalog<ALKIS>(properties, ALKIS.class);)
 
@@ -475,9 +475,7 @@ public class Example {
             properties.setProperty(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\stopwords\\de-stopswords.txt");
             properties.setProperty(ApplicationConfiguration.PATH_2_Term_CATALOG_FILE, "D:\\VMS\\catalogs\\ct_terms_catalog.json");
             properties.setProperty(ApplicationConfiguration.PATH_2_WORD_2_VEC_FILE, "D:\\VMS\\trained_model\\word2vecnewTrained.bin");
-            properties.setProperty(ApplicationConfiguration.POSTGRESQL_PASSWORD, "C1tyTw1n!");
-            properties.setProperty(ApplicationConfiguration.POSTGRESQL_URI, "C1tyTw1n!");
-            properties.setProperty(ApplicationConfiguration.POSTGRESQL_USER, "C1tyTw1n!");
+            properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "D:\\VMS\\postgresql\\postgresql.properties");
             properties.setProperty(ApplicationConfiguration.RESULT_2_JSON, "false");
             properties.setProperty(ApplicationConfiguration.RESULT_2_NEO4J, "true");
             properties.setProperty(ApplicationConfiguration.RESULT_2_POSTGRESQL, "false");

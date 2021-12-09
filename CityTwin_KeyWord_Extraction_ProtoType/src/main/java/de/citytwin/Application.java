@@ -29,6 +29,7 @@ public class Application {
             /** set program argument -p documentInformationRetrieval.properties */
             // 2. Example.createPartOfCityGraph(args);
 
+
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);
         }

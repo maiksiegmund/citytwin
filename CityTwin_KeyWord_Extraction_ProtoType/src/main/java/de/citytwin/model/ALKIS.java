@@ -1,4 +1,6 @@
-package de.citytwin.catalog;
+package de.citytwin.model;
+
+import de.citytwin.catalog.CatalogEntryHasName;
 
 /**
  * this class present a simple data object

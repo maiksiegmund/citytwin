@@ -2,6 +2,10 @@ package de.citytwin.catalog;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
+
+import de.citytwin.model.ALKIS;
+import de.citytwin.model.Term;
+
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**

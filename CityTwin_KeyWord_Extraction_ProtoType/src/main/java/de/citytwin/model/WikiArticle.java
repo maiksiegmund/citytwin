@@ -1,4 +1,4 @@
-package de.citytwin.catalog;
+package de.citytwin.model;
 
 /**
  * this class present a simple wiki dump article

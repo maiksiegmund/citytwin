@@ -1,4 +1,6 @@
-package de.citytwin.catalog;
+package de.citytwin.model;
+
+import de.citytwin.catalog.CatalogEntryHasName;
 
 import java.util.ArrayList;
 import java.util.List;

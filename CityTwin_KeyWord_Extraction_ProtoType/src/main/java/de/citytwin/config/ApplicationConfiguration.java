@@ -69,14 +69,22 @@ public class ApplicationConfiguration {
     public static final String NEO4J_USER = "neo4j.user";
     public static final String NEO4J_PASSWORD = "neo4j.password";
 
-    public static final String POSTGRESQL_URI = "postgreSQL.uri";
-    public static final String POSTGRESQL_USER = "postgreSQL.user";
-    public static final String POSTGRESQL_PASSWORD = "postgreSQL.password";
+    public static final String POSTGRESQL_URL = "postgreSQL.url";
+    public static final String PATH_2_POSTGRESQL_PROPERTY_FILE = "path.2.postgreSQL.propertiy.file";
 
     /** result stored in neo4j, json, postgresql */
     public static final String RESULT_2_JSON = "result.2.json";
     public static final String RESULT_2_NEO4J = "result.2.neo4j";
+
     public static final String RESULT_2_POSTGRESQL = "result.2.postgreSQL";
+
+    public static final String GEONAMES_WEBSERVICE = "geonames.api";
+
+    public static final String GEONAMES_USER = "geonames.user";
+    public static final String GEONAMES_COUNTRYCODE = "geonames.CountryCode";
+    public static final String GEONAMES_MAXROWS = "geonames.maxrows";
+
+    public static final String MAX_DISTANCE = "maxDistance";
 
     /**
      * this methods return a properties with all keys, and empty (String) value

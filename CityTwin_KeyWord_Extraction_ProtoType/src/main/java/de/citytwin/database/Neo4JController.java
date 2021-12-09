@@ -2,10 +2,10 @@ package de.citytwin.database;
 
 import com.beust.jcommander.internal.Nullable;
 
-import de.citytwin.catalog.ALKIS;
 import de.citytwin.catalog.CatalogEntryHasName;
-import de.citytwin.catalog.Term;
 import de.citytwin.config.ApplicationConfiguration;
+import de.citytwin.model.ALKIS;
+import de.citytwin.model.Term;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -30,10 +30,8 @@ import org.slf4j.LoggerFactory;
  * this class provides funtion to create a graph on neo4j db (very simple)
  *
  * @author Maik Siegmund, FH Erfurt
- * @version $Revision: 1.0 $
- * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
-public class DBController implements AutoCloseable {
+public class Neo4JController implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -53,14 +51,14 @@ public class DBController implements AutoCloseable {
         properties.setProperty(ApplicationConfiguration.NEO4J_USER, "neo4j");
         properties.setProperty(ApplicationConfiguration.NEO4J_PASSWORD, "C1tyTw1n!");
         // optional properties
-        properties.setProperty(DBController.NODE_ALKIS, "ALKIS");
-        properties.setProperty(DBController.NODE_DOCUMENT, "Document");
-        properties.setProperty(DBController.NODE_KEYWORD, "Keyword");
-        properties.setProperty(DBController.NODE_ONTOLOGY, "Ontology");
-        properties.setProperty(DBController.NODE_TERM, "Term");
-        properties.setProperty(DBController.EDGE_AFFECT, "affect");
-        properties.setProperty(DBController.EDGE_BELONGSTO, "belongsTo");
-        properties.setProperty(DBController.EDGE_CONTAINS, "contains");
+        properties.setProperty(Neo4JController.NODE_ALKIS, "ALKIS");
+        properties.setProperty(Neo4JController.NODE_DOCUMENT, "Document");
+        properties.setProperty(Neo4JController.NODE_KEYWORD, "Keyword");
+        properties.setProperty(Neo4JController.NODE_ONTOLOGY, "Ontology");
+        properties.setProperty(Neo4JController.NODE_TERM, "Term");
+        properties.setProperty(Neo4JController.EDGE_AFFECT, "affect");
+        properties.setProperty(Neo4JController.EDGE_BELONGSTO, "belongsTo");
+        properties.setProperty(Neo4JController.EDGE_CONTAINS, "contains");
 
         return properties;
 
@@ -87,7 +85,7 @@ public class DBController implements AutoCloseable {
      * @param properties
      * @throws IOException
      */
-    public DBController(Properties properties) throws IOException {
+    public Neo4JController(Properties properties) throws IOException {
 
         if (validateProperties(properties)) {
             String uri = (String)properties.get(ApplicationConfiguration.NEO4J_URI);
@@ -603,14 +601,14 @@ public class DBController implements AutoCloseable {
      */
     private void setOptionalProperties(Properties properties) {
 
-        nodeALKIS = properties.getProperty(DBController.NODE_ALKIS, "ALKIS");
-        nodeDocument = properties.getProperty(DBController.NODE_DOCUMENT, "Document");
-        nodeKeyword = properties.getProperty(DBController.NODE_KEYWORD, "Keyword");
-        nodeOntology = properties.getProperty(DBController.NODE_ONTOLOGY, "Ontology");
-        nodeTerm = properties.getProperty(DBController.NODE_TERM, "Term");
-        edgeAffect = properties.getProperty(DBController.EDGE_AFFECT, "affect");
-        edgeBelongsTo = properties.getProperty(DBController.EDGE_BELONGSTO, "belongsTo");
-        edgeContains = properties.getProperty(DBController.EDGE_CONTAINS, "contains");
+        nodeALKIS = properties.getProperty(Neo4JController.NODE_ALKIS, "ALKIS");
+        nodeDocument = properties.getProperty(Neo4JController.NODE_DOCUMENT, "Document");
+        nodeKeyword = properties.getProperty(Neo4JController.NODE_KEYWORD, "Keyword");
+        nodeOntology = properties.getProperty(Neo4JController.NODE_ONTOLOGY, "Ontology");
+        nodeTerm = properties.getProperty(Neo4JController.NODE_TERM, "Term");
+        edgeAffect = properties.getProperty(Neo4JController.EDGE_AFFECT, "affect");
+        edgeBelongsTo = properties.getProperty(Neo4JController.EDGE_BELONGSTO, "belongsTo");
+        edgeContains = properties.getProperty(Neo4JController.EDGE_CONTAINS, "contains");
 
     }
 
