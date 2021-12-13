@@ -15,6 +15,7 @@ import de.citytwin.database.Neo4JController;
 import de.citytwin.keywords.KeywordExtractor;
 import de.citytwin.location.LocationEntitiesExtractor;
 import de.citytwin.model.ALKIS;
+import de.citytwin.model.Location;
 import de.citytwin.model.Term;
 import de.citytwin.model.WikiArticle;
 import de.citytwin.text.TextProcessing;
@@ -242,27 +243,44 @@ public class Example {
         properties.putAll(LocationEntitiesExtractor.getDefaultProperties());
 
         // properties.put("path.2.ner.location.file", "D:\\VMS\\trained_model\\de-ner-location_maxent.bin");
-        properties.put("path.2.ner.location.file", "D:\\VMS\\trained_model\\de-ner-location_naivebayes.bin");
+        properties.put(ApplicationConfiguration.PATH_2_NER_LOCATION_FILE, "D:\\VMS\\sharedFolder\\trained_model\\de-ner-location_naivebayes.bin");
 
-        properties.put("path.2.sentence.detector.file", "D:\\VMS\\trained_model\\de-sent.bin");
-        properties.put("path.2.pos-tagger.file", "D:\\VMS\\trained_model\\de-pos-maxent.bin");
-        properties.put("path.2.sentence.tokenizer.file", "D:\\VMS\\trained_model\\de-token.bin");
-        properties.put("path.2.stopword.file", "D:\\VMS\\trained_model\\de-stopswords.txt");
-        properties.put("path.2.postag.file", "D:\\VMS\\trained_model\\de-posTags.txt");
-        properties.put("minProbability", 0.95d);
+        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "D:\\VMS\\sharedFolder\\trained_model\\de-sent.bin");
+        properties.put(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "D:\\VMS\\sharedFolder\\trained_model\\de-pos-maxent.bin");
+        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "D:\\VMS\\sharedFolder\\trained_model\\de-token.bin");
+        properties.put(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\sharedFolder\\Stopwords\\de-stopswords.txt");
+        properties.put(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "D:\\VMS\\sharedFolder\\postags\\de-posTags.txt");
+
+        properties.setProperty(ApplicationConfiguration.GEONAMES_USER, "demo");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE, "api.geonames.org");
+        properties.setProperty(ApplicationConfiguration.MAX_DISTANCE, "1.0d");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "https://download.geonames.org/export/dump/DE.zip");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME, "Berlin");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
+
+        properties.setProperty(ApplicationConfiguration.MIN_PROBABILITY, "0.95d");
 
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
-                DocumentLocationAnalyser documentNameFinderAnalyser = new DocumentLocationAnalyser(properties, documentConverter);
+                DocumentLocationAnalyser documentLocationAnalyser = new DocumentLocationAnalyser(properties, documentConverter);
                 LocationEntitiesExtractor locationEntitiesExtractor = new LocationEntitiesExtractor(properties);) {
 
-            File file = new File("D:\\VMS\\sharedFolder\\2_begruendung-9-11-ve.pdf");
-            Set<String> locations = documentNameFinderAnalyser.getNamedEntities(file, locationEntitiesExtractor);
-            for (String location : locations) {
+            File file = new File("D:\\vms\\sharedFolder\\documents\\2_begruendung-9-11-ve.pdf");
+            Set<String> extractedLocations = documentLocationAnalyser.getNamedEntities(file, locationEntitiesExtractor);
+            List<Location> locations = documentLocationAnalyser.getLocationsBasedOnGeoNamesDump();
+
+            Set<Location> filteredLocations = documentLocationAnalyser.filterLocations(extractedLocations, locations);
+
+            for (Location location : filteredLocations) {
                 System.out.println(MessageFormat.format("location: {0}", location));
             }
-            System.out.println(MessageFormat.format("count: {0}", locations.size()));
+            System.out.println(MessageFormat.format("count         : {0}", extractedLocations.size()));
+            System.out.println(MessageFormat.format("count filtered: {0}", filteredLocations.size()));
 
         }
     }
@@ -296,7 +314,7 @@ public class Example {
      * this method prints information for usage
      */
     private static void help() {
-        System.out.println("-c --> path 2 properties file");
+        System.out.println("-p --> path 2 properties file");
         System.out.println("e.g (windows)");
         System.out.println("java -jar documentInformationRetrieval.jar -p documentInformationRetrieval.properties");
     }
@@ -484,6 +502,18 @@ public class Example {
             properties.setProperty(ApplicationConfiguration.WITH_STOPWORDFILTER, "true");
             properties.setProperty(ApplicationConfiguration.WITH_VECTOR_NORMALIZATION, "true");
             properties.setProperty(ApplicationConfiguration.WORD_WINDOW_SIZE, "5");
+
+            properties.setProperty(ApplicationConfiguration.GEONAMES_USER, "demo");
+            properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
+            properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
+            properties.setProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE, "api.geonames.org");
+            properties.setProperty(ApplicationConfiguration.MAX_DISTANCE, "1.0d");
+            properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "www.geonames.org/export/zip/DE.zip");
+            properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
+            properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME, "Berlin");
+            properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
+            properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
+
             properties.store(outputstream, "File Updated");
         }
     }

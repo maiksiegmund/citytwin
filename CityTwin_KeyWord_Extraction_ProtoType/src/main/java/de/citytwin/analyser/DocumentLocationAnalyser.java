@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -40,6 +41,21 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
     private Integer maxRows = null;
     private String geoNamesServer = null;
     private Double distance = null;
+    private String url2DumpFile = null;
+    private String zipEntry = null;
+
+    private String originName = null;
+    private Double originLatitude = null;
+    private Double originLongitude = null;
+    private Location originLocation = null;
+
+    public Location getOriginLocation() {
+        return originLocation;
+    }
+
+    public void setOriginLocation(Location originLocation) {
+        this.originLocation = originLocation;
+    }
 
     /**
      * constructor
@@ -47,6 +63,7 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
     public DocumentLocationAnalyser(final Properties properties, DocumentConverter documentConverter) {
         if (validateProperties(properties)) {
             this.documentConverter = documentConverter;
+            this.originLocation = new Location(originName, countryCode, originLatitude, originLongitude, new HashSet<String>());
         }
     }
 
@@ -63,6 +80,10 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
 
     }
 
+    public Set<Location> filterLocations(final Set<String> extractedLocations) throws Exception {
+        return filterLocations(extractedLocations, originLocation, distance);
+    }
+
     /**
      * this method filters founded locations by distance use web service
      *
@@ -72,7 +93,7 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
      * @return filtered
      * @throws Exception
      */
-    public Set<Location> filterLocations(final Set<String> extractedLocations, final Location origin) throws Exception {
+    public Set<Location> filterLocations(final Set<String> extractedLocations, final Location origin, double distance) throws Exception {
 
         Set<Location> filteredNamedEntities = new HashSet<Location>();
 
@@ -98,6 +119,10 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
         return filteredNamedEntities;
     }
 
+    public Set<Location> filterLocations(final Set<String> extractedLocations, final List<Location> locations) throws Exception {
+        return filterLocations(extractedLocations, locations, originLocation, distance);
+    }
+
     /**
      * this method filters founded locations by distance
      *
@@ -108,18 +133,18 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
      * @return
      * @throws Exception
      */
-    public Set<Location> filterLocations(final Set<String> extractedLocations, final List<Location> locations, final Location origin)
+    public Set<Location> filterLocations(final Set<String> extractedLocations, final List<Location> locations, final Location origin, double distance)
             throws Exception {
 
         Set<Location> filteredNamedEntities = new HashSet<Location>();
-        for (Location location : locations) {
-            if (!locations.contains(origin)) {
-                continue;
+        for (String extractedlocation : extractedLocations) {
+            List<Location> foundeds = locations.stream().filter(location -> extractedlocation.equals(location.getName())).collect(Collectors.toList());
+            for (Location founded : foundeds) {
+                if (Math.abs(origin.distanceTo(founded)) > distance) {
+                    continue;
+                }
+                filteredNamedEntities.add(founded);
             }
-            if (Math.abs(origin.distanceTo(location)) > distance) {
-                continue;
-            }
-            filteredNamedEntities.add(location);
         }
         return filteredNamedEntities;
     }
@@ -163,6 +188,28 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
             throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_DISTANCE);
         }
         distance = Double.parseDouble(property);
+        url2DumpFile = properties.getProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE);
+        if (url2DumpFile == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE);
+        }
+        zipEntry = properties.getProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY);
+        if (zipEntry == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_ZIP_ENTRY);
+        }
+        originName = properties.getProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME);
+        if (originName == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME);
+        }
+        property = properties.getProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE);
+        }
+        originLatitude = Double.parseDouble(property);
+        property = properties.getProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE);
+        }
+        originLongitude = Double.parseDouble(property);
 
         return true;
     }
@@ -174,10 +221,15 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
         properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
         properties.setProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE, "api.geonames.org");
         properties.setProperty(ApplicationConfiguration.MAX_DISTANCE, "1.0d");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "https://download.geonames.org/export/dump/DE.zip");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME, "Berlin");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
         return properties;
     }
 
-    private static List<String> getGeoNamesDumpContent(String zipFileURL, String zipedFileName) throws IOException {
+    public List<String> getGeoNamesDumpContent(String zipFileURL, String zipedFileName) throws IOException {
 
         List<String> lines = new ArrayList<String>();
         try(ZipInputStream zipInputStream = new ZipInputStream(new URL(zipFileURL).openStream())) {
@@ -196,7 +248,17 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
         return lines;
     }
 
-    public List<Location> createLocations(List<String> lines) {
+    /**
+     * this method returns list of locations
+     *
+     * @return
+     * @throws IOException
+     */
+    public List<Location> getLocationsBasedOnGeoNamesDump() throws IOException {
+        return getLocationsBasedOnGeoNamesDump(url2DumpFile, zipEntry);
+    }
+
+    public List<Location> getLocationsBasedOnGeoNamesDump(final String zipFileURL, final String zipedFileName) throws IOException {
 
         // Structure // tabs separate
         // 00 geonameid : integer id of record in geonames database
@@ -240,6 +302,7 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
         // DE.02 Bavaria Bavaria 2951839
         // DE.01 Baden-Württemberg Baden-Wuerttemberg 2953481
 
+        List<String> lines = getGeoNamesDumpContent(zipFileURL, zipedFileName);
         List<Location> locations = new ArrayList<Location>();
 
         for (String line : lines) {

@@ -1,5 +1,7 @@
 package de.citytwin;
 
+import de.citytwin.example.Example;
+
 import java.lang.invoke.MethodHandles;
 
 import org.slf4j.Logger;
@@ -23,12 +25,11 @@ public class Application {
             // Example.runTFIDF();
             // Example.runTextRank();
             // Example.saveAnalyseResult();
-            // Example.doLocationFinding();
+            Example.doLocationFinding();
             // Example.createPartOfCityGraph();
             // 1. Example.storePreparedProperties(new File("application.properties"));
             /** set program argument -p documentInformationRetrieval.properties */
             // 2. Example.createPartOfCityGraph(args);
-
 
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);

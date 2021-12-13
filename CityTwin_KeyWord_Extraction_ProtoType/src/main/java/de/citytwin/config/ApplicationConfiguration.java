@@ -50,7 +50,7 @@ public class ApplicationConfiguration {
     /** path to pretrained location finding model {@link Tokenizer} */
     public static final String PATH_2_SENTENCE_TOKENIZER_FILE = "path.2.sentence.tokenizer.file";
     /** path to stopwordlist */
-    public static final String PATH_2_STOPWORDS_FILE = "path.2.stopword.file";
+    public static final String PATH_2_STOPWORDS_FILE = "path.2.stopwords.file";
     /** path to postaglist (german) */
     public static final String PATH_2_POSTAGS_FILE = "path.2.postags.file";
     /** algorithm e.g tf-idf, textRank, full package / class name {@link TextRankKeywordExtractor} */
@@ -79,6 +79,12 @@ public class ApplicationConfiguration {
     public static final String RESULT_2_POSTGRESQL = "result.2.postgreSQL";
 
     public static final String GEONAMES_WEBSERVICE = "geonames.api";
+    public static final String GEONAMES_URL_2_DUMP_FILE = "geonames.url.2.dump.file";
+    public static final String GEONAMES_ZIP_ENTRY = "geonames.zip.entry";
+
+    public static final String GEONAMES_ORIGIN_LOCATION_NAME = "geonames.origin.location.name";
+    public static final String GEONAMES_ORIGIN_LOCATION_LATITUDE = "geonames.origin.location.latitude";
+    public static final String GEONAMES_ORIGIN_LOCATION_LONGITUDE = "geonames.origin.location.longitude";
 
     public static final String GEONAMES_USER = "geonames.user";
     public static final String GEONAMES_COUNTRYCODE = "geonames.CountryCode";

@@ -17,6 +17,23 @@ public class Location {
     public static final int INDEX_FEATURECODE = 7;
 
     private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public String getFeatureCode() {
+        return featureCode;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
     private String featureCode;
     private double latitude;
     private double longitude;
@@ -39,10 +56,14 @@ public class Location {
 
     @Override
     public boolean equals(Object object) {
+        if (object instanceof String) {
+            return this.name.equals(object);
+        }
         if (object instanceof Location) {
             Location temp = (Location)object;
             return this.name.equals(temp.name);
         }
+
         return super.equals(object);
     }
 
