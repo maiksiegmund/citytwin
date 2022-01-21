@@ -25,10 +25,10 @@ public class Application {
             // Example.runTFIDF();
             // Example.runTextRank();
             // Example.saveAnalyseResult();
-            Example.doLocationFinding();
-//            Example.saveCleanedTextCorpus();
+            // Example.doLocationFinding();
+            // Example.saveCleanedTextCorpus();
 
-            // Example.createPartOfCityGraph();
+            Example.createPartOfCityGraph(args);
             // 1. Example.storePreparedProperties(new File("application.properties"));
             /** set program argument -p documentInformationRetrieval.properties */
             // 2. Example.createPartOfCityGraph(args);

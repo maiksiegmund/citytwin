@@ -151,6 +151,28 @@ public class Example {
             properties.load(inputStream);
 
         }
+        properties.setProperty(ApplicationConfiguration.PATH_2_NER_LOCATION_FILE, "D:\\VMS\\trained_model\\de-ner-location_naivebayes.bin");
+
+        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "D:\\VMS\\trained_model\\de-sent.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "D:\\VMS\\trained_model\\de-pos-maxent.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "D:\\VMS\\trained_model\\de-token.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\Stopwords\\de-stopswords.txt");
+        properties.setProperty(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "D:\\VMS\\postags\\de-posTags.txt");
+
+        properties.setProperty(ApplicationConfiguration.GEONAMES_USER, "demo");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE, "api.geonames.org");
+        properties.setProperty(ApplicationConfiguration.MAX_DISTANCE, "1.0d");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "https://download.geonames.org/export/dump/DE.zip");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME, "Berlin");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
+
+        properties.setProperty(ApplicationConfiguration.POSTGRESQL_URL, "jdbc:postgresql://83.135.47.253/citytwin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "postgreSQL.properties");
+
         // reading documents
         String documentsFolder = properties.getProperty(ApplicationConfiguration.DOCUMENTS_FOLDER);
         List<File> files = new ArrayList<File>();
@@ -181,8 +203,8 @@ public class Example {
                 }
                 // persist
                 Metadata metaData = documentConverter.getMetaData(file);
-
                 for (String keyword : filteredKeywords.keySet()) {
+                    LOGGER.info("running");
                     for (Catalog<CatalogEntryHasName> catalog : catalogs) {
                         CatalogEntryHasName catalogEntryHasName = catalog.getEntry(keyword);
                         // neo4JController.buildGraph(metaData, keyword, catalogEntryHasName, filteredKeywords.get(keyword));
@@ -191,6 +213,7 @@ public class Example {
                 }
             }
         }
+        LOGGER.info("finished");
     }
 
     /**
@@ -249,13 +272,13 @@ public class Example {
         properties.putAll(LocationEntitiesExtractor.getDefaultProperties());
 
         // properties.put("path.2.ner.location.file", "D:\\VMS\\trained_model\\de-ner-location_maxent.bin");
-        properties.put(ApplicationConfiguration.PATH_2_NER_LOCATION_FILE, "D:\\VMS\\trained_model\\de-ner-location_naivebayes.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_NER_LOCATION_FILE, "D:\\VMS\\trained_model\\de-ner-location_naivebayes.bin");
 
-        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "D:\\VMS\\trained_model\\de-sent.bin");
-        properties.put(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "D:\\VMS\\trained_model\\de-pos-maxent.bin");
-        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "D:\\VMS\\trained_model\\de-token.bin");
-        properties.put(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\Stopwords\\de-stopswords.txt");
-        properties.put(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "D:\\VMS\\postags\\de-posTags.txt");
+        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "D:\\VMS\\trained_model\\de-sent.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "D:\\VMS\\trained_model\\de-pos-maxent.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "D:\\VMS\\trained_model\\de-token.bin");
+        properties.setProperty(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\Stopwords\\de-stopswords.txt");
+        properties.setProperty(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "D:\\VMS\\postags\\de-posTags.txt");
 
         properties.setProperty(ApplicationConfiguration.GEONAMES_USER, "demo");
         properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");

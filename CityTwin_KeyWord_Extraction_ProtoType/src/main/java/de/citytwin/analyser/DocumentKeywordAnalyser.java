@@ -134,7 +134,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
         if (property == null) {
             throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.SIMILARITY);
         }
-        similarity = Double.parseDouble(property) / 100.0d;
+        similarity = Double.parseDouble(property);
         property = properties.getProperty(ApplicationConfiguration.MAX_NEAREST);
         if (property == null) {
             throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_NEAREST);

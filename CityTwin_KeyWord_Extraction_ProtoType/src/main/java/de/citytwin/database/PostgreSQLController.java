@@ -400,7 +400,7 @@ public class PostgreSQLController implements AutoCloseable {
             table = PostgreSQLController.TABLE_ALKIS;
         }
         name = catalogEntryHasName.getName();
-        return getId("id", table, name);
+        return getId("id", name, table);
     }
 
     /**
@@ -443,7 +443,7 @@ public class PostgreSQLController implements AutoCloseable {
                         PostgreSQLController.TABLE_DOCUMENTS);
 
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
-        preparedStatement.setString(1, metadata.get("Name").toLowerCase());
+        preparedStatement.setString(1, metadata.get("name").toLowerCase());
         ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
             return resultSet.getLong(1);
@@ -574,7 +574,7 @@ public class PostgreSQLController implements AutoCloseable {
                 right = MessageFormat.format("{0}_fid", PostgreSQLController.TABLE_ADDRESSES);
                 break;
             case PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ALKIS:
-                right = MessageFormat.format(right, PostgreSQLController.TABLE_DOCUMENTS);
+                right = MessageFormat.format(right, PostgreSQLController.TABLE_ALKIS);
                 break;
             case PostgreSQLController.MAPPING_TABLE_DOCUMENTS_KEYWORDS:
                 right = MessageFormat.format(right, PostgreSQLController.TABLE_KEYWORDS);
@@ -664,8 +664,8 @@ public class PostgreSQLController implements AutoCloseable {
 
         while (resultSet.next()) {
             Metadata metadata = new Metadata();
-            metadata.add("Name", resultSet.getString(1));
-            metadata.add("Author", resultSet.getString(2));
+            metadata.add("name", resultSet.getString(1));
+            metadata.add("author", resultSet.getString(2));
             return metadata;
         }
         return null;
@@ -897,8 +897,9 @@ public class PostgreSQLController implements AutoCloseable {
      */
     public long insert(Metadata metadata) throws SQLException {
         Map<String, Object> parameters = new HashMap<String, Object>();
-        parameters.put("Name", metadata.get("Name"));
-        parameters.put("Author", metadata.get("Author"));
+        String author = (metadata.get("Author") == null) ? "unknown" : metadata.get("Author") ;
+        parameters.put("name", metadata.get("name"));
+        parameters.put("Author",author);
         return insertStatement(PostgreSQLController.TABLE_DOCUMENTS, parameters);
     }
 
@@ -991,7 +992,6 @@ public class PostgreSQLController implements AutoCloseable {
      * @throws SQLException
      */
     private Boolean isMapped(String mappingTable, long leftId, long rightId) throws SQLException {
-
         String sqlStatement = getIsMappedStatement(mappingTable);
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
         preparedStatement.setLong(1, leftId);
@@ -1176,14 +1176,17 @@ public class PostgreSQLController implements AutoCloseable {
     public void persist(Metadata metadata, String keyword, @Nullable CatalogEntryHasName catalogEntry, Double weigth)
             throws ClassNotFoundException, SQLException {
 
-        map(metadata, catalogEntry);
         map(metadata, keyword, weigth);
+        if (catalogEntry == null) {
+            return;
+        }
+        map(metadata, catalogEntry);
         if (catalogEntry instanceof Term) {
             for (String ontology : ((Term)catalogEntry).getOntologies()) {
                 map(metadata, ontology);
             }
         }
-        map(metadata, keyword);
+
     }
 
     /**
