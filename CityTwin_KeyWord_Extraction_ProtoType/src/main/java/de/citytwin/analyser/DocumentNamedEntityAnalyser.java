@@ -2,6 +2,8 @@ package de.citytwin.analyser;
 
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
+import de.citytwin.database.PostgreSQLController;
+import de.citytwin.model.Address;
 import de.citytwin.model.Location;
 import de.citytwin.namedentities.NamedEntitiesExtractor;
 
@@ -9,7 +11,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.invoke.MethodHandles;
 import java.net.URL;
+import java.sql.SQLException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -26,13 +31,17 @@ import org.geonames.Toponym;
 import org.geonames.ToponymSearchCriteria;
 import org.geonames.ToponymSearchResult;
 import org.geonames.WebService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * * this class is location extractor <br>
+ * * this class provides document named entity analyser <br>
  *
  * @author Maik Siegmund, FH Erfurt
  */
-public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
+public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private DocumentConverter documentConverter = null;
 
@@ -60,7 +69,7 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
     /**
      * constructor
      */
-    public DocumentLocationAnalyser(final Properties properties, DocumentConverter documentConverter) {
+    public DocumentNamedEntityAnalyser(final Properties properties, final DocumentConverter documentConverter) {
         if (validateProperties(properties)) {
             this.documentConverter = documentConverter;
             this.originLocation = new Location(originName, countryCode, originLatitude, originLongitude, new HashSet<String>());
@@ -80,8 +89,8 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
 
     }
 
-    public Set<Location> filterLocations(final Set<String> extractedLocations) throws Exception {
-        return filterLocations(extractedLocations, originLocation, distance);
+    public Set<Location> filterNamedEntities(final Set<String> extractedLocations) throws Exception {
+        return filterNamedEntities(extractedLocations, originLocation, distance);
     }
 
     /**
@@ -93,7 +102,7 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
      * @return filtered
      * @throws Exception
      */
-    public Set<Location> filterLocations(final Set<String> extractedLocations, final Location origin, double distance) throws Exception {
+    public Set<Location> filterNamedEntities(final Set<String> extractedLocations, final Location origin, double distance) throws Exception {
 
         Set<Location> filteredNamedEntities = new HashSet<Location>();
 
@@ -119,8 +128,8 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
         return filteredNamedEntities;
     }
 
-    public Set<Location> filterLocations(final Set<String> extractedLocations, final List<Location> locations) throws Exception {
-        return filterLocations(extractedLocations, locations, originLocation, distance);
+    public Set<Location> filterNamedEntities(final Set<String> extractedLocations, final List<Location> locations) throws Exception {
+        return filterNamedEntities(extractedLocations, locations, originLocation, distance);
     }
 
     /**
@@ -133,7 +142,7 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
      * @return
      * @throws Exception
      */
-    public Set<Location> filterLocations(final Set<String> extractedLocations, final List<Location> locations, final Location origin, double distance)
+    public Set<Location> filterNamedEntities(final Set<String> extractedLocations, final List<Location> locations, final Location origin, double distance)
             throws Exception {
 
         Set<Location> filteredNamedEntities = new HashSet<Location>();
@@ -147,6 +156,60 @@ public class DocumentLocationAnalyser implements NamedEntities, AutoCloseable {
             }
         }
         return filteredNamedEntities;
+    }
+
+    public Set<Location> filterNamedEntities(final Set<String> extractedLocations, PostgreSQLController controller, double distance) throws Exception {
+        return filterNamedEntities(extractedLocations, controller, getOriginLocation(), distance);
+    }
+
+    public Set<Location> filterNamedEntities(final Set<String> extractedLocations, PostgreSQLController controller, final Location origin, double distance)
+            throws Exception {
+
+        Set<Location> locations = new HashSet<Location>();
+        for (String extractedLocation : extractedLocations) {
+
+            String[] temps = extractedLocation.split("\\W+");
+            if (temps.length != 1) {
+                continue;
+            }
+            String temp = temps[0];
+            LOGGER.info(MessageFormat.format("query db for {0}", temp));
+            // synoyms
+            List<Long> synoymIds = controller.getIds(origin, extractedLocation, distance);
+            for (Long synoymId : synoymIds) {
+                Location location = controller.getLocation(synoymId);
+                locations.add(location);
+            }
+            // geonames
+            Location tempLocation = new Location(temp, "", 0, 0, new HashSet<String>());
+            List<Long> locationIds = controller.getIds(origin, tempLocation, distance);
+            for (Long locationId : locationIds) {
+                Location location = controller.getLocation(locationId);
+                locations.add(location);
+            }
+        }
+        return locations;
+    }
+
+    public Set<Address> filterNamedEntities(final Set<String> extractedLocations, PostgreSQLController controller) throws ClassNotFoundException, SQLException {
+        Set<Address> addresses = new HashSet<Address>();
+
+        for (String extractedLocation : extractedLocations) {
+            String[] temps = extractedLocation.split("\\W+");
+            if (temps.length < 1) {
+                continue;
+            }
+            System.out.println(MessageFormat.format("query for: {0} completely: {1} ", temps[0], extractedLocation));
+            String temp = temps[0];
+            Address address = new Address(temp, 0.0d, null);
+            long id = controller.getId(address);
+            if (id != 0) {
+                address = controller.getAddress(id);
+                addresses.add(address);
+            }
+        }
+
+        return addresses;
     }
 
     /**

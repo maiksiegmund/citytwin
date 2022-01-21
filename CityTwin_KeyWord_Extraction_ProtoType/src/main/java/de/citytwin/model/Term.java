@@ -130,4 +130,47 @@ public class Term implements CatalogEntryHasName {
                 + (type != null ? "type=" + type : "") + "]";
     }
 
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((isCore == null) ? 0 : isCore.hashCode());
+        result = prime * result + ((morphem == null) ? 0 : morphem.hashCode());
+        result = prime * result + ((term == null) ? 0 : term.hashCode());
+        result = prime * result + ((type == null) ? 0 : type.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        Term other = (Term)obj;
+        if (isCore == null) {
+            if (other.isCore != null)
+                return false;
+        } else if (!isCore.equals(other.isCore))
+            return false;
+        if (morphem == null) {
+            if (other.morphem != null)
+                return false;
+        } else if (!morphem.equals(other.morphem))
+            return false;
+        if (term == null) {
+            if (other.term != null)
+                return false;
+        } else if (!term.equals(other.term))
+            return false;
+        if (type == null) {
+            if (other.type != null)
+                return false;
+        } else if (!type.equals(other.type))
+            return false;
+        return true;
+    }
+
 }

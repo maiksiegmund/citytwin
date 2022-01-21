@@ -112,7 +112,9 @@ public class DocumentConverter implements AutoCloseable {
         bodyContentHandler = null;
         metadata = null;
         parseContext = null;
-        textCorpus.clear();
+        if (textCorpus != null) {
+            textCorpus.clear();
+        }
         textCorpus = null;
     }
 

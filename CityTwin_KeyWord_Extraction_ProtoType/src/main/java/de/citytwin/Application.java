@@ -26,6 +26,8 @@ public class Application {
             // Example.runTextRank();
             // Example.saveAnalyseResult();
             Example.doLocationFinding();
+//            Example.saveCleanedTextCorpus();
+
             // Example.createPartOfCityGraph();
             // 1. Example.storePreparedProperties(new File("application.properties"));
             /** set program argument -p documentInformationRetrieval.properties */

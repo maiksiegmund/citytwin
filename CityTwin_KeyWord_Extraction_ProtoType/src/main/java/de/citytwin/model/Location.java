@@ -2,6 +2,8 @@ package de.citytwin.model;
 
 import java.util.Set;
 
+import javax.annotation.Nonnull;
+
 /**
  * this class represent location
  *
@@ -17,6 +19,10 @@ public class Location {
     public static final int INDEX_FEATURECODE = 7;
 
     private String name;
+    private String featureCode;
+    private double latitude;
+    private double longitude;
+    private Set<String> synonyms;
 
     public String getName() {
         return name;
@@ -34,11 +40,6 @@ public class Location {
         return longitude;
     }
 
-    private String featureCode;
-    private double latitude;
-    private double longitude;
-    private Set<String> synonyms;
-
     private static final double EARTH_RADIUS = 6371.0; // km value;
 
     public Location(String name, String featureCode, double latitude, double longitude, Set<String> synonyms) {
@@ -51,20 +52,48 @@ public class Location {
 
     @Override
     public int hashCode() {
-        return name.hashCode() + featureCode.hashCode() + synonyms.hashCode();
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((featureCode == null) ? 0 : featureCode.hashCode());
+        long temp;
+        temp = Double.doubleToLongBits(latitude);
+        result = prime * result + (int)(temp ^ (temp >>> 32));
+        temp = Double.doubleToLongBits(longitude);
+        result = prime * result + (int)(temp ^ (temp >>> 32));
+        result = prime * result + ((name == null) ? 0 : name.hashCode());
+        result = prime * result + ((synonyms == null) ? 0 : synonyms.hashCode());
+        return result;
     }
 
     @Override
-    public boolean equals(Object object) {
-        if (object instanceof String) {
-            return this.name.equals(object);
-        }
-        if (object instanceof Location) {
-            Location temp = (Location)object;
-            return this.name.equals(temp.name);
-        }
-
-        return super.equals(object);
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        Location other = (Location)obj;
+        if (featureCode == null) {
+            if (other.featureCode != null)
+                return false;
+        } else if (!featureCode.equals(other.featureCode))
+            return false;
+        if (Double.doubleToLongBits(latitude) != Double.doubleToLongBits(other.latitude))
+            return false;
+        if (Double.doubleToLongBits(longitude) != Double.doubleToLongBits(other.longitude))
+            return false;
+        if (name == null) {
+            if (other.name != null)
+                return false;
+        } else if (!name.equals(other.name))
+            return false;
+        if (synonyms == null) {
+            if (other.synonyms != null)
+                return false;
+        } else if (!synonyms.equals(other.synonyms))
+            return false;
+        return true;
     }
 
     public double distanceTo(Location location) {
@@ -95,7 +124,7 @@ public class Location {
         return this.synonyms;
     }
 
-    public void setSynonyms(Set<String> synonyms) {
+    public void setSynonyms(@Nonnull Set<String> synonyms) {
         this.synonyms = synonyms;
     }
 

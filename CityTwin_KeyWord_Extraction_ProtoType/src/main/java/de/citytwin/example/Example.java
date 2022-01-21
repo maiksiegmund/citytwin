@@ -6,23 +6,26 @@ import de.citytwin.algorithm.keywords.TFIDFKeywordExtractor;
 import de.citytwin.algorithm.keywords.TextRankKeywordExtractor;
 import de.citytwin.algorithm.word2vec.Word2Vec;
 import de.citytwin.analyser.DocumentKeywordAnalyser;
-import de.citytwin.analyser.DocumentLocationAnalyser;
+import de.citytwin.analyser.DocumentNamedEntityAnalyser;
 import de.citytwin.catalog.Catalog;
 import de.citytwin.catalog.CatalogEntryHasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
 import de.citytwin.database.Neo4JController;
+import de.citytwin.database.PostgreSQLController;
 import de.citytwin.keywords.KeywordExtractor;
 import de.citytwin.location.LocationEntitiesExtractor;
 import de.citytwin.model.ALKIS;
-import de.citytwin.model.Location;
+import de.citytwin.model.Address;
 import de.citytwin.model.Term;
 import de.citytwin.model.WikiArticle;
 import de.citytwin.text.TextProcessing;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -34,6 +37,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -158,7 +162,8 @@ public class Example {
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
                 DocumentKeywordAnalyser documentKeywordAnalyser = new DocumentKeywordAnalyser(properties, documentConverter, word2Vec);
-                Neo4JController dbController = new Neo4JController(properties)) {
+                // Neo4JController neo4JController = new Neo4JController(properties);
+                PostgreSQLController postgreSQLController = new PostgreSQLController(properties)) {
 
             Map<String, Double> keywords = new HashMap<String, Double>();
 
@@ -180,7 +185,8 @@ public class Example {
                 for (String keyword : filteredKeywords.keySet()) {
                     for (Catalog<CatalogEntryHasName> catalog : catalogs) {
                         CatalogEntryHasName catalogEntryHasName = catalog.getEntry(keyword);
-                        dbController.buildGraph(keyword, metaData, catalogEntryHasName, filteredKeywords.get(keyword));
+                        // neo4JController.buildGraph(metaData, keyword, catalogEntryHasName, filteredKeywords.get(keyword));
+                        postgreSQLController.persist(metaData, keyword, catalogEntryHasName, filteredKeywords.get(keyword));
                     }
                 }
             }
@@ -243,13 +249,13 @@ public class Example {
         properties.putAll(LocationEntitiesExtractor.getDefaultProperties());
 
         // properties.put("path.2.ner.location.file", "D:\\VMS\\trained_model\\de-ner-location_maxent.bin");
-        properties.put(ApplicationConfiguration.PATH_2_NER_LOCATION_FILE, "D:\\VMS\\sharedFolder\\trained_model\\de-ner-location_naivebayes.bin");
+        properties.put(ApplicationConfiguration.PATH_2_NER_LOCATION_FILE, "D:\\VMS\\trained_model\\de-ner-location_naivebayes.bin");
 
-        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "D:\\VMS\\sharedFolder\\trained_model\\de-sent.bin");
-        properties.put(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "D:\\VMS\\sharedFolder\\trained_model\\de-pos-maxent.bin");
-        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "D:\\VMS\\sharedFolder\\trained_model\\de-token.bin");
-        properties.put(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\sharedFolder\\Stopwords\\de-stopswords.txt");
-        properties.put(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "D:\\VMS\\sharedFolder\\postags\\de-posTags.txt");
+        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "D:\\VMS\\trained_model\\de-sent.bin");
+        properties.put(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "D:\\VMS\\trained_model\\de-pos-maxent.bin");
+        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "D:\\VMS\\trained_model\\de-token.bin");
+        properties.put(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\Stopwords\\de-stopswords.txt");
+        properties.put(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "D:\\VMS\\postags\\de-posTags.txt");
 
         properties.setProperty(ApplicationConfiguration.GEONAMES_USER, "demo");
         properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
@@ -262,25 +268,37 @@ public class Example {
         properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
         properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
 
+        String url = "jdbc:postgresql://83.135.47.253/citytwin";
+        properties.setProperty(ApplicationConfiguration.POSTGRESQL_URL, url);
+        properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "postgreSQL.properties");
+
         properties.setProperty(ApplicationConfiguration.MIN_PROBABILITY, "0.95d");
 
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
-                DocumentLocationAnalyser documentLocationAnalyser = new DocumentLocationAnalyser(properties, documentConverter);
-                LocationEntitiesExtractor locationEntitiesExtractor = new LocationEntitiesExtractor(properties);) {
+                DocumentNamedEntityAnalyser documentNamedEntityAnalyser = new DocumentNamedEntityAnalyser(properties, documentConverter);
+                LocationEntitiesExtractor locationEntitiesExtractor = new LocationEntitiesExtractor(properties);
+                PostgreSQLController postgreSQLController = new PostgreSQLController(properties);) {
 
-            File file = new File("D:\\vms\\sharedFolder\\documents\\2_begruendung-9-11-ve.pdf");
-            Set<String> extractedLocations = documentLocationAnalyser.getNamedEntities(file, locationEntitiesExtractor);
-            List<Location> locations = documentLocationAnalyser.getLocationsBasedOnGeoNamesDump();
+            File file = new File("D:\\vms\\documents\\2_begruendung-9-11-ve.pdf");
+            Set<String> extractedLocations = documentNamedEntityAnalyser.getNamedEntities(file, locationEntitiesExtractor);
 
-            Set<Location> filteredLocations = documentLocationAnalyser.filterLocations(extractedLocations, locations);
-
-            for (Location location : filteredLocations) {
-                System.out.println(MessageFormat.format("location: {0}", location));
+            for (String string : extractedLocations) {
+                System.out.println(string);
             }
-            System.out.println(MessageFormat.format("count         : {0}", extractedLocations.size()));
-            System.out.println(MessageFormat.format("count filtered: {0}", filteredLocations.size()));
+
+            // Set<Location> filteredLocations = documentNamedEntityAnalyser.filterNamedEntities(extractedLocations, postgreSQLController, 1.0d);
+            Set<Address> filteredAddresses = documentNamedEntityAnalyser.filterNamedEntities(extractedLocations, postgreSQLController);
+
+            // Set<Long> streetIds = documentNamedEntityAnalyser.getAddressIds(extractedLocations, postgreSQLController);
+            //
+            // for (Location location : filteredLocations) {
+            // System.out.println(MessageFormat.format("location: {0}", location));
+            // }
+            for (Address address : filteredAddresses) {
+                System.out.println(MessageFormat.format("{0}", address));
+            }
 
         }
     }
@@ -429,7 +447,7 @@ public class Example {
                 CatalogEntryHasName catalogEntryHasName = termCatalog.getEntry(keyword);
                 // dbController.persist(keyword, metaData, catalogEntryHasName, filteredkeywords.get(keyword));
                 catalogEntryHasName = ALKSICatalog.getEntry("Wasser");
-                dbController.buildGraph(keyword, metaData, catalogEntryHasName, filteredkeywords.get(keyword));
+                dbController.buildGraph(metaData, keyword, catalogEntryHasName, filteredkeywords.get(keyword));
             }
 
         }
@@ -514,6 +532,12 @@ public class Example {
             properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
             properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
 
+            properties.setProperty(ApplicationConfiguration.POSTGRESQL_URL, "13.383068d");
+            properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "13.383068d");
+
+            properties.setProperty(ApplicationConfiguration.POSTGRESQL_URL, "jdbc:postgresql://83.135.47.253/citytwin");
+            properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "postgreSQL.properties");
+
             properties.store(outputstream, "File Updated");
         }
     }
@@ -547,6 +571,55 @@ public class Example {
             word2Vec.trainModel(articlesSentences, trainParameters, textProcessing);
             word2Vec.saveModel("D:\\vms\\sharedFolder\\trainModels\\word2vec_" + LocalDate.now() + ".bin");
             LOGGER.info("word2vec model trained successfully");
+        }
+
+    }
+
+    public static void saveCleanedTextCorpus() throws IOException, Exception {
+
+        Properties properties = new Properties();
+        properties.putAll(TextProcessing.getDefaultProperties());
+        properties.putAll(DocumentConverter.getDefaultProperties());
+        properties.putAll(LocationEntitiesExtractor.getDefaultProperties());
+
+        // properties.put("path.2.ner.location.file", "D:\\VMS\\trained_model\\de-ner-location_maxent.bin");
+        properties.put(ApplicationConfiguration.PATH_2_NER_LOCATION_FILE, "D:\\VMS\\trained_model\\de-ner-location_naivebayes.bin");
+
+        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "D:\\VMS\\trained_model\\de-sent.bin");
+        properties.put(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "D:\\VMS\\trained_model\\de-pos-maxent.bin");
+        properties.put(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "D:\\VMS\\trained_model\\de-token.bin");
+        properties.put(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\Stopwords\\de-stopswords.txt");
+        properties.put(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "D:\\VMS\\postags\\de-posTags.txt");
+
+        try(
+                TextProcessing textProcessing = new TextProcessing(properties);
+                DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);) {
+            File file = new File("D:\\VMS\\documents\\2_begruendung-9-11-ve.pdf");
+            BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
+            List<List<String>> cleanedTextCorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler);
+
+            StringBuilder stringBuilder = new StringBuilder();
+
+            for (List<String> sentenece : cleanedTextCorpus) {
+                for (ListIterator<String> iterator = sentenece.listIterator(); iterator.hasNext();) {
+                    stringBuilder.append(iterator.next());
+
+                    if (iterator.hasNext()) {
+                        stringBuilder.append(" ");
+                    } else {
+                        stringBuilder.append(".");
+                    }
+                }
+                stringBuilder.append("\n");
+                stringBuilder.append("\n");
+                stringBuilder.append("\n");
+            }
+
+            try(BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter("D:\\VMS\\documents\\2_begruendung-9-11-ve.txt", false)))) {
+                writer.write(stringBuilder.toString());
+                writer.close();
+            }
+
         }
 
     }
