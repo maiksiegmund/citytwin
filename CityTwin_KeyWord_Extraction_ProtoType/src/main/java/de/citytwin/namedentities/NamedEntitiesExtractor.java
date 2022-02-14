@@ -15,10 +15,9 @@ public interface NamedEntitiesExtractor {
     /**
      * this method extract named entities from text corpus
      *
-     * @param textcorpus <br>
-     *            {@code List<List<String>>} <br>
+     * @param textcorpus {@code List<List<String>>} <br>
      *            first list is a sentence and this contains a list of terms
-     * @return {@code  Set<String>}
+     * @return new reference {@code Set<String>}
      * @throws Exception
      */
 
