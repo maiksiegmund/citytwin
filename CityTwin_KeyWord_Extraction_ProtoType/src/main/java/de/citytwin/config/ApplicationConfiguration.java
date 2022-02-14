@@ -16,17 +16,17 @@ public class ApplicationConfiguration {
     /** path to pretrained location finding model {@link NameFinderME} */
     public static final String PATH_2_NER_LOCATION_FILE = "path.2.ner.location.file";
     /** minium required probability to add a founded result */
-    public static final String MIN_PROBABILITY = "minProbability";
+    public static final String MIN_PROBABILITY = "min.probability";
 
     /** how many terms have to contains a sentence */
-    public final static String MIN_TERM_COUNT = "minTermCount";
-    public final static String WORD_WINDOW_SIZE = "wordWindowSize";
+    public final static String MIN_TERM_COUNT = "min.term.count";
+    public final static String WORD_WINDOW_SIZE = "word.window.size";
     public final static String ITERATION = "iteration";
-    public final static String WITH_VECTOR_NORMALIZATION = "withVectorNormalization";
+    public final static String WITH_VECTOR_NORMALIZATION = "with.vector.normalization";
     /** remove stopwords? */
-    public static final String WITH_STOPWORDFILTER = "withStopwordFilter";
+    public static final String WITH_STOPWORDFILTER = "with.stopword.filter";
     /** use stemming */
-    public static final String WITH_STEMMING = "withStemming";
+    public static final String WITH_STEMMING = "with.stemming";
     /** which type of mathematically normalization (none, log, double) */
     public static final String NORMALIZATION_TYPE = "normalization";
     /** path to pretrained word2vec model {@link org.deeplearning4j.models.word2vec.Word2Vec} */
@@ -34,15 +34,15 @@ public class ApplicationConfiguration {
     /** similarity in percent */
     public static final String SIMILARITY = "similarity";
     /** how many nearest words, simultaneously maximum value */
-    public static final String MAX_NEAREST = "maxNearest";
+    public static final String MAX_NEAREST = "max.nearest";
     /** maximum new lines sequences in a line */
-    public static final String MAX_NEW_LINES = "maxNewLines";
+    public static final String MAX_NEW_LINES = "max.newlines";
     /** which signs will be remove of term */
-    public static final String CLEANING_PATTERN = "cleaningPattern";
+    public static final String CLEANING_PATTERN = "cleaning.pattern";
     /** minimum of term length */
-    public static final String MIN_TERM_LENGTH = "minTermLength";
+    public static final String MIN_TERM_LENGTH = "min.term.length";
     /** threshold in percent */
-    public static final String MIN_TABLE_OF_CONTENT = "minTableOfContent";
+    public static final String MIN_TABLE_OF_CONTENT = "min.table.of.Content";
     /** path to pretrained location finding model {@link SentenceDetectorME} */
     public static final String PATH_2_SENTENCE_DETECTOR_FILE = "path.2.sentence.detector.file";
     /** path to pretrained location finding model {@link POSTaggerME} */
@@ -82,15 +82,18 @@ public class ApplicationConfiguration {
     public static final String GEONAMES_URL_2_DUMP_FILE = "geonames.url.2.dump.file";
     public static final String GEONAMES_ZIP_ENTRY = "geonames.zip.entry";
 
-    public static final String GEONAMES_ORIGIN_LOCATION_NAME = "geonames.origin.location.name";
-    public static final String GEONAMES_ORIGIN_LOCATION_LATITUDE = "geonames.origin.location.latitude";
-    public static final String GEONAMES_ORIGIN_LOCATION_LONGITUDE = "geonames.origin.location.longitude";
+    public static final String ORIGIN_LOCATION_NAME = "origin.location.name";
+    public static final String ORIGIN_LOCATION_LATITUDE = "origin.location.latitude";
+    public static final String ORIGIN_LOCATION_LONGITUDE = "origin.location.longitude";
 
     public static final String GEONAMES_USER = "geonames.user";
     public static final String GEONAMES_COUNTRYCODE = "geonames.CountryCode";
     public static final String GEONAMES_MAXROWS = "geonames.maxrows";
 
-    public static final String MAX_DISTANCE = "maxDistance";
+    public static final String MAX_DISTANCE_IN_METERS = "max.distance.in.meters";
+    public static final String MAX_STREET_COUNT = "max.street.count";
+    public static final String MIN_NAMED_ENTITY_LENGTH = "min.named.entity.length";
+    public static final String MAX_SECTION_COUNT = "max.section.count";
 
     /**
      * this methods return a properties with all keys, and empty (String) value
