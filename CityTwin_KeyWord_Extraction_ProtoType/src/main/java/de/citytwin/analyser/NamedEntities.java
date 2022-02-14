@@ -17,7 +17,7 @@ public interface NamedEntities {
      *
      * @param file
      * @param keywordExtractor
-     * @return
+     * @return new reference of {@code Set<String>}
      * @throws Exception
      */
     public Set<String> getNamedEntities(File file, NamedEntitiesExtractor namedEntitiesExtractor) throws Exception;

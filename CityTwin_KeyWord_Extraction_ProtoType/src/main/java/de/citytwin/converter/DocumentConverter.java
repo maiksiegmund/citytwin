@@ -112,7 +112,9 @@ public class DocumentConverter implements AutoCloseable {
         bodyContentHandler = null;
         metadata = null;
         parseContext = null;
-        textCorpus.clear();
+        if (textCorpus != null) {
+            textCorpus.clear();
+        }
         textCorpus = null;
     }
 
@@ -330,7 +332,7 @@ public class DocumentConverter implements AutoCloseable {
             this.metadata = new Metadata();
             this.parseContext = prepareParserContext(file);
             autoDetectParser.parse(fileInputStream, bodyContentHandler, metadata, parseContext);
-            LOGGER.info(MessageFormat.format("file --> {0} --> parsed", file.getAbsoluteFile()));
+            LOGGER.info(MessageFormat.format("file parsed: {0}", file.getAbsoluteFile()));
             return bodyContentHandler;
         }
 

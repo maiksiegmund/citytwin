@@ -1,5 +1,7 @@
 package de.citytwin;
 
+import de.citytwin.example.Example;
+
 import java.lang.invoke.MethodHandles;
 
 import org.slf4j.Logger;
@@ -12,7 +14,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Application {
 
-    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static void main(String[] args) {
 
@@ -23,14 +25,16 @@ public class Application {
             // Example.runTFIDF();
             // Example.runTextRank();
             // Example.saveAnalyseResult();
-            // Example.doLocationFinding();
-            // Example.createPartOfCityGraph();
+            // Example.namedEntitieAnalyse();
+            Example.saveCleanedTextCorpus();
+
+            // Example.createPartOfCityGraph(args);
             // 1. Example.storePreparedProperties(new File("application.properties"));
             /** set program argument -p documentInformationRetrieval.properties */
             // 2. Example.createPartOfCityGraph(args);
 
         } catch (Exception exception) {
-            logger.error(exception.getMessage(), exception);
+            LOGGER.error(exception.getMessage(), exception);
         }
 
     }
