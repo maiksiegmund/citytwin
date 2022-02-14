@@ -49,7 +49,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
     private String countryCode = null;
     private Integer maxRows = null;
     private String geoNamesServer = null;
-    private Double distance = null;
+    private Double maxDistanceInMeters = null;
     private String url2DumpFile = null;
     private String zipEntry = null;
 
@@ -57,6 +57,10 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
     private Double originLatitude = null;
     private Double originLongitude = null;
     private Location originLocation = null;
+
+    private Integer maxStreetCount = null;
+    private Integer minNamedEntityLength = null;
+    private Integer maxSectionCount = null;
 
     public Location getOriginLocation() {
         return originLocation;
@@ -90,7 +94,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
     }
 
     public Set<Location> filterNamedEntities(final Set<String> extractedLocations) throws Exception {
-        return filterNamedEntities(extractedLocations, originLocation, distance);
+        return filterNamedEntities(extractedLocations, originLocation, maxDistanceInMeters);
     }
 
     /**
@@ -129,7 +133,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
     }
 
     public Set<Location> filterNamedEntities(final Set<String> extractedLocations, final List<Location> locations) throws Exception {
-        return filterNamedEntities(extractedLocations, locations, originLocation, distance);
+        return filterNamedEntities(extractedLocations, locations, originLocation, maxDistanceInMeters);
     }
 
     /**
@@ -158,58 +162,126 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         return filteredNamedEntities;
     }
 
-    public Set<Location> filterNamedEntities(final Set<String> extractedLocations, PostgreSQLController controller, double distance) throws Exception {
-        return filterNamedEntities(extractedLocations, controller, getOriginLocation(), distance);
+    /**
+     * this method filter locations via db
+     *
+     * @param extractedLocations
+     * @param controller
+     * @return new reference of {@code Set<Location>}
+     * @throws Exception
+     */
+    public Set<Location> validateLocations(final Set<String> extractedLocations, PostgreSQLController controller) throws Exception {
+        return validateLocations(extractedLocations, controller, getOriginLocation(), maxDistanceInMeters);
     }
 
-    public Set<Location> filterNamedEntities(final Set<String> extractedLocations, PostgreSQLController controller, final Location origin, double distance)
+    public Set<Location> validateLocations(final Set<String> extractedLocations, PostgreSQLController controller, final Location origin,
+            double distanceInMeters)
             throws Exception {
 
         Set<Location> locations = new HashSet<Location>();
         for (String extractedLocation : extractedLocations) {
-
-            String[] temps = extractedLocation.split("\\W+");
-            if (temps.length != 1) {
-                continue;
-            }
-            String temp = temps[0];
-            LOGGER.info(MessageFormat.format("query db for {0}", temp));
-            // synoyms
-            List<Long> synoymIds = controller.getIds(origin, extractedLocation, distance);
-            for (Long synoymId : synoymIds) {
-                Location location = controller.getLocation(synoymId);
-                locations.add(location);
-            }
-            // geonames
-            Location tempLocation = new Location(temp, "", 0, 0, new HashSet<String>());
-            List<Long> locationIds = controller.getIds(origin, tempLocation, distance);
-            for (Long locationId : locationIds) {
-                Location location = controller.getLocation(locationId);
-                locations.add(location);
+            String[] extractedLocationParts = extractedLocation.split(" ");
+            for (String extractedLocationPart : extractedLocationParts) {
+                if (extractedLocationPart.matches(".*\\d.*") || extractedLocationPart.length() <= minNamedEntityLength) {
+                    continue;
+                }
+                LOGGER.info(MessageFormat.format("query db for {0}", extractedLocationPart));
+                // synoyms
+                List<Long> synoymIds = controller.getIds(origin, extractedLocationPart, maxDistanceInMeters);
+                for (Long synoymId : synoymIds) {
+                    Location location = controller.getLocation(synoymId);
+                    locations.add(location);
+                }
+                // geonames
+                Location tempLocation = new Location(extractedLocationPart, "", 0, 0, new HashSet<String>());
+                List<Long> locationIds = controller.getIds(origin, tempLocation, distanceInMeters);
+                for (Long locationId : locationIds) {
+                    Location location = controller.getLocation(locationId);
+                    locations.add(location);
+                }
             }
         }
         return locations;
     }
 
-    public Set<Address> filterNamedEntities(final Set<String> extractedLocations, PostgreSQLController controller) throws ClassNotFoundException, SQLException {
+    public Set<Address> validateAddresses(final Set<String> extractedLocations, PostgreSQLController controller)
+            throws ClassNotFoundException, SQLException {
         Set<Address> addresses = new HashSet<Address>();
-
         for (String extractedLocation : extractedLocations) {
-            String[] temps = extractedLocation.split("\\W+");
-            if (temps.length < 1) {
-                continue;
+            Set<Address> queryAddresses = getAddresses(extractedLocation);
+            LOGGER.info(queryAddresses.toString());
+            for (Address queryAddress : queryAddresses) {
+                Long count = controller.countOfAddresses(queryAddress);
+                if (count > 0 && count <= maxStreetCount) {
+                    Set<String> sections = controller.getSections(queryAddress);
+                    Set<String> foundedSections = sections.stream().filter(section -> extractedLocations.contains(section)).collect(Collectors.toSet());
+                    if (foundedSections.size() <= maxSectionCount) {
+                        for (String foundedSection : foundedSections) {
+                            Address address = new Address(queryAddress.getName(), queryAddress.getHnr(), queryAddress.getHnr_zusatz(), foundedSection);
+                            for (Long id : controller.getIds(address)) {
+                                addresses.add(controller.getAddress(id));
+                            }
+                        }
+                    }
+                }
             }
-            System.out.println(MessageFormat.format("query for: {0} completely: {1} ", temps[0], extractedLocation));
-            String temp = temps[0];
-            Address address = new Address(temp, 0.0d, null);
-            long id = controller.getId(address);
-            if (id != 0) {
-                address = controller.getAddress(id);
-                addresses.add(address);
+
+        }
+        return addresses;
+    }
+
+    private Set<Address> getAddresses(String string) {
+
+        Set<Address> results = new HashSet<Address>();
+        String[] addressParts;
+        Boolean containsDigits = string.matches(".*\\d.*");
+
+        results.add(new Address(string.trim(), 0.0d, null));
+
+        if (!containsDigits) {
+            String temp = "";
+            addressParts = string.split("[/ ]");
+            for (String addressPart : addressParts) {
+                temp += addressPart + " ";
+                results.add(new Address(temp.trim(), 0.0d, null));
+                results.add(new Address(addressPart.trim(), 0.0d, null));
+            }
+
+        } else {
+            addressParts = string.split(" ");
+            String temp = "";
+            for (String addressPart : addressParts) {
+                if (addressPart.matches(".*\\d.*")) {
+                    String[] numberParts = addressPart.split("[/-]");
+                    for (int index = 0; index < numberParts.length; ++index) {
+                        char[] chars = numberParts[index].toCharArray();
+                        String tempNumber = "";
+                        String tempHnrAdditional = null;
+                        for (char chr : chars) {
+
+                            if (Character.isDigit(chr)) {
+                                tempNumber += Character.toString(chr);
+
+                            }
+                            if (Character.isLetter(chr)) {
+                                tempHnrAdditional = Character.toString(chr);
+                            }
+                        }
+                        if (tempNumber.trim().length() == 0) {
+                            tempNumber = "0.0d";
+                        }
+                        results.add(new Address(addressPart.trim(), Double.parseDouble(tempNumber), tempHnrAdditional));
+                        results.add(new Address(temp.trim(), Double.parseDouble(tempNumber), tempHnrAdditional));
+                    }
+                } else {
+                    temp += addressPart + " ";
+                    results.add(new Address(temp.trim(), 0.0d, null));
+                    results.add(new Address(addressPart.trim(), 0.0d, null));
+                }
             }
         }
+        return results;
 
-        return addresses;
     }
 
     /**
@@ -246,11 +318,11 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         if (geoNamesServer == null) {
             throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_WEBSERVICE);
         }
-        property = properties.getProperty(ApplicationConfiguration.MAX_DISTANCE);
+        property = properties.getProperty(ApplicationConfiguration.MAX_DISTANCE_IN_METERS);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_DISTANCE);
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_DISTANCE_IN_METERS);
         }
-        distance = Double.parseDouble(property);
+        maxDistanceInMeters = Double.parseDouble(property);
         url2DumpFile = properties.getProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE);
         if (url2DumpFile == null) {
             throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE);
@@ -259,21 +331,38 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         if (zipEntry == null) {
             throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_ZIP_ENTRY);
         }
-        originName = properties.getProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME);
+        originName = properties.getProperty(ApplicationConfiguration.ORIGIN_LOCATION_NAME);
         if (originName == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME);
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.ORIGIN_LOCATION_NAME);
         }
-        property = properties.getProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE);
+        property = properties.getProperty(ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE);
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE);
         }
         originLatitude = Double.parseDouble(property);
-        property = properties.getProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE);
+        property = properties.getProperty(ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE);
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE);
         }
         originLongitude = Double.parseDouble(property);
 
+        property = properties.getProperty(ApplicationConfiguration.MAX_STREET_COUNT);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_STREET_COUNT);
+        }
+        maxStreetCount = Integer.parseInt(property);
+
+        property = properties.getProperty(ApplicationConfiguration.MIN_NAMED_ENTITY_LENGTH);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_NAMED_ENTITY_LENGTH);
+        }
+        minNamedEntityLength = Integer.parseInt(property);
+
+        property = properties.getProperty(ApplicationConfiguration.MAX_SECTION_COUNT);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_SECTION_COUNT);
+        }
+        maxSectionCount = Integer.parseInt(property);
         return true;
     }
 
@@ -283,12 +372,15 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
         properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
         properties.setProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE, "api.geonames.org");
-        properties.setProperty(ApplicationConfiguration.MAX_DISTANCE, "1.0d");
         properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "https://download.geonames.org/export/dump/DE.zip");
         properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME, "Berlin");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
+        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_NAME, "Berlin");
+        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE, "52.530644d");
+        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE, "13.383068d");
+        properties.setProperty(ApplicationConfiguration.MAX_DISTANCE_IN_METERS, "12500.0d");
+        properties.setProperty(ApplicationConfiguration.MAX_STREET_COUNT, "10");
+        properties.setProperty(ApplicationConfiguration.MIN_NAMED_ENTITY_LENGTH, "5");
+        properties.setProperty(ApplicationConfiguration.MAX_SECTION_COUNT, "2");
         return properties;
     }
 
@@ -300,7 +392,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
             ZipEntry zipEntry = null;
             while ((zipEntry = zipInputStream.getNextEntry()) != null) {
                 if (zipEntry.getName().equals(zipedFileName)) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(zipInputStream));
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(zipInputStream, "UTF-8"));
                     while (reader.ready()) {
                         lines.add(reader.readLine());
                     }
