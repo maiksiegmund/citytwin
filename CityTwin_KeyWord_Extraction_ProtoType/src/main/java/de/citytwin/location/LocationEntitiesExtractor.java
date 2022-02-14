@@ -68,7 +68,6 @@ public class LocationEntitiesExtractor implements NamedEntitiesExtractor, AutoCl
     public Set<String> getNamedEntities(List<List<String>> textcorpus) {
         Set<String> results = new HashSet<String>();
         String location = "";
-
         for (List<String> sentence : textcorpus) {
             String[] tempArray = new String[sentence.size()];
             sentence.toArray(tempArray);
@@ -82,7 +81,7 @@ public class LocationEntitiesExtractor implements NamedEntitiesExtractor, AutoCl
                 for (int index = span.getStart(); index < span.getEnd(); ++index) {
                     location += tempArray[index] + " ";
                 }
-                results.add(location);
+                results.add(location.trim());
             }
         }
         nameFinder.clearAdaptiveData();
@@ -123,7 +122,5 @@ public class LocationEntitiesExtractor implements NamedEntitiesExtractor, AutoCl
         minProbability = Double.parseDouble(property);
         return true;
     }
-
-
 
 }
