@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Application {
 
-    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static void main(String[] args) {
 
@@ -25,16 +25,16 @@ public class Application {
             // Example.runTFIDF();
             // Example.runTextRank();
             // Example.saveAnalyseResult();
-            // Example.doLocationFinding();
-            // Example.saveCleanedTextCorpus();
+            // Example.namedEntitieAnalyse();
+            Example.saveCleanedTextCorpus();
 
-            Example.createPartOfCityGraph(args);
+            // Example.createPartOfCityGraph(args);
             // 1. Example.storePreparedProperties(new File("application.properties"));
             /** set program argument -p documentInformationRetrieval.properties */
             // 2. Example.createPartOfCityGraph(args);
 
         } catch (Exception exception) {
-            logger.error(exception.getMessage(), exception);
+            LOGGER.error(exception.getMessage(), exception);
         }
 
     }
