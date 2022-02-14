@@ -17,6 +17,7 @@ import de.citytwin.keywords.KeywordExtractor;
 import de.citytwin.location.LocationEntitiesExtractor;
 import de.citytwin.model.ALKIS;
 import de.citytwin.model.Address;
+import de.citytwin.model.Location;
 import de.citytwin.model.Term;
 import de.citytwin.model.WikiArticle;
 import de.citytwin.text.TextProcessing;
@@ -163,12 +164,12 @@ public class Example {
         properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
         properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
         properties.setProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE, "api.geonames.org");
-        properties.setProperty(ApplicationConfiguration.MAX_DISTANCE, "1.0d");
+        properties.setProperty(ApplicationConfiguration.MAX_DISTANCE_IN_METERS, "1.0d");
         properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "https://download.geonames.org/export/dump/DE.zip");
         properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME, "Berlin");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
+        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_NAME, "Berlin");
+        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE, "52.530644d");
+        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE, "13.383068d");
 
         properties.setProperty(ApplicationConfiguration.POSTGRESQL_URL, "jdbc:postgresql://83.135.47.253/citytwin");
         properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "postgreSQL.properties");
@@ -203,6 +204,7 @@ public class Example {
                 }
                 // persist
                 Metadata metaData = documentConverter.getMetaData(file);
+                metaData.add("Uri", "example");
                 for (String keyword : filteredKeywords.keySet()) {
                     LOGGER.info("running");
                     for (Catalog<CatalogEntryHasName> catalog : catalogs) {
@@ -265,7 +267,7 @@ public class Example {
      *
      * @throws Exception
      */
-    public static void doLocationFinding() throws IOException, Exception {
+    public static void namedEntitieAnalyse() throws IOException, Exception {
         Properties properties = new Properties();
         properties.putAll(TextProcessing.getDefaultProperties());
         properties.putAll(DocumentConverter.getDefaultProperties());
@@ -284,18 +286,20 @@ public class Example {
         properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
         properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
         properties.setProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE, "api.geonames.org");
-        properties.setProperty(ApplicationConfiguration.MAX_DISTANCE, "1.0d");
+        properties.setProperty(ApplicationConfiguration.MAX_DISTANCE_IN_METERS, "2500.0d");
         properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "https://download.geonames.org/export/dump/DE.zip");
         properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME, "Berlin");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
+        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_NAME, "Berlin");
+        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE, "52.530644d");
+        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE, "13.383068d");
 
         String url = "jdbc:postgresql://83.135.47.253/citytwin";
         properties.setProperty(ApplicationConfiguration.POSTGRESQL_URL, url);
         properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "postgreSQL.properties");
 
         properties.setProperty(ApplicationConfiguration.MIN_PROBABILITY, "0.95d");
+        properties.setProperty(ApplicationConfiguration.MAX_STREET_COUNT, "10");
+        properties.setProperty(ApplicationConfiguration.MIN_NAMED_ENTITY_LENGTH, "4");
 
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
@@ -304,23 +308,34 @@ public class Example {
                 LocationEntitiesExtractor locationEntitiesExtractor = new LocationEntitiesExtractor(properties);
                 PostgreSQLController postgreSQLController = new PostgreSQLController(properties);) {
 
-            File file = new File("D:\\vms\\documents\\2_begruendung-9-11-ve.pdf");
-            Set<String> extractedLocations = documentNamedEntityAnalyser.getNamedEntities(file, locationEntitiesExtractor);
+            List<File> files = new ArrayList<File>();
+            files.add(new File("D:\\VMS\\documents\\altlibg_erlaeuterungsbericht BEP.pdf"));
 
-            for (String string : extractedLocations) {
-                System.out.println(string);
-            }
+            // getFiles("D:\\VMS\\documents", files);
+            for (File file : files) {
+                Set<String> extractedLocations = documentNamedEntityAnalyser.getNamedEntities(file, locationEntitiesExtractor);
+                Set<Address> filteredAddresses = documentNamedEntityAnalyser.validateAddresses(extractedLocations, postgreSQLController);
+                Set<Location> filteredLocations = documentNamedEntityAnalyser.validateLocations(extractedLocations, postgreSQLController);
+                Metadata metadata = documentConverter.getMetaData(file);
+                metadata.add("Uri", "https://nc.srp-gmbh.de/index.php/apps/files/?dir=/CityTwin/CT_DATEN/Dokumente/Textdokumente&fileid=6095");
 
-            // Set<Location> filteredLocations = documentNamedEntityAnalyser.filterNamedEntities(extractedLocations, postgreSQLController, 1.0d);
-            Set<Address> filteredAddresses = documentNamedEntityAnalyser.filterNamedEntities(extractedLocations, postgreSQLController);
+                for (Address address : filteredAddresses) {
+                    postgreSQLController.persist(metadata, address);
+                    System.out.println(address);
+                }
+                System.out.println("founded: " + filteredAddresses.size());
 
-            // Set<Long> streetIds = documentNamedEntityAnalyser.getAddressIds(extractedLocations, postgreSQLController);
-            //
-            // for (Location location : filteredLocations) {
-            // System.out.println(MessageFormat.format("location: {0}", location));
-            // }
-            for (Address address : filteredAddresses) {
-                System.out.println(MessageFormat.format("{0}", address));
+                for (Location location : filteredLocations) {
+                    postgreSQLController.persist(metadata, location);
+                    System.out.println(location);
+                }
+                System.out.println("founded: " + filteredLocations.size());
+
+                for (String extractedLocation : extractedLocations) {
+                    System.out.println(extractedLocation);
+
+                }
+
             }
 
         }
@@ -548,12 +563,12 @@ public class Example {
             properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
             properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
             properties.setProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE, "api.geonames.org");
-            properties.setProperty(ApplicationConfiguration.MAX_DISTANCE, "1.0d");
+            properties.setProperty(ApplicationConfiguration.MAX_DISTANCE_IN_METERS, "10000.0d");
             properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "www.geonames.org/export/zip/DE.zip");
             properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
-            properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_NAME, "Berlin");
-            properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LATITUDE, "52.530644d");
-            properties.setProperty(ApplicationConfiguration.GEONAMES_ORIGIN_LOCATION_LONGITUDE, "13.383068d");
+            properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_NAME, "Berlin");
+            properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE, "52.530644d");
+            properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE, "13.383068d");
 
             properties.setProperty(ApplicationConfiguration.POSTGRESQL_URL, "13.383068d");
             properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "13.383068d");
@@ -617,7 +632,7 @@ public class Example {
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);) {
-            File file = new File("D:\\VMS\\documents\\2_begruendung-9-11-ve.pdf");
+            File file = new File("D:\\VMS\\documents\\altlibg_erlaeuterungsbericht BEP.pdf");
             BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
             List<List<String>> cleanedTextCorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler);
 
@@ -633,12 +648,10 @@ public class Example {
                         stringBuilder.append(".");
                     }
                 }
-                stringBuilder.append("\n");
-                stringBuilder.append("\n");
-                stringBuilder.append("\n");
             }
 
-            try(BufferedWriter writer = new BufferedWriter(new BufferedWriter(new FileWriter("D:\\VMS\\documents\\2_begruendung-9-11-ve.txt", false)))) {
+            try(BufferedWriter writer = new BufferedWriter(
+                    new BufferedWriter(new FileWriter("D:\\VMS\\documents\\altlibg_erlaeuterungsbericht BEP.txt", false)))) {
                 writer.write(stringBuilder.toString());
                 writer.close();
             }
