@@ -24,12 +24,13 @@ public class ALKIS implements CatalogEntryHasName {
         this.type = "ALKIS";
     }
 
+
     /**
-     * constructor
-     *
+     * constructor.
      * @param name
      * @param categorie
      * @param code
+     * @param type
      */
     public ALKIS(String name, String categorie, Integer code, String type) {
         super();
