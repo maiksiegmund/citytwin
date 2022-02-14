@@ -9,6 +9,18 @@ public class Address {
         this.hnr_zusatz = hnr_zusatz;
     }
 
+    public Address(String str_name, double hnr, String hnr_zusatz, String bez_name) {
+        super();
+        // street name
+        this.str_name = str_name;
+        // house number
+        this.hnr = hnr;
+        // additional house number e.g. 4E
+        this.hnr_zusatz = hnr_zusatz;
+        // section name
+        this.bez_name = bez_name;
+    }
+
     private Long fid;
     private String str_name;
     private String addressid;
