@@ -1,8 +1,11 @@
 # CityTwin
 
-prototype of research project on german textcorpus
-nlp features:
+research project for __german__ textcorpus <br />
+ nlp features:
 - keyword extraction
+- named entity recognition for locations / poi's
+
+__prototype__ 
 
 ## algorithm
 
