@@ -5,6 +5,7 @@ import com.beust.jcommander.internal.Nullable;
 import de.citytwin.catalog.CatalogEntryHasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.model.ALKIS;
+import de.citytwin.model.Address;
 import de.citytwin.model.Location;
 import de.citytwin.model.Term;
 
@@ -28,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * this class provides funtion to create a graph on neo4j db (very simple)
+ * this class provides function to create a graph on neo4j db (very simple)
  *
  * @author Maik Siegmund, FH Erfurt
  */
@@ -38,11 +39,12 @@ public class Neo4JController implements AutoCloseable {
 
     /** default values */
     public static final String NODE_ALKIS = "node.alkis";
-    public static final String NODE_DOCUMENT = "node.documen";
+    public static final String NODE_DOCUMENT = "node.document";
     public static final String NODE_KEYWORD = "node.keyword";
     public static final String NODE_ONTOLOGY = "node.ontology";
     public static final String NODE_TERM = "node.term";
     public static final String NODE_LOCATION = "node.location";
+    public static final String NODE_ADDRESS = "node.address";
     public static final String EDGE_AFFECT = "edge.affect";
     public static final String EDGE_BELONGSTO = "edge.belongsTo";
     public static final String EDGE_CONTAINS = "edge.contains";
@@ -58,6 +60,7 @@ public class Neo4JController implements AutoCloseable {
         properties.setProperty(Neo4JController.NODE_KEYWORD, "Keyword");
         properties.setProperty(Neo4JController.NODE_ONTOLOGY, "Ontology");
         properties.setProperty(Neo4JController.NODE_LOCATION, "Location");
+        properties.setProperty(Neo4JController.NODE_ADDRESS, "Address");
         properties.setProperty(Neo4JController.NODE_TERM, "Term");
         properties.setProperty(Neo4JController.EDGE_AFFECT, "affect");
         properties.setProperty(Neo4JController.EDGE_BELONGSTO, "belongsTo");
@@ -75,6 +78,7 @@ public class Neo4JController implements AutoCloseable {
 
     private String nodeALKIS = "ALKIS";
     private String nodeDocument = "Document";
+    private String nodeAddress = "Address";
     private String nodeKeyword = "Keyword";
     private String nodeOntology = "Ontology";
     private String nodeTerm = "Term";
@@ -99,6 +103,64 @@ public class Neo4JController implements AutoCloseable {
             setOptionalProperties(properties);
         }
 
+    }
+
+    /**
+     * this method build a part of citygraph
+     *
+     * @param metadata
+     * @param location
+     */
+    public void buildGraph(Metadata metadata, Address address) {
+        try(Session session = driver.session()) {
+            boolean exist = false;
+            boolean linked = false;
+
+            // document
+            exist = session.readTransaction(existNode(metadata));
+            if (!exist) {
+                session.writeTransaction(createNode(metadata));
+            }
+            // address
+            exist = session.readTransaction(existNode(address));
+            if (!exist) {
+                session.writeTransaction(createNode(address));
+            }
+            linked = session.readTransaction(isLinked(metadata, address));
+            if (!linked) {
+                session.writeTransaction(link(metadata, address));
+            }
+
+        }
+    }
+
+    /**
+     * this method build a part of citygraph
+     *
+     * @param metadata
+     * @param location
+     */
+    public void buildGraph(Metadata metadata, Location location) {
+        try(Session session = driver.session()) {
+            boolean exist = false;
+            boolean linked = false;
+
+            // document
+            exist = session.readTransaction(existNode(metadata));
+            if (!exist) {
+                session.writeTransaction(createNode(metadata));
+            }
+            // location
+            exist = session.readTransaction(existNode(location));
+            if (!exist) {
+                session.writeTransaction(createNode(location));
+            }
+            linked = session.readTransaction(isLinked(metadata, location));
+            if (!linked) {
+                session.writeTransaction(link(metadata, location));
+            }
+
+        }
     }
 
     /**
@@ -171,35 +233,6 @@ public class Neo4JController implements AutoCloseable {
 
     }
 
-    /**
-     * this method build a part of citygraph
-     *
-     * @param metadata
-     * @param location
-     */
-    public void buildGraph(Metadata metadata, Location location) {
-        try(Session session = driver.session()) {
-            boolean exist = false;
-            boolean linked = false;
-
-            // document
-            exist = session.readTransaction(existNode(metadata));
-            if (!exist) {
-                session.writeTransaction(createNode(metadata));
-            }
-            // location
-            exist = session.readTransaction(existNode(location));
-            if (!exist) {
-                session.writeTransaction(createNode(location));
-            }
-            linked = session.readTransaction(isLinked(metadata, location));
-            if (!linked) {
-                session.writeTransaction(link(metadata, location));
-            }
-
-        }
-    }
-
     @Override
     public void close() {
 
@@ -208,6 +241,33 @@ public class Neo4JController implements AutoCloseable {
         }
         driver.close();
 
+    }
+
+    /**
+     * this method create node label as Address
+     *
+     * @param address
+     * @return
+     */
+
+    private TransactionWork<Void> createNode(Address address) {
+        return new TransactionWork<Void>() {
+
+            @Override
+            public Void execute(Transaction transaction) {
+                String label = nodeAddress;
+                Map<String, Object> parameters = new HashMap<String, Object>();
+                parameters.put("fid", address.getFid());
+                parameters.put("name", address.getName());
+                parameters.put("hnr", address.getHnr());
+                parameters.put("hnr_zusatz", address.getHnr_zusatz());
+                parameters.put("bez_name", address.getBez_name());
+                parameters.put("ort_name", address.getOrt_name());
+                parameters.put("latitude", address.getLatitude());
+                parameters.put("longitude", address.getLongitude());
+                return createNodeCypher(transaction, label, parameters);
+            }
+        };
     }
 
     /**
@@ -244,9 +304,33 @@ public class Neo4JController implements AutoCloseable {
     }
 
     /**
+     * this method create node label as Location
+     *
+     * @param location
+     * @return
+     */
+    private TransactionWork<Void> createNode(Location location) {
+        return new TransactionWork<Void>() {
+
+            @Override
+            public Void execute(Transaction transaction) {
+                String label = nodeDocument;
+                Map<String, Object> parameters = new HashMap<String, Object>();
+                parameters.put("name", location.getName());
+                parameters.put("featureCode", location.getFeatureCode());
+                parameters.put("latitude", location.getLatitude());
+                parameters.put("longitude", location.getLongitude());
+                parameters.put("longitude", location.getLongitude());
+                parameters.put("synonyms", String.join(",", location.getSynonyms()));
+                return createNodeCypher(transaction, label, parameters);
+            }
+        };
+    }
+
+    /**
      * this method create node label as Document
      *
-     * @param hasName
+     * @param metadata
      * @return
      */
     private TransactionWork<Void> createNode(Metadata metadata) {
@@ -263,30 +347,6 @@ public class Neo4JController implements AutoCloseable {
                     cleaned = cleaned.replace("-", "");
                     parameters.put(cleaned, metadata.get(name));
                 }
-                return createNodeCypher(transaction, label, parameters);
-            }
-        };
-    }
-
-    /**
-     * this method create node label as Document
-     *
-     * @param hasName
-     * @return
-     */
-    private TransactionWork<Void> createNode(Location location) {
-        return new TransactionWork<Void>() {
-
-            @Override
-            public Void execute(Transaction transaction) {
-                String label = nodeDocument;
-                Map<String, Object> parameters = new HashMap<String, Object>();
-                parameters.put("name", location.getName());
-                parameters.put("featureCode", location.getFeatureCode());
-                parameters.put("latitude", location.getLatitude());
-                parameters.put("longitude", location.getLongitude());
-                parameters.put("longitude", location.getLongitude());
-                parameters.put("synonyms", String.join(",", location.getSynonyms()));
                 return createNodeCypher(transaction, label, parameters);
             }
         };
@@ -342,6 +402,37 @@ public class Neo4JController implements AutoCloseable {
     }
 
     /**
+     * * this method checks if a Address node exist
+     *
+     * @param address
+     * @return
+     */
+    private TransactionWork<Boolean> existNode(Address address) {
+
+        return new TransactionWork<Boolean>() {
+
+            @Override
+            public Boolean execute(Transaction transaction) {
+                Map<String, Object> parameters = new HashMap<String, Object>();
+                if (address.getFid() != 0) {
+                    parameters.put("fid", address.getFid());
+                    return existNodeCypher(transaction, parameters, nodeLocation);
+                }
+                // id isn´t set, check per name and additional information
+                parameters.put("name", address.getName());
+
+                if (address.getHnr() != 0.0) {
+                    parameters.put("hnr", address.getHnr());
+                }
+                if (address.getHnr_zusatz() != null && address.getHnr_zusatz().trim().length() > 0) {
+                    parameters.put("hnr_zusatz", address.getHnr_zusatz());
+                }
+                return existNodeCypher(transaction, parameters, nodeLocation);
+            }
+        };
+    }
+
+    /**
      * this method checks if a node exist (catalog entry)
      *
      * @param catalogEntry
@@ -356,6 +447,28 @@ public class Neo4JController implements AutoCloseable {
             return existNode(catalogEntry.getName(), nodeALKIS);
         }
         throw new Exception();
+
+    }
+
+    /**
+     * this method checks if a Location node exist
+     *
+     * @param location
+     * @return
+     */
+    private TransactionWork<Boolean> existNode(Location location) {
+
+        return new TransactionWork<Boolean>() {
+
+            @Override
+            public Boolean execute(Transaction transaction) {
+                Map<String, Object> parameters = new HashMap<String, Object>();
+                parameters.put("name", location.getName());
+                parameters.put("longitude", location.getLongitude());
+                parameters.put("latitude", location.getLatitude());
+                return existNodeCypher(transaction, parameters, nodeLocation);
+            }
+        };
 
     }
 
@@ -380,20 +493,21 @@ public class Neo4JController implements AutoCloseable {
         };
     }
 
-    private TransactionWork<Boolean> existNode(Location location) {
+    private Boolean existNodeCypher(Transaction transaction, Map<String, Object> parameters, String label) {
 
-        return new TransactionWork<Boolean>() {
-
-            @Override
-            public Boolean execute(Transaction transaction) {
-                Map<String, Object> parameters = new HashMap<String, Object>();
-                parameters.put("name", location.getName());
-                parameters.put("longitude", location.getLongitude());
-                parameters.put("latitude", location.getLatitude());
-                return existNodeCypher(transaction, parameters, nodeLocation);
-            }
-        };
-
+        StringBuilder andConditions = new StringBuilder();
+        String and = "and";
+        int index = 0;
+        for (String key : parameters.keySet()) {
+            and = (index == parameters.size() - 1) ? " " : "and ";
+            andConditions.append(MessageFormat.format("{0}.{1} = ${1} {2}", label, key.toLowerCase(), key, and));
+        }
+        String query = MessageFormat.format("Match ({0}:{1}) where {2} return ({0})", label.toLowerCase(), label, andConditions.toString());
+        Result result = transaction.run(query, parameters);
+        if (result.hasNext()) {
+            return Boolean.TRUE;
+        }
+        return Boolean.FALSE;
     }
 
     /**
@@ -415,21 +529,21 @@ public class Neo4JController implements AutoCloseable {
         return Boolean.FALSE;
     }
 
-    private Boolean existNodeCypher(Transaction transaction, Map<String, Object> parameters, String label) {
+    /**
+     * this method check whether two nodes (keyword and address) are link by edge
+     *
+     * @param metadata
+     * @param address
+     * @return
+     */
+    private TransactionWork<Boolean> isLinked(final Metadata metadata, final Address address) {
+        return new TransactionWork<Boolean>() {
 
-        StringBuilder andConditions = new StringBuilder();
-        String and = "and";
-        int index = 0;
-        for (String key : parameters.keySet()) {
-            and = (index == parameters.size() - 1) ? " " : "and ";
-            andConditions.append(MessageFormat.format("{0}.{1} = ${1} {2}", label, key.toLowerCase(), key, and));
-        }
-        String query = MessageFormat.format("Match ({0}:{1}) where {2} return ({0})", label.toLowerCase(), label, andConditions.toString());
-        Result result = transaction.run(query, parameters);
-        if (result.hasNext()) {
-            return Boolean.TRUE;
-        }
-        return Boolean.FALSE;
+            @Override
+            public Boolean execute(Transaction transaction) {
+                return isLinkedCypher(transaction, metadata, address);
+            }
+        };
     }
 
     /**
@@ -452,6 +566,23 @@ public class Neo4JController implements AutoCloseable {
                 rightLabel = (catalogEntry instanceof Term) ? nodeTerm : rightLabel;
                 String rightName = catalogEntry.getName();
                 return isLinkedCypher(transaction, leftLabel, leftName, edgeName, rightName, rightLabel);
+            }
+        };
+    }
+
+    /**
+     * this method check whether two nodes (keyword and location) are link by edge
+     *
+     * @param metadata
+     * @param location
+     * @return
+     */
+    private TransactionWork<Boolean> isLinked(final Metadata metadata, final Location location) {
+        return new TransactionWork<Boolean>() {
+
+            @Override
+            public Boolean execute(Transaction transaction) {
+                return isLinkedCypher(transaction, metadata, location);
             }
         };
     }
@@ -502,33 +633,55 @@ public class Neo4JController implements AutoCloseable {
         };
     }
 
-    private TransactionWork<Boolean> isLinked(final Metadata metadata, final Location location) {
-        return new TransactionWork<Boolean>() {
-
-            @Override
-            public Boolean execute(Transaction transaction) {
-                return isLinkedCypher(transaction, metadata, location);
-            }
-        };
-    }
-
     /**
-     * this method checks whether two nodes are link by edge
+     * this method checks whether two nodes (document and address) are link by edge
      *
      * @param transaction
-     * @param leftLabel
-     * @param leftName
-     * @param edgeName
-     * @param rightLabel
-     * @param rightName
+     * @param metadata
+     * @param address
      * @return
      */
-    private Boolean isLinkedCypher(Transaction transaction, String leftLabel, String leftName, String edgeName, String rightName, String rightLabel) {
-        String query = MessageFormat
-                .format("Match edge=(:{0}'{'name: $leftName'}')-[:{1}]->(:{2}'{'name: $rightName'}') return edge", leftLabel, edgeName, rightLabel);
+    private Boolean isLinkedCypher(Transaction transaction, Metadata metadata, Address address) {
 
-        Result result = transaction.run(query,
-                Values.parameters("leftName", leftName, "rightName", rightName));
+        String leftName = metadata.get("name");
+        String leftLabel = nodeDocument;
+        String rightName = address.getName();
+        String rightLabel = nodeAddress;
+        String edgeName = edgeContains;
+        String addressCondition = "";
+        String fidCondition = "fid: $fid";
+        String nameCondition = "name: $rightName";
+        String addtionalConditions = "";
+
+        Map<String, Object> parameters = new HashMap<String, Object>();
+        parameters.put("leftName", leftName);
+        parameters.put("rightName", rightName);
+
+        if (address.getFid() != 0L) {
+            parameters.put("fid", address.getFid());
+            addressCondition = fidCondition;
+        } else {
+            parameters.put("rightName", rightName);
+            addressCondition = nameCondition;
+            if (address.getHnr() != 0.0d) {
+                addtionalConditions = ", hnr: $hnr";
+                parameters.put("hnr", address.getHnr());
+            }
+            if (address.getHnr_zusatz() != null && address.getHnr_zusatz().trim().length() > 0) {
+                addtionalConditions += ", hnr_zusatz: $hnr_zusatz";
+                parameters.put("hnr_zusatz", address.getHnr_zusatz());
+            }
+        }
+
+        String query = MessageFormat
+                .format("Match edge=(:{0}'{'name: $leftName'}')-[:{1}]->(:{2}'{'{3} {4}'}') return edge",
+                        leftLabel,
+                        edgeName,
+                        rightLabel,
+                        addressCondition,
+                        addtionalConditions);
+
+        Result result = transaction.run(query, parameters);
         if (result.hasNext()) {
             return Boolean.TRUE;
         }
@@ -569,6 +722,46 @@ public class Neo4JController implements AutoCloseable {
     }
 
     /**
+     * this method checks whether two nodes are link by edge
+     *
+     * @param transaction
+     * @param leftLabel
+     * @param leftName
+     * @param edgeName
+     * @param rightLabel
+     * @param rightName
+     * @return
+     */
+    private Boolean isLinkedCypher(Transaction transaction, String leftLabel, String leftName, String edgeName, String rightName, String rightLabel) {
+        String query = MessageFormat
+                .format("Match edge=(:{0}'{'name: $leftName'}')-[:{1}]->(:{2}'{'name: $rightName'}') return edge", leftLabel, edgeName, rightLabel);
+
+        Result result = transaction.run(query,
+                Values.parameters("leftName", leftName, "rightName", rightName));
+        if (result.hasNext()) {
+            return Boolean.TRUE;
+        }
+        return Boolean.FALSE;
+    }
+
+    /**
+     * this method linke two nodes (metadata/document and address)
+     *
+     * @param metadata
+     * @param address
+     * @return
+     */
+    private TransactionWork<Void> link(final Metadata metadata, final Address address) {
+        return new TransactionWork<Void>() {
+
+            @Override
+            public Void execute(Transaction transaction) {
+                return linkCypher(transaction, metadata, address);
+            }
+        };
+    }
+
+    /**
      * this method link two nodes (document and catalog entry)
      *
      * @param metaData
@@ -590,6 +783,23 @@ public class Neo4JController implements AutoCloseable {
                 String rightLabel = nodeDocument;
                 Double weight = null;
                 return linkCypher(transaction, leftLabel, leftName, thereEdgeName, returnEdgeName, rightName, rightLabel, weight);
+            }
+        };
+    }
+
+    /**
+     * this method linke two nodes (metadata/document and location)
+     *
+     * @param metadata
+     * @param location
+     * @return
+     */
+    private TransactionWork<Void> link(final Metadata metadata, final Location location) {
+        return new TransactionWork<Void>() {
+
+            @Override
+            public Void execute(Transaction transaction) {
+                return linkCypher(transaction, metadata, location);
             }
         };
     }
@@ -668,14 +878,82 @@ public class Neo4JController implements AutoCloseable {
         };
     }
 
-    private TransactionWork<Void> link(final Metadata metadata, final Location location) {
-        return new TransactionWork<Void>() {
+    /**
+     * this method link metadata/document and address
+     *
+     * @param transaction
+     * @param metadata
+     * @param location
+     * @return
+     */
+    private Void linkCypher(Transaction transaction, Metadata metadata, Address address) {
 
-            @Override
-            public Void execute(Transaction transaction) {
-                return linkCypher(transaction, metadata, location);
-            }
-        };
+        String leftLabel = nodeDocument;
+        String rightLabel = nodeAddress;
+        String thereEdgeName = edgeContains;
+        String returnEdgeName = edgeAffect;
+        String additionalCondition = "";
+
+        Map<String, Object> parameters = new HashMap<String, Object>();
+        parameters.put("leftName", metadata.get("name"));
+        parameters.put("rightName", address.getName());
+
+        if (address.getHnr() != 0.0) {
+            parameters.put("hnr", address.getHnr());
+            additionalCondition = "and rightNode.hnr = $hnr";
+        }
+        if (address.getHnr_zusatz() != null && address.getHnr_zusatz().trim().length() > 0) {
+            parameters.put("hnr_zusatz", address.getHnr_zusatz());
+            additionalCondition += " and rightNode.hnr_zusatz = $hnr_zusatz";
+
+        }
+
+        String nodeQuery = MessageFormat
+                .format("Match (leftNode:{0}), (rightNode:{1}) where leftNode.name = $leftName and rightNode.name = $rightName {3}",
+                        leftLabel,
+                        rightLabel,
+                        additionalCondition);
+
+        String thereEdgeNameQuery = MessageFormat.format(" Create (leftNode)-[:{0}] ->(rightNode)", thereEdgeName);
+        String returnEdgeNameQuery = MessageFormat.format(" Create (rightNode)-[:{0}] ->(leftNode)", returnEdgeName);
+        String query = nodeQuery + thereEdgeNameQuery + returnEdgeNameQuery;
+
+        transaction.run(query, parameters);
+        return null;
+    }
+
+    /**
+     * this method link metadata/document and location
+     *
+     * @param transaction
+     * @param metadata
+     * @param location
+     * @return
+     */
+    private Void linkCypher(Transaction transaction, Metadata metadata, Location location) {
+
+        String leftLabel = nodeDocument;
+        String rightLabel = nodeLocation;
+        String thereEdgeName = edgeContains;
+        String returnEdgeName = edgeAffect;
+        Map<String, Object> parameters = new HashMap<String, Object>();
+
+        parameters.put("leftName", metadata.get("name"));
+        parameters.put("rightName", location.getName());
+        parameters.put("longitude", location.getLongitude());
+        parameters.put("latitude", location.getLatitude());
+
+        String nodeQuery = MessageFormat
+                .format("Match (leftNode:{0}), (rightNode:{1}) where leftNode.name = $leftName and rightNode.name = $rightName and rightNode.longitude = $longitude and rightNode.latitude = $latitude",
+                        leftLabel,
+                        rightLabel);
+
+        String thereEdgeNameQuery = MessageFormat.format(" Create (leftNode)-[:{0}] ->(rightNode)", thereEdgeName);
+        String returnEdgeNameQuery = MessageFormat.format(" Create (rightNode)-[:{0}] ->(leftNode)", returnEdgeName);
+        String query = nodeQuery + thereEdgeNameQuery + returnEdgeNameQuery;
+
+        transaction.run(query, parameters);
+        return null;
     }
 
     /**
@@ -720,40 +998,6 @@ public class Neo4JController implements AutoCloseable {
     }
 
     /**
-     * this method link metadata/document and location
-     *
-     * @param transaction
-     * @param metadata
-     * @param location
-     * @return
-     */
-    private Void linkCypher(Transaction transaction, Metadata metadata, Location location) {
-
-        String leftLabel = nodeDocument;
-        String rightLabel = nodeLocation;
-        String thereEdgeName = edgeContains;
-        String returnEdgeName = edgeAffect;
-        Map<String, Object> parameters = new HashMap<String, Object>();
-
-        parameters.put("leftName", metadata.get("name"));
-        parameters.put("rightName", location.getName());
-        parameters.put("longitude", location.getLongitude());
-        parameters.put("latitude", location.getLatitude());
-
-        String nodeQuery = MessageFormat
-                .format("Match (leftNode:{0}), (rightNode:{1}) where leftNode.name = $leftName and rightNode.name = $rightName and rightNode.longitude = $longitude and rightNode.latitude = $latitude",
-                        leftLabel,
-                        rightLabel);
-
-        String thereEdgeNameQuery = MessageFormat.format(" Create (leftNode)-[:{0}] ->(rightNode)", thereEdgeName);
-        String returnEdgeNameQuery = MessageFormat.format(" Create (rightNode)-[:{0}] ->(leftNode)", returnEdgeName);
-        String query = nodeQuery + thereEdgeNameQuery + returnEdgeNameQuery;
-
-        transaction.run(query, parameters);
-        return null;
-    }
-
-    /**
      * this method purge db
      */
     public void purgeDB() {
@@ -780,6 +1024,8 @@ public class Neo4JController implements AutoCloseable {
         nodeDocument = properties.getProperty(Neo4JController.NODE_DOCUMENT, "Document");
         nodeKeyword = properties.getProperty(Neo4JController.NODE_KEYWORD, "Keyword");
         nodeOntology = properties.getProperty(Neo4JController.NODE_ONTOLOGY, "Ontology");
+        nodeLocation = properties.getProperty(Neo4JController.NODE_LOCATION, "location");
+        nodeAddress = properties.getProperty(Neo4JController.NODE_ADDRESS, "address");
         nodeTerm = properties.getProperty(Neo4JController.NODE_TERM, "Term");
         edgeAffect = properties.getProperty(Neo4JController.EDGE_AFFECT, "affect");
         edgeBelongsTo = properties.getProperty(Neo4JController.EDGE_BELONGSTO, "belongsTo");
