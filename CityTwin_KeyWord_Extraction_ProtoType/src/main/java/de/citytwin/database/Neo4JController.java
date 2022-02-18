@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 
@@ -314,14 +315,18 @@ public class Neo4JController implements AutoCloseable {
 
             @Override
             public Void execute(Transaction transaction) {
-                String label = nodeDocument;
+                String label = nodeLocation;
                 Map<String, Object> parameters = new HashMap<String, Object>();
                 parameters.put("name", location.getName());
                 parameters.put("featureCode", location.getFeatureCode());
                 parameters.put("latitude", location.getLatitude());
                 parameters.put("longitude", location.getLongitude());
                 parameters.put("longitude", location.getLongitude());
-                parameters.put("synonyms", String.join(",", location.getSynonyms()));
+                if (location.getSynonyms() == null) {
+                    parameters.put("synonyms", new HashSet<String>());
+                } else {
+                    parameters.put("synonyms", String.join(",", location.getSynonyms()));
+                }
                 return createNodeCypher(transaction, label, parameters);
             }
         };
@@ -345,6 +350,7 @@ public class Neo4JController implements AutoCloseable {
                     String cleaned = name.replace("-", "");
                     cleaned = cleaned.replace(":", "");
                     cleaned = cleaned.replace("-", "");
+                    cleaned = cleaned.replace(" ", "");
                     parameters.put(cleaned, metadata.get(name));
                 }
                 return createNodeCypher(transaction, label, parameters);
@@ -414,9 +420,9 @@ public class Neo4JController implements AutoCloseable {
             @Override
             public Boolean execute(Transaction transaction) {
                 Map<String, Object> parameters = new HashMap<String, Object>();
-                if (address.getFid() != 0) {
+                if (address.getFid() != null && address.getFid() != 0L) {
                     parameters.put("fid", address.getFid());
-                    return existNodeCypher(transaction, parameters, nodeLocation);
+                    return existNodeCypher(transaction, parameters, nodeAddress);
                 }
                 // id isn´t set, check per name and additional information
                 parameters.put("name", address.getName());
@@ -427,7 +433,7 @@ public class Neo4JController implements AutoCloseable {
                 if (address.getHnr_zusatz() != null && address.getHnr_zusatz().trim().length() > 0) {
                     parameters.put("hnr_zusatz", address.getHnr_zusatz());
                 }
-                return existNodeCypher(transaction, parameters, nodeLocation);
+                return existNodeCypher(transaction, parameters, nodeAddress);
             }
         };
     }
@@ -499,8 +505,8 @@ public class Neo4JController implements AutoCloseable {
         String and = "and";
         int index = 0;
         for (String key : parameters.keySet()) {
-            and = (index == parameters.size() - 1) ? " " : "and ";
-            andConditions.append(MessageFormat.format("{0}.{1} = ${1} {2}", label, key.toLowerCase(), key, and));
+            and = (index++ == parameters.size() - 1) ? " " : "and ";
+            andConditions.append(MessageFormat.format("{0}.{1} = ${1} {2}", label.toLowerCase(), key.toLowerCase(), and));
         }
         String query = MessageFormat.format("Match ({0}:{1}) where {2} return ({0})", label.toLowerCase(), label, andConditions.toString());
         Result result = transaction.run(query, parameters);
@@ -651,24 +657,24 @@ public class Neo4JController implements AutoCloseable {
         String addressCondition = "";
         String fidCondition = "fid: $fid";
         String nameCondition = "name: $rightName";
-        String addtionalConditions = "";
+        String additionalCondition = "";
 
         Map<String, Object> parameters = new HashMap<String, Object>();
         parameters.put("leftName", leftName);
         parameters.put("rightName", rightName);
 
-        if (address.getFid() != 0L) {
+        if (address.getFid() != null && address.getFid() > 0L) {
             parameters.put("fid", address.getFid());
-            addressCondition = fidCondition;
+            additionalCondition = fidCondition;
         } else {
             parameters.put("rightName", rightName);
             addressCondition = nameCondition;
             if (address.getHnr() != 0.0d) {
-                addtionalConditions = ", hnr: $hnr";
+                additionalCondition = ", hnr: $hnr";
                 parameters.put("hnr", address.getHnr());
             }
             if (address.getHnr_zusatz() != null && address.getHnr_zusatz().trim().length() > 0) {
-                addtionalConditions += ", hnr_zusatz: $hnr_zusatz";
+                additionalCondition += ", hnr_zusatz: $hnr_zusatz";
                 parameters.put("hnr_zusatz", address.getHnr_zusatz());
             }
         }
@@ -679,7 +685,7 @@ public class Neo4JController implements AutoCloseable {
                         edgeName,
                         rightLabel,
                         addressCondition,
-                        addtionalConditions);
+                        additionalCondition);
 
         Result result = transaction.run(query, parameters);
         if (result.hasNext()) {
@@ -892,24 +898,31 @@ public class Neo4JController implements AutoCloseable {
         String rightLabel = nodeAddress;
         String thereEdgeName = edgeContains;
         String returnEdgeName = edgeAffect;
+        String fidCondition = "rightNode.fid = $fid";
+        String nameCondition = "rightNode.name = $rightName";
         String additionalCondition = "";
 
         Map<String, Object> parameters = new HashMap<String, Object>();
         parameters.put("leftName", metadata.get("name"));
-        parameters.put("rightName", address.getName());
 
-        if (address.getHnr() != 0.0) {
-            parameters.put("hnr", address.getHnr());
-            additionalCondition = "and rightNode.hnr = $hnr";
-        }
-        if (address.getHnr_zusatz() != null && address.getHnr_zusatz().trim().length() > 0) {
-            parameters.put("hnr_zusatz", address.getHnr_zusatz());
-            additionalCondition += " and rightNode.hnr_zusatz = $hnr_zusatz";
-
+        if (address.getFid() != null && address.getFid() > 0L) {
+            parameters.put("fid", address.getFid());
+            additionalCondition = fidCondition;
+        } else {
+            parameters.put("rightName", address.getName());
+            additionalCondition = nameCondition;
+            if (address.getHnr() != 0.0d) {
+                additionalCondition += " and rightNode.hnr = $hnr";
+                parameters.put("hnr", address.getHnr());
+            }
+            if (address.getHnr_zusatz() != null && address.getHnr_zusatz().trim().length() > 0) {
+                additionalCondition += " and rightNode.hnr_zusatz = $hnr_zusatz";
+                parameters.put("hnr_zusatz", address.getHnr_zusatz());
+            }
         }
 
         String nodeQuery = MessageFormat
-                .format("Match (leftNode:{0}), (rightNode:{1}) where leftNode.name = $leftName and rightNode.name = $rightName {3}",
+                .format("Match (leftNode:{0}), (rightNode:{1}) where leftNode.name = $leftName and {2}",
                         leftLabel,
                         rightLabel,
                         additionalCondition);
@@ -1024,8 +1037,8 @@ public class Neo4JController implements AutoCloseable {
         nodeDocument = properties.getProperty(Neo4JController.NODE_DOCUMENT, "Document");
         nodeKeyword = properties.getProperty(Neo4JController.NODE_KEYWORD, "Keyword");
         nodeOntology = properties.getProperty(Neo4JController.NODE_ONTOLOGY, "Ontology");
-        nodeLocation = properties.getProperty(Neo4JController.NODE_LOCATION, "location");
-        nodeAddress = properties.getProperty(Neo4JController.NODE_ADDRESS, "address");
+        nodeLocation = properties.getProperty(Neo4JController.NODE_LOCATION, "Location");
+        nodeAddress = properties.getProperty(Neo4JController.NODE_ADDRESS, "Address");
         nodeTerm = properties.getProperty(Neo4JController.NODE_TERM, "Term");
         edgeAffect = properties.getProperty(Neo4JController.EDGE_AFFECT, "affect");
         edgeBelongsTo = properties.getProperty(Neo4JController.EDGE_BELONGSTO, "belongsTo");
