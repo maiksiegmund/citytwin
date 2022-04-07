@@ -2,7 +2,7 @@ package de.citytwin.analyser;
 
 import de.citytwin.namedentities.NamedEntitiesExtractor;
 
-import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.util.Set;
 
 /**
@@ -15,11 +15,14 @@ public interface NamedEntities {
     /**
      * this method extract named entities from a file
      *
-     * @param file
-     * @param keywordExtractor
-     * @return new reference of {@code Set<String>}
+     * @param byteArrayInputStream
+     * @param fileName
+     * @param namedEntitiesExtractor
+     * @return
      * @throws Exception
      */
-    public Set<String> getNamedEntities(File file, NamedEntitiesExtractor namedEntitiesExtractor) throws Exception;
+    public Set<String> getNamedEntities(
+            final ByteArrayInputStream byteArrayInputStream, final String fileName, NamedEntitiesExtractor namedEntitiesExtractor)
+            throws Exception;
 
 }
