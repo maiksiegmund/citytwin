@@ -15,11 +15,20 @@ public interface NamedEntitiesExtractor {
     /**
      * this method extract named entities from text corpus
      *
-     * @param textcorpus {@code List<List<String>>} <br>
+     * @param textCorpus {@code List<List<String>>} <br>
      *            first list is a sentence and this contains a list of terms
      * @return new reference {@code Set<String>}
      * @throws Exception
      */
+    public Set<String> getNamedEntities(List<List<String>> textCorpus) throws Exception;
 
-    public Set<String> getNamedEntities(List<List<String>> textcorpus) throws Exception;
+    /**
+     * this method extract named entities from text corpus by a regex
+     *
+     * @param textCorpus
+     * @param regex
+     * @return
+     * @throws Exception
+     */
+    public Set<String> getNamedEntities(String textCorpus, String regex) throws Exception;
 }
