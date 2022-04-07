@@ -123,14 +123,14 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
      * @return
      * @throws IOException
      */
-    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+    public Boolean validateProperties(Properties properties) throws IllegalArgumentException {
         // hard coded type information
         String property = (clazz.getSimpleName().equals(classSimpleName)) ? ApplicationConfiguration.PATH_2_Term_CATALOG_FILE
                 : ApplicationConfiguration.PATH_2_ALKIS_CATALOG_FILE;
         path2catalogFile = properties.getProperty(property);
         if (path2catalogFile == null) {
             throw new IllegalArgumentException(
-                    "set property --> " + ApplicationConfiguration.PATH_2_Term_CATALOG_FILE + " or " + ApplicationConfiguration.PATH_2_ALKIS_CATALOG_FILE);
+                    "set property --> " + "ApplicationConfiguration.PATH_2_Term_CATALOG_FILE" + " or " + "ApplicationConfiguration.PATH_2_ALKIS_CATALOG_FILE");
         }
         return true;
     }
