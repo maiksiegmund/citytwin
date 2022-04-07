@@ -8,17 +8,18 @@ import de.citytwin.model.Location;
 import de.citytwin.namedentities.NamedEntitiesExtractor;
 
 import java.io.BufferedReader;
-import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
 import java.net.URL;
-import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -62,6 +63,8 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
     private Integer minNamedEntityLength = null;
     private Integer maxSectionCount = null;
 
+    private String addressRegex = "";
+
     public Location getOriginLocation() {
         return originLocation;
     }
@@ -86,15 +89,43 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
     }
 
     @Override
-    public Set<String> getNamedEntities(final File file, NamedEntitiesExtractor namedEntitiesExtractor) throws Exception {
-        BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
-        List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler);
-        return namedEntitiesExtractor.getNamedEntities(textcorpus);
+    public Set<String> getNamedEntities(
+            final ByteArrayInputStream byteArrayInputStream, final String fileName, NamedEntitiesExtractor namedEntitiesExtractor)
+            throws Exception {
+        Set<String> namedEntities = new HashSet<String>();
+        BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(byteArrayInputStream, fileName);
+        List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, false);
+        namedEntities.addAll(namedEntitiesExtractor.getNamedEntities(textcorpus));
+        namedEntities.addAll(namedEntitiesExtractor.getNamedEntities(bodyContentHandler.toString(), addressRegex));
+        return namedEntities;
 
     }
 
     public Set<Location> filterNamedEntities(final Set<String> extractedLocations) throws Exception {
         return filterNamedEntities(extractedLocations, originLocation, maxDistanceInMeters);
+    }
+
+    // todo rename in prefilterNamedEnities --> prefilterAddresses
+    public Set<String> prefilterAddresses(final Set<String> extractedNamedEnites, PostgreSQLController postgreSQLController) throws Exception {
+        Set<String> filterd = new HashSet<String>();
+        List<Set<String>> nameSets = new ArrayList<Set<String>>();
+        nameSets.add(postgreSQLController.getStreetNames());
+        nameSets.add(postgreSQLController.getSectionsNames());
+        nameSets.add(postgreSQLController.getDistrictsNames());
+
+        for (Set<String> nameSet : nameSets) {
+            for (String name : nameSet) {
+                Set<String> temps = extractedNamedEnites.stream().filter(extractedNamedEnity -> extractedNamedEnity.contains(name)).collect(Collectors.toSet());
+                Set<String> cleared = new HashSet<String>(temps.size());
+                for (String temp : temps) {
+                    int startIndex = temp.indexOf(name);
+                    cleared.add(temp.substring(startIndex));
+                }
+                filterd.addAll(cleared);
+            }
+
+        }
+        return filterd;
     }
 
     /**
@@ -180,7 +211,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
 
         Set<Location> locations = new HashSet<Location>();
         for (String extractedLocation : extractedLocations) {
-            String[] extractedLocationParts = extractedLocation.split(" ");
+            String[] extractedLocationParts = extractedLocation.split(" "); // toDO split on "\"
             for (String extractedLocationPart : extractedLocationParts) {
                 if (extractedLocationPart.matches(".*\\d.*") || extractedLocationPart.length() <= minNamedEntityLength) {
                     continue;
@@ -204,13 +235,53 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         return locations;
     }
 
-    public Set<Address> validateAddresses(final Set<String> extractedLocations, PostgreSQLController controller)
-            throws ClassNotFoundException, SQLException {
-        Set<Address> addresses = new HashSet<Address>();
+    public Set<Location> validateLocations(final Set<String> extractedLocations, PostgreSQLController controller, Boolean containsInSynonyms) throws Exception {
+        Set<Location> locations = new HashSet<Location>();
         for (String extractedLocation : extractedLocations) {
+            // skip entries with digits
+            if (extractedLocation.matches(".*\\d.*"))
+                continue;
+            String[] extractedLocationParts = extractedLocation.split(" ");
+            String query = "";
+            Set<String> synoymns = new HashSet<String>();
+            for (String extractedLocationPart : extractedLocationParts) {
+                query += extractedLocationPart + " ";
+                if (query.trim().length() <= minNamedEntityLength)
+                    continue;
+                synoymns.add(query.trim());
+                Location tempLocation = new Location(query.trim(), "", 0, 0, synoymns);
+                List<Long> ids = controller.getIds(tempLocation, containsInSynonyms);
+                for (Long locationId : ids) {
+                    Location location = controller.getLocation(locationId);
+                    locations.add(location);
+                }
+            }
+            synoymns.clear();
+        }
+
+        return locations;
+    }
+
+    /**
+     * this method validate address is in database
+     *
+     * @param extractedLocations
+     * @param controller
+     * @return
+     * @throws Exception
+     */
+    public Set<Address> validateAddresses(final Set<String> extractedLocations, PostgreSQLController controller)
+            throws Exception {
+        Set<Address> addresses = new HashSet<Address>();
+
+        Set<String> preFilteredExtractedLocations = prefilterAddresses(extractedLocations, controller);
+
+        // for (String extractedLocation : extractedLocations) {
+        for (String extractedLocation : preFilteredExtractedLocations) {
+            // Set<Address> queryAddresses = getAddresses(extractedLocation);
             Set<Address> queryAddresses = getAddresses(extractedLocation);
-            LOGGER.info(queryAddresses.toString());
             for (Address queryAddress : queryAddresses) {
+                LOGGER.info(queryAddress.toString());
                 Long count = controller.countOfAddresses(queryAddress);
                 if (count > 0 && count <= maxStreetCount) {
                     Set<String> sections = controller.getSections(queryAddress);
@@ -225,63 +296,141 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
                     }
                 }
             }
-
         }
         return addresses;
     }
 
-    private Set<Address> getAddresses(String string) {
+    /**
+     * this method extract addresses of a given extractedLocation <br>
+     * Lindauer Allee 17 --> Lindauer Allee 17 <br>
+     * Lindauer Allee 17-20 --> Lindauer Allee 17, Lindauer Allee 18, Lindauer Allee 19, Lindauer Allee 20 <br>
+     * Berlinerweg 18/20 --> Berlinerweg 18, Berlinerweg 20
+     *
+     * @param extractedLocation
+     * @return new reference of {@code Set<Address> }
+     */
+    private Set<Address> getAddresses(String extractedLocation) {
 
-        Set<Address> results = new HashSet<Address>();
-        String[] addressParts;
-        Boolean containsDigits = string.matches(".*\\d.*");
+        Set<Address> addresses = new HashSet<Address>();
+        // check extractedLocation contains less three coherent digits
+        Boolean containsDigits = extractedLocation.matches(".*\\d.*") && !extractedLocation.matches(".*\\d{4,}.*");
+        // no digits given result set are to inaccurate
+        if (!containsDigits)
+            return addresses;
 
-        results.add(new Address(string.trim(), 0.0d, null));
+        String[] parts = splitNameAndNumbers(extractedLocation);
+        Map<Double, String> numbers = splitRange(parts[1]);
 
-        if (!containsDigits) {
-            String temp = "";
-            addressParts = string.split("[/ ]");
-            for (String addressPart : addressParts) {
-                temp += addressPart + " ";
-                results.add(new Address(temp.trim(), 0.0d, null));
-                results.add(new Address(addressPart.trim(), 0.0d, null));
+        for (Double number : numbers.keySet()) {
+            Address address = new Address(parts[0], number, numbers.get(number));
+            addresses.add(address);
+        }
+        return addresses;
+
+    }
+
+    /**
+     * this method split name and numbers and return String[2] <br>
+     * [0] = name <br>
+     * [1] = numbers (and additional housenumber) <br>
+     *
+     * @param extractedLocation
+     * @return new reference of {@code String[2]}
+     */
+    private String[] splitNameAndNumbers(String extractedLocation) {
+        String[] parts = new String[2];
+        parts[0] = extractedLocation;
+        parts[1] = "";
+        char[] characters = extractedLocation.toCharArray();
+        int countCohorentLetters = 0;
+        int lastLetterIndex = 0;
+        // seeking last two cohorent letters
+        for (int index = characters.length - 1; index >= 0; --index) {
+            if (Character.isLetter(characters[index])) {
+                countCohorentLetters++;
+            } else {
+                countCohorentLetters = 0;
             }
-
-        } else {
-            addressParts = string.split(" ");
-            String temp = "";
-            for (String addressPart : addressParts) {
-                if (addressPart.matches(".*\\d.*")) {
-                    String[] numberParts = addressPart.split("[/-]");
-                    for (int index = 0; index < numberParts.length; ++index) {
-                        char[] chars = numberParts[index].toCharArray();
-                        String tempNumber = "";
-                        String tempHnrAdditional = null;
-                        for (char chr : chars) {
-
-                            if (Character.isDigit(chr)) {
-                                tempNumber += Character.toString(chr);
-
-                            }
-                            if (Character.isLetter(chr)) {
-                                tempHnrAdditional = Character.toString(chr);
-                            }
-                        }
-                        if (tempNumber.trim().length() == 0) {
-                            tempNumber = "0.0d";
-                        }
-                        results.add(new Address(addressPart.trim(), Double.parseDouble(tempNumber), tempHnrAdditional));
-                        results.add(new Address(temp.trim(), Double.parseDouble(tempNumber), tempHnrAdditional));
-                    }
-                } else {
-                    temp += addressPart + " ";
-                    results.add(new Address(temp.trim(), 0.0d, null));
-                    results.add(new Address(addressPart.trim(), 0.0d, null));
-                }
+            if (countCohorentLetters == 2) {
+                lastLetterIndex = index + countCohorentLetters;
+                break;
             }
         }
-        return results;
+        parts[0] = extractedLocation.substring(0, lastLetterIndex).trim();
+        parts[1] = extractedLocation.substring(lastLetterIndex).trim();
+        return parts;
+    }
 
+    /**
+     * this method create number pool of house numbers <br>
+     * key --> house number <br>
+     * value --> additional house number
+     *
+     * @param numberText
+     * @return new reference of {@ Map<Double, String> }
+     */
+    private Map<Double, String> splitRange(String numberText) {
+
+        Map<Double, String> numbers = new HashMap<Double, String>();
+        try {
+            boolean isRange = false;
+            String[] parts = null;
+            if (numberText.contains("-")) {
+                parts = numberText.split("-");
+                if (parts.length == 2)
+                    isRange = true;
+            }
+            if (numberText.contains("/")) {
+                parts = numberText.split("/");
+            }
+            if (parts == null) {
+                parts = new String[1];
+                parts[0] = numberText;
+            }
+            String predecessor = "";
+            for (String part : parts) {
+                char[] characters = part.trim().toCharArray();
+                String tempNumber = "";
+                String additionalnumber = "";
+                for (int index = 0; index < characters.length; ++index) {
+                    if (Character.isDigit(characters[index])) {
+                        tempNumber += characters[index];
+                    } else {
+                        additionalnumber += characters[index];
+                        additionalnumber = additionalnumber.toUpperCase();
+                    }
+                }
+                if (tempNumber.length() == 0) {
+                    tempNumber = predecessor;
+                } else {
+                    predecessor = tempNumber;
+                }
+                numbers.put(Double.parseDouble(tempNumber), "");
+                if (additionalnumber.length() != 0) {
+                    numbers.put(Double.parseDouble(tempNumber), additionalnumber);
+                }
+                tempNumber = "";
+                additionalnumber = "";
+            }
+
+            if (isRange) {
+                List<Double> copy = new ArrayList<Double>();
+                for (Double result : numbers.keySet()) {
+                    copy.add(result);
+                }
+                copy.sort((left, right) -> left.compareTo(right));
+                double min = copy.get(0);
+                double max = copy.get(copy.size() - 1);
+                for (Double index = min; index < max; ++index) {
+                    if (!numbers.containsKey(index))
+                        numbers.put(index, "");
+                }
+            }
+
+        } catch (Exception exception) {
+            LOGGER.error(exception.getMessage(), exception);
+        }
+        return numbers;
     }
 
     /**
@@ -299,70 +448,74 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
                 new HashSet<String>(Arrays.asList(toponym.getAlternateNames().split(","))));
     }
 
-    private Boolean validateProperties(final Properties properties) {
+    public Boolean validateProperties(final Properties properties) {
 
         user = properties.getProperty(ApplicationConfiguration.GEONAMES_USER);
         if (user == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_USER);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.GEONAMES_USER");
         }
         countryCode = properties.getProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE);
         if (countryCode == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_COUNTRYCODE);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.GEONAMES_COUNTRYCODE");
         }
         String property = properties.getProperty(ApplicationConfiguration.GEONAMES_MAXROWS);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_MAXROWS);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.GEONAMES_MAXROWS");
         }
         maxRows = Integer.parseInt(property);
-        geoNamesServer = properties.getProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE);
+        geoNamesServer = properties.getProperty(ApplicationConfiguration.GEONAMES_URI);
         if (geoNamesServer == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_WEBSERVICE);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.GEONAMES_WEBSERVICE");
         }
         property = properties.getProperty(ApplicationConfiguration.MAX_DISTANCE_IN_METERS);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_DISTANCE_IN_METERS);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MAX_DISTANCE_IN_METERS");
         }
         maxDistanceInMeters = Double.parseDouble(property);
         url2DumpFile = properties.getProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE);
         if (url2DumpFile == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE");
         }
         zipEntry = properties.getProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY);
         if (zipEntry == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.GEONAMES_ZIP_ENTRY);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.GEONAMES_ZIP_ENTRY");
         }
         originName = properties.getProperty(ApplicationConfiguration.ORIGIN_LOCATION_NAME);
         if (originName == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.ORIGIN_LOCATION_NAME);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.ORIGIN_LOCATION_NAME");
         }
         property = properties.getProperty(ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE");
         }
         originLatitude = Double.parseDouble(property);
         property = properties.getProperty(ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE");
         }
         originLongitude = Double.parseDouble(property);
 
         property = properties.getProperty(ApplicationConfiguration.MAX_STREET_COUNT);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_STREET_COUNT);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MAX_STREET_COUNT");
         }
         maxStreetCount = Integer.parseInt(property);
 
         property = properties.getProperty(ApplicationConfiguration.MIN_NAMED_ENTITY_LENGTH);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_NAMED_ENTITY_LENGTH);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MIN_NAMED_ENTITY_LENGTH");
         }
         minNamedEntityLength = Integer.parseInt(property);
 
         property = properties.getProperty(ApplicationConfiguration.MAX_SECTION_COUNT);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_SECTION_COUNT);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MAX_SECTION_COUNT");
         }
         maxSectionCount = Integer.parseInt(property);
+        addressRegex = properties.getProperty(ApplicationConfiguration.ADDRESS_REGEX);
+        if (addressRegex == null) {
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.ADDRESS_REGEX");
+        }
         return true;
     }
 
@@ -371,7 +524,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         properties.setProperty(ApplicationConfiguration.GEONAMES_USER, "demo");
         properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
         properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_WEBSERVICE, "api.geonames.org");
+        properties.setProperty(ApplicationConfiguration.GEONAMES_URI, "api.geonames.org");
         properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "https://download.geonames.org/export/dump/DE.zip");
         properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
         properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_NAME, "Berlin");
@@ -381,6 +534,11 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         properties.setProperty(ApplicationConfiguration.MAX_STREET_COUNT, "10");
         properties.setProperty(ApplicationConfiguration.MIN_NAMED_ENTITY_LENGTH, "5");
         properties.setProperty(ApplicationConfiguration.MAX_SECTION_COUNT, "2");
+        // properties.setProperty(ApplicationConfiguration.ADDRESS_REGEX, "([A-Z][ a-zäüöß-]+)+(\\. | |\\.){1}(?>(\\d+[a-zA-Z-\\/]*\\d*))");
+        // properties.setProperty(ApplicationConfiguration.ADDRESS_REGEX, "([A-Z][ a-zäüöß-]+)+(\\. |
+        // |\\.|)(?>(\\d{1,3})(([a-zA-Z-\\\\/]{0,2})\\d{0,3}[a-zA-Z]?))");
+        properties.setProperty(ApplicationConfiguration.ADDRESS_REGEX,
+                "([A-Z][ a-zäüöß-]+)+(\\. | |\\.|)(?>(\\d{1,3})(([a-zA-Z-/]{0,2})\\d{0,3}[a-zA-Z]?))");
         return properties;
     }
 
