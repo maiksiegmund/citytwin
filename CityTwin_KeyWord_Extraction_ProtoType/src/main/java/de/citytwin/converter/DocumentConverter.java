@@ -10,6 +10,7 @@ import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.text.TextProcessing;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
@@ -20,6 +21,8 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+
+import javax.annotation.Nonnull;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -50,10 +53,10 @@ public class DocumentConverter implements AutoCloseable {
 
         Properties properties = new Properties();
         properties.setProperty(ApplicationConfiguration.MAX_NEW_LINES, "5");
-        properties.setProperty(ApplicationConfiguration.CLEANING_PATTERN, "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
+        properties.setProperty(ApplicationConfiguration.CLEANING_REGEX, "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
         properties.setProperty(ApplicationConfiguration.MIN_TERM_LENGTH, "2");
         properties.setProperty(ApplicationConfiguration.MIN_TERM_COUNT, "5");
-        properties.setProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT, "50");
+        properties.setProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT, "80");
         return properties;
     }
 
@@ -83,10 +86,10 @@ public class DocumentConverter implements AutoCloseable {
     private AutoDetectParser autoDetectParser = null;
     private Metadata metadata = null;
     private ParseContext parseContext = null;
-    private File parsedFile = null;
     private List<List<String>> textCorpus = null;
     private TextProcessing textProcessing = null;
-
+    private String fileName = null;
+    private ByteArrayInputStream bufferedInputStream = null;
     private Integer maxNewLines = null;
     private String cleaningPattern = null;
     private Integer minTermLength = null;
@@ -119,25 +122,38 @@ public class DocumentConverter implements AutoCloseable {
     }
 
     /**
-     * this method return BodyContentHandler of a file
+     * this method return BodyContentHandler of a FileInputStream
      *
-     * @param file
-     * @return new reference of {@code BodyContentHandler}
+     * @param byteArrayInputStream
+     * @param fileName
+     * @return
      * @throws SAXException
      * @throws TikaException
      * @throws IOException
      * @throws Exception
      */
-    public BodyContentHandler getBodyContentHandler(final File file) throws SAXException, TikaException, IOException, Exception {
-        if (parsedFile == null) {
-            setTikaComponents(file);
-            parsedFile = file;
-        }
-        if (!parsedFile.equals(file)) {
-            setTikaComponents(file);
-            parsedFile = file;
+    public BodyContentHandler getBodyContentHandler(
+            @Nonnull final ByteArrayInputStream byteArrayInputStream, @Nonnull String fileName)
+            throws SAXException, TikaException, IOException, Exception {
+
+        if (!byteArrayInputStream.equals(this.bufferedInputStream)) {
+            this.bufferedInputStream = byteArrayInputStream;
+            this.fileName = fileName;
+            setTikaComponents(this.bufferedInputStream, fileName);
         }
         return bodyContentHandler;
+    }
+
+    /**
+     * this method tokenize bodyContentHandler in sentences and each term and remove footers, table of content
+     *
+     * @param bodyContentHandler
+     * @param onSingleSentence
+     * @return
+     * @throws IOException
+     */
+    public List<List<String>> getCleanedTextCorpus(BodyContentHandler bodyContentHandler, boolean onSingleSentence) throws IOException {
+        return (onSingleSentence) ? getCleanedTextCorpusBySentences(bodyContentHandler) : getCleanedTextCorpusOnHoleCorpus(bodyContentHandler);
     }
 
     /**
@@ -147,7 +163,7 @@ public class DocumentConverter implements AutoCloseable {
      * @return {@code List<List<String>>}
      * @throws IOException
      */
-    public List<List<String>> getCleanedTextCorpus(BodyContentHandler bodyContentHandler) throws IOException {
+    private List<List<String>> getCleanedTextCorpusBySentences(BodyContentHandler bodyContentHandler) throws IOException {
 
         textCorpus = new ArrayList<List<String>>();
         List<String> sentences = textProcessing.tokenize2Sencences(bodyContentHandler, maxNewLines);
@@ -160,23 +176,47 @@ public class DocumentConverter implements AutoCloseable {
     }
 
     /**
-     * this method return title of file
+     * this method tokenize bodyContentHandler in sentences and each term term and remove footers, table of content (on hole text corpus)
      *
-     * @param file
-     * @return {@code String}
+     * @param bodyContentHandler {@code BodyContentHandler}
+     * @return {@code List<List<String>>}
+     * @throws IOException
+     */
+    private List<List<String>> getCleanedTextCorpusOnHoleCorpus(BodyContentHandler bodyContentHandler) throws IOException {
+
+        textCorpus = new ArrayList<List<String>>();
+
+        List<String> sentences = textProcessing.getPreProcessedTextCorpus(bodyContentHandler.toString());
+        int count = 0;
+
+        for (String sentence : sentences) {
+            List<String> temp = textProcessing.tokenize2Term(sentence);
+            textCorpus.add(temp);
+            count += temp.size();
+        }
+
+        LOGGER.info(MessageFormat.format("text corpus cleaned, {0} terms remain", count));
+        return textCorpus;
+    }
+
+    /**
+     * this method return parsed document title of fileInputStream
+     *
+     * @param byteArrayInputStream
+     * @param fileName
+     * @return
      * @throws SAXException
      * @throws TikaException
      * @throws IOException
      * @throws Exception
      */
-    public String getDocumentTitle(final File file) throws SAXException, TikaException, IOException, Exception {
-        if (parsedFile == null) {
-            setTikaComponents(file);
-            parsedFile = file;
-        }
-        if (!parsedFile.equals(file)) {
-            setTikaComponents(file);
-            parsedFile = file;
+    public String getDocumentTitle(
+            @Nonnull final ByteArrayInputStream byteArrayInputStream, @Nonnull String fileName)
+            throws SAXException, TikaException, IOException, Exception {
+        if (!this.bufferedInputStream.equals(byteArrayInputStream)) {
+            this.bufferedInputStream = byteArrayInputStream;
+            this.fileName = fileName;
+            setTikaComponents(byteArrayInputStream, fileName);
         }
         return metadata.get("title");
 
@@ -185,26 +225,21 @@ public class DocumentConverter implements AutoCloseable {
     /**
      * this method return metadata of file
      *
-     * @param file
-     * @return new reference of {@code Metadata}
+     * @param byteArrayInputStream
+     * @param fileName
+     * @return
      * @throws SAXException
      * @throws TikaException
      * @throws IOException
      * @throws Exception
      */
-    public Metadata getMetaData(final File file) throws SAXException, TikaException, IOException, Exception {
-        if (parsedFile == null) {
-            setTikaComponents(file);
-            parsedFile = file;
+    public Metadata getMetaData(final ByteArrayInputStream byteArrayInputStream, String fileName) throws SAXException, TikaException, IOException, Exception {
+        if (!this.bufferedInputStream.equals(byteArrayInputStream)) {
+            this.bufferedInputStream = byteArrayInputStream;
+            this.fileName = fileName;
+            setTikaComponents(byteArrayInputStream, fileName);
         }
-        if (!parsedFile.equals(file)) {
-            setTikaComponents(file);
-            parsedFile = file;
-        }
-        String filename = metadata.get("name");
-        if (filename == null) {
-            metadata.add("name", file.getName());
-        }
+        metadata.add("name", (metadata.get("name") == null) ? metadata.get("name") : fileName);
         return metadata;
     }
 
@@ -249,12 +284,13 @@ public class DocumentConverter implements AutoCloseable {
         config.setExtractBookmarksText(false);
         config.setExtractFontNames(false);
         config.setExtractMarkedContent(false);
-        config.setExtractUniqueInlineImagesOnly(true);
+        config.setExtractUniqueInlineImagesOnly(false);
         config.setIfXFAExtractOnlyXFA(false);
         config.setSetKCMS(false);
         config.setOcrStrategy(PDFParserConfig.OCR_STRATEGY.NO_OCR);
-        config.setSortByPosition(true);
-        config.setSuppressDuplicateOverlappingText(true);
+        config.setSortByPosition(false);
+        config.setSuppressDuplicateOverlappingText(false);
+
         return config;
     }
 
@@ -283,10 +319,10 @@ public class DocumentConverter implements AutoCloseable {
      * @param file {@link File}
      * @return new reference of {@link ParseContext}
      */
-    private ParseContext prepareParserContext(File file) {
-        String fileType = file.getName();
-        int indexOfDot = fileType.lastIndexOf(".");
-        fileType = fileType.substring(indexOfDot);
+    private ParseContext prepareParserContext(String fileName) {
+        int indexOfDot = fileName.lastIndexOf(".");
+        String fileType = "";
+        fileType = fileName.substring(indexOfDot);
         ParseContext parseContext = new ParseContext();
         if (fileType.contains("xls")) {
             parseContext.set(OfficeParserConfig.class, getOfficeParserConfig());
@@ -318,23 +354,26 @@ public class DocumentConverter implements AutoCloseable {
     }
 
     /**
-     * This method convert a file to plain text
+     * this method convert a fileInputStream to BodyContentHandler includes text
      *
-     * @param file {@link File}
-     * @return new reference of {@link BodyContentHandler}
-     * @throws SAXException, TikaException, IOException, Exception
+     * @param byteArrayInputStream
+     * @param fileName
+     * @return
+     * @throws SAXException
+     * @throws TikaException
+     * @throws IOException
+     * @throws Exception
      */
-    private BodyContentHandler setTikaComponents(final File file) throws SAXException, TikaException, IOException, Exception {
+    private BodyContentHandler setTikaComponents(final ByteArrayInputStream byteArrayInputStream, String fileName)
+            throws SAXException, TikaException, IOException, Exception {
 
-        try(FileInputStream fileInputStream = new FileInputStream(file)) {
-            this.bodyContentHandler = new BodyContentHandler(Integer.MAX_VALUE);
-            this.autoDetectParser = new AutoDetectParser();
-            this.metadata = new Metadata();
-            this.parseContext = prepareParserContext(file);
-            autoDetectParser.parse(fileInputStream, bodyContentHandler, metadata, parseContext);
-            LOGGER.info(MessageFormat.format("file parsed: {0}", file.getAbsoluteFile()));
-            return bodyContentHandler;
-        }
+        this.bodyContentHandler = new BodyContentHandler(Integer.MAX_VALUE);
+        this.autoDetectParser = new AutoDetectParser();
+        this.metadata = new Metadata();
+        this.parseContext = prepareParserContext(fileName);
+        autoDetectParser.parse(this.bufferedInputStream, bodyContentHandler, metadata, parseContext);
+        LOGGER.info(MessageFormat.format("file parsed: {0}", fileName));
+        return bodyContentHandler;
 
     }
 
@@ -345,36 +384,39 @@ public class DocumentConverter implements AutoCloseable {
      * @return
      * @throws IllegalArgumentException
      */
-    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+    public Boolean validateProperties(Properties properties) throws IllegalArgumentException {
 
         String property = properties.getProperty(ApplicationConfiguration.MAX_NEW_LINES);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_NEW_LINES);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MAX_NEW_LINES");
         }
         maxNewLines = Integer.parseInt(property);
-        cleaningPattern = properties.getProperty(ApplicationConfiguration.CLEANING_PATTERN);
+        cleaningPattern = properties.getProperty(ApplicationConfiguration.CLEANING_REGEX);
         if (cleaningPattern == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.CLEANING_PATTERN);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.CLEANING_REGEX");
         }
         property = properties.getProperty(ApplicationConfiguration.MIN_TERM_LENGTH);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_LENGTH);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MIN_TERM_LENGTH");
         }
         minTermLength = Integer.parseInt(property);
 
         property = properties.getProperty(ApplicationConfiguration.MIN_TERM_COUNT);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_COUNT);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MIN_TERM_COUNT");
         }
         minTermCount = Integer.parseInt(property);
 
         property = properties.getProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MIN_TABLE_OF_CONTENT");
         }
         minTableOfContent = Integer.parseInt(property);
 
         return true;
     }
 
+    public TextProcessing getTextProcessing() {
+        return this.textProcessing;
+    }
 }
