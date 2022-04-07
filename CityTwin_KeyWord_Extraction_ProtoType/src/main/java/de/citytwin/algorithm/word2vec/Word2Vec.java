@@ -81,6 +81,7 @@ public class Word2Vec implements AutoCloseable {
                 word2vec = WordVectorSerializer.readWord2VecModel(path2Word2VecFile);
             }
         }
+
     }
 
     /**
@@ -193,17 +194,16 @@ public class Word2Vec implements AutoCloseable {
     }
 
     /**
-     * this method validate passing properties and set them
+     * this method validate properties and set them
      *
      * @param properties
      * @return
-     * @throws IOException
      */
-    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+    public boolean validateProperties(Properties properties) throws IllegalArgumentException {
 
         path2Word2VecFile = properties.getProperty(ApplicationConfiguration.PATH_2_WORD_2_VEC_FILE);
-        if (path2Word2VecFile == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.PATH_2_WORD_2_VEC_FILE);
+        if (path2Word2VecFile == null || path2Word2VecFile.trim().length() == 0) {
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.PATH_2_WORD_2_VEC_FILE");
         }
         return true;
 
