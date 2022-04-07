@@ -321,6 +321,7 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
         Double[] rowVector = null;
         Double value = 0.0d;
         int index = 0;
+        // initialize vectors
         for (int i = 0; i < columnVector.length; i++) {
             columnVector[i] = 1.0d;
             tempVector[i] = 1.0d;
@@ -566,30 +567,30 @@ public class TextRankKeywordExtractor implements KeywordExtractor, AutoCloseable
      * @return
      * @throws IllegalArgumentException
      */
-    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+    public Boolean validateProperties(Properties properties) throws IllegalArgumentException {
 
         String property = null;
         property = properties.getProperty(ApplicationConfiguration.MIN_TERM_COUNT);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_COUNT);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MIN_TERM_COUNT");
         }
         minTermCount = Integer.parseInt(property);
 
         property = properties.getProperty(ApplicationConfiguration.WORD_WINDOW_SIZE);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.WORD_WINDOW_SIZE);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.WORD_WINDOW_SIZE");
         }
         wordWindowSize = Integer.parseInt(property);
 
         property = properties.getProperty(ApplicationConfiguration.ITERATION);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.ITERATION);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.ITERATION");
         }
         iteration = Integer.parseInt(property);
 
         property = properties.getProperty(ApplicationConfiguration.WITH_VECTOR_NORMALIZATION);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.WITH_VECTOR_NORMALIZATION);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.WITH_VECTOR_NORMALIZATION");
         }
         withVectorNormalization = Boolean.parseBoolean(property);
         return true;
