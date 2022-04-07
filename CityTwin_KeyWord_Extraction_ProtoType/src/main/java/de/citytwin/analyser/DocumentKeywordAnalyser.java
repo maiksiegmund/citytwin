@@ -7,7 +7,7 @@ import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
 import de.citytwin.keywords.KeywordExtractor;
 
-import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
@@ -34,6 +34,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
         Properties properties = new Properties();
         properties.setProperty(ApplicationConfiguration.SIMILARITY, "66");
         properties.setProperty(ApplicationConfiguration.MAX_NEAREST, "10");
+        properties.setProperty(ApplicationConfiguration.EVERY_SINGLE_SENTENCE, "false");
         return properties;
     }
 
@@ -41,6 +42,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     private Word2Vec word2vec = null;
     private Double similarity = null;
     private Integer maxNearest = null;
+    private Boolean everySingleSentence = null;
 
     /**
      * constructor.
@@ -97,9 +99,10 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     }
 
     @Override
-    public Map<String, Double> getKeywords(File file, KeywordExtractor keywordExtractor) throws Exception {
-        BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(file);
-        List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler);
+    public Map<String, Double> getKeywords(final ByteArrayInputStream byteArrayInputStream, final String fileName, KeywordExtractor keywordExtractor)
+            throws Exception {
+        BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(byteArrayInputStream, fileName);
+        List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, everySingleSentence);
         return keywordExtractor.getKeywords(textcorpus);
 
     }
@@ -123,23 +126,30 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     }
 
     /**
-     * this method validate passing properties and set them
+     * this method validate properties and set them
      *
      * @param properties
      * @return
      * @throws IOException
      */
-    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+    public Boolean validateProperties(Properties properties) {
         String property = properties.getProperty(ApplicationConfiguration.SIMILARITY);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.SIMILARITY);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.SIMILARITY");
         }
         similarity = Double.parseDouble(property);
         property = properties.getProperty(ApplicationConfiguration.MAX_NEAREST);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MAX_NEAREST);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MAX_NEAREST");
         }
         maxNearest = Integer.parseInt(property);
+
+        property = properties.getProperty(ApplicationConfiguration.EVERY_SINGLE_SENTENCE);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.EVERY_SINGLE_SENTENCE");
+        }
+        everySingleSentence = Boolean.parseBoolean(property);
+
         return true;
     }
 
