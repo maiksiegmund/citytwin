@@ -12,6 +12,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +88,21 @@ public class LocationEntitiesExtractor implements NamedEntitiesExtractor, AutoCl
         }
         nameFinder.clearAdaptiveData();
         LOGGER.info(MessageFormat.format("locations found:    {0}", results.size()));
+        return results;
+    }
+
+    @Override
+    public Set<String> getNamedEntities(String textCorpus, String regex) {
+        // default regex "([A-Z][ a-zäüöß-]+)+(\\. | |\\.){1}(?>(\\d+[a-zA-Z-\\/]*\\d*))";
+        Pattern pattern = Pattern.compile(regex);
+        Set<String> results = new HashSet<String>();
+        Matcher matcher = pattern.matcher(textCorpus);
+        while (matcher.find()) {
+            // replace abbirtation
+            String temp = matcher.group().replaceFirst("str\\.", "straße");
+            temp = temp.replaceFirst("Str\\.", "Straße");
+            results.add(temp);
+        }
         return results;
     }
 
