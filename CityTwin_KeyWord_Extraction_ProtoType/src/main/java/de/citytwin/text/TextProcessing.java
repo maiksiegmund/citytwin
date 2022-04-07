@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
 // import org.apache.lucene.analysis.Analyzer;
@@ -41,6 +43,9 @@ import opennlp.tools.tokenize.TokenizerModel;
  *
  * @author Maik Siegmund, FH Erfurt
  */
+/**
+ * @author Maik Siegmund, FH Erfurt
+ */
 public class TextProcessing implements AutoCloseable {
 
     private static transient final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -56,11 +61,12 @@ public class TextProcessing implements AutoCloseable {
         properties.setProperty(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "..\\de-posperceptron.bin");
         properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "..\\de-token.bin");
         properties.setProperty(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "..\\de-stopswords.txt");
+        properties.setProperty(ApplicationConfiguration.PATH_2_KEEPWORDS_FILE, "..\\de-keepwords.txt");
         properties.setProperty(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "..\\de-postags.txt");
-        properties.setProperty(ApplicationConfiguration.CLEANING_PATTERN, "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
+        properties.setProperty(ApplicationConfiguration.CLEANING_REGEX, "[^\\u2013\\u002D\\wäÄöÖüÜß,-/]");
         properties.setProperty(ApplicationConfiguration.MIN_TERM_LENGTH, "2");
         properties.setProperty(ApplicationConfiguration.MIN_TERM_COUNT, "5");
-        properties.setProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT, "50");
+        properties.setProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT, "80");
         return properties;
     }
 
@@ -68,6 +74,7 @@ public class TextProcessing implements AutoCloseable {
     private POSTaggerME posTagger = null;
     private SentenceDetectorME sentenceDetector = null;
     private Set<String> stopwords = new HashSet<String>();
+    private Set<String> keepwords = new HashSet<String>();
     private Set<String> posTags = new HashSet<String>();
     private Tokenizer tokenizer = null;
     private SnowballStemmer snowballStemmer = null;
@@ -75,7 +82,11 @@ public class TextProcessing implements AutoCloseable {
     private String path2PosTaggerFile = null;
     private String path2SentenceTokenizerFile = null;
     private String path2StopwordsFile = null;
+    private String path2keepwordsFile = null;
     private String path2PosTagsFile = null;
+    private Integer minTermCount = null;
+    private Integer minTermLength = null;
+    private Integer minTableOfContent = null;
 
     /**
      * Constructor.
@@ -102,6 +113,8 @@ public class TextProcessing implements AutoCloseable {
         this.snowballStemmer = null;
         this.stopwords.clear();
         this.stopwords = null;
+        this.keepwords.clear();
+        this.keepwords = null;
         this.tokenizer = null;
     }
 
@@ -250,26 +263,32 @@ public class TextProcessing implements AutoCloseable {
             TokenizerModel tokenizerModel = new TokenizerModel(inputStream);
             tokenizer = new TokenizerME(tokenizerModel);
         }
-        try(InputStream inputStream = new FileInputStream(path2StopwordsFile);
-                Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");) {
-            while (scanner.hasNext()) {
-                String stopword = scanner.next();
-                if (!stopword.trim().startsWith("#")) {
-                    stopwords.add(stopword);
-                }
-            }
-        }
-        try(InputStream inputStream = new FileInputStream(path2PosTagsFile);
-                Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");) {
-            while (scanner.hasNext()) {
-                String posTag = scanner.next();
-                if (!posTag.trim().startsWith("#")) {
-                    posTags.add(posTag);
-                }
-            }
-        }
+
+        initializeWordLists(path2StopwordsFile, stopwords);
+        initializeWordLists(path2PosTagsFile, posTags);
+        initializeWordLists(path2keepwordsFile, keepwords);
+
         snowballStemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.GERMAN);
         isInitialzied = true;
+    }
+
+    /**
+     * this method reads a wordlist
+     *
+     * @param path
+     * @param container
+     * @throws IOException
+     */
+    private void initializeWordLists(String path, Set<String> container) throws IOException {
+        try(InputStream inputStream = new FileInputStream(path);
+                Scanner scanner = new Scanner(inputStream).useDelimiter("\\r\\n");) {
+            while (scanner.hasNext()) {
+                String word = scanner.next();
+                if (!word.trim().startsWith("#")) {
+                    container.add(word.trim());
+                }
+            }
+        }
     }
 
     /**
@@ -281,11 +300,11 @@ public class TextProcessing implements AutoCloseable {
      */
     public int probabilityOfSentenceTabelofContent(final String sentence) {
 
-        int countDots = this.countChar(sentence, '.');
-        int countDigits = this.countDigits(sentence);
-        int countBlanks = this.countChar(sentence, ' ');
-        float accurany = (float)countDots / (float)sentence.length() * 100.0f + (float)countDigits / (float)sentence.length() * 100.0f
-                + (float)countBlanks / (float)sentence.length() * 100.0f;
+        float countDots = this.countChar(sentence, '.');
+        float countDigits = this.countDigits(sentence);
+        float countBlanks = this.countChar(sentence, ' ');
+        float lenghtWithoutTerms = getTermCount(sentence) + countDots + countDigits + countBlanks;
+        float accurany = (countDots + countDigits + countBlanks) / lenghtWithoutTerms * 100.0f;
         return (int)Math.ceil(accurany);
 
     }
@@ -329,7 +348,8 @@ public class TextProcessing implements AutoCloseable {
         String temp = "";
         for (String sentence : sentences) {
             temp = sentence.replaceAll("-\n", "");
-            temp = sentence.replaceAll("\n", "");
+            temp = temp.replaceAll("\n", " ");
+            temp = temp.replaceAll("- ", "");
             if (countNewLines(temp) <= maxNewLines) {
                 results.add(temp);
             }
@@ -474,6 +494,10 @@ public class TextProcessing implements AutoCloseable {
         if (path2StopwordsFile == null) {
             throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.PATH_2_STOPWORDS_FILE);
         }
+        path2keepwordsFile = properties.getProperty(ApplicationConfiguration.PATH_2_KEEPWORDS_FILE);
+        if (path2keepwordsFile == null) {
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.PATH_2_STOPWORDS_FILE");
+        }
         path2PosTagsFile = properties.getProperty(ApplicationConfiguration.PATH_2_POSTAGS_FILE);
         if (path2PosTagsFile == null) {
             throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.PATH_2_POSTAGS_FILE);
@@ -482,23 +506,298 @@ public class TextProcessing implements AutoCloseable {
         // if (cleaningPattern == null) {
         // throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.CLEANING_PATTERN);
         // }
-        // String property = properties.getProperty(ApplicationConfiguration.MIN_TERM_LENGTH);
-        // if (property == null) {
-        // throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_LENGTH);
-        // }
-        // minTermLength = Integer.parseInt(property);
-        // property = properties.getProperty(ApplicationConfiguration.MIN_TERM_COUNT);
-        // if (property == null) {
-        // throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TERM_COUNT);
-        // }
-        // minTermCount = Integer.parseInt(property);
-        // property = properties.getProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
-        // if (property == null) {
-        // throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
-        // }
-        // minTableOfContent = Integer.parseInt(property);
+        String property = properties.getProperty(ApplicationConfiguration.MIN_TERM_LENGTH);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MIN_TERM_LENGTH");
+        }
+        minTermLength = Integer.parseInt(property);
+        property = properties.getProperty(ApplicationConfiguration.MIN_TERM_COUNT);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.MIN_TERM_COUNT");
+        }
+        minTermCount = Integer.parseInt(property);
+        property = properties.getProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.MIN_TABLE_OF_CONTENT);
+        }
+        minTableOfContent = Integer.parseInt(property);
 
         return true;
     }
+
+    /**
+     * this method provide some logic to get a cleaned text corpus
+     *
+     * @param textCorpus
+     * @return
+     * @throws IOException
+     */
+    public List<String> getPreProcessedTextCorpus(String textCorpus) throws IOException {
+
+        String temp = try2RemoveUnimportantLinesOnTextCorpus(textCorpus);
+        temp = try2RemoveTableOfContentOnTextCorpus(temp);
+        temp = try2RemoveDuplicateLinesOnTextCorpus(temp);
+        temp = try2RemoveHyphenOnTextCorpus(temp);
+        String[] sentences = sentenceDetector.sentDetect(temp.replaceAll("\r\n", " "));
+        return Arrays.asList(sentences);
+
+    }
+
+    /**
+     * this method provides some logic to try remove lines contains only digtis, newlines, words contains in keepword-list remain
+     *
+     * @param textCorpus
+     * @return
+     */
+    private String try2RemoveUnimportantLinesOnTextCorpus(String textCorpus) {
+
+        String[] textParts = textCorpus.split("\n");
+        if (textParts.length <= 2) {
+            return textCorpus;
+        }
+        StringBuilder stringBuilder = new StringBuilder();
+        for (String textPart : textParts) {
+            if (textPart.trim().length() == 0 || containsOnlyDigits(textPart)) {
+                continue;
+            }
+            if (getTermCount(textPart.trim()) < this.minTermCount || containsInKeepwords(textPart)) {
+                continue;
+            }
+            stringBuilder.append(textPart.trim());
+            stringBuilder.append("\n");
+        }
+        return stringBuilder.toString();
+    }
+
+    /**
+     * this method check whether sentence contains a keep word
+     *
+     * @param sentence
+     * @return
+     */
+    private boolean containsInKeepwords(String sentence) {
+
+        if (keepwords.stream().filter(keyword -> sentence.toLowerCase().contains(keyword.toLowerCase())).count() > 1)
+            return true;
+        return false;
+
+    }
+
+    /**
+     * this method provide some logic to try to remove table of content lines and header
+     *
+     * @param textCorpus
+     * @return
+     */
+    private String try2RemoveTableOfContentOnTextCorpus(String textCorpus) {
+
+        String[] textParts = textCorpus.split("\n");
+        if (textParts.length <= 2) {
+            return textCorpus;
+        }
+        StringBuilder stringBuilder = new StringBuilder();
+        for (String textPart : textParts) {
+            if (this.probabilityOfSentenceTabelofContent(textPart) > minTableOfContent) {
+                continue;
+            }
+            stringBuilder.append(textPart);
+            stringBuilder.append("\n");
+
+        }
+        return stringBuilder.toString();
+    }
+
+    /**
+     * this method provides some logic to try remove duplicate lines (header, footer)
+     *
+     * @param textCorpus
+     * @return
+     */
+    private String try2RemoveDuplicateLinesOnTextCorpus(String textCorpus) {
+
+        String[] textParts = textCorpus.split("\n");
+        if (textParts.length <= 2) {
+            return textCorpus;
+        }
+        StringBuilder stringBuilder = new StringBuilder();
+
+        List<String> tempTextCorpus = Arrays.stream(textParts).collect(Collectors.toList());
+        int counts[] = new int[tempTextCorpus.size()];
+        // hashmap not suitable, to avoid hashcode collisions
+        // count sentence in text corpus
+        // index are the same
+        for (int index = 0; index < textParts.length; ++index) {
+            String temp = textParts[index];
+            counts[index] = (int)tempTextCorpus.stream().filter(sent -> sent.equals(temp)).count();
+        }
+
+        for (int index = 0; index < textParts.length; ++index) {
+            if (counts[index] > 1 && !containsInKeepwords(textParts[index])) {
+                continue;
+            }
+
+            stringBuilder.append(textParts[index]);
+            stringBuilder.append("\n");
+        }
+
+        return stringBuilder.toString();
+    }
+
+    private String try2RemoveSimilarityLinesOnTextCorpus(String textCorpus, int firstLines) {
+
+        StringBuilder stringBuilder = new StringBuilder();
+        String[] textParts = textCorpus.split("\n");
+        int similiatry[] = new int[textParts.length];
+        for (int indexLeft = 0; indexLeft < firstLines; ++indexLeft) {
+            for (int indexRight = 0; indexRight < textParts.length; ++indexRight) {
+                String left = textParts[indexLeft];
+                String right = textParts[indexRight];
+                int value = (indexLeft != indexRight) ? getSimilarityByContainsWords(left, right) : 0;
+                if (value > similiatry[indexLeft]) {
+                    similiatry[indexLeft] = value;
+
+                }
+                stringBuilder.append(MessageFormat.format("{0} --> {1} = {2}", value, left, right));
+                stringBuilder.append("\n");
+            }
+        }
+
+        return stringBuilder.toString();
+
+    }
+
+    /**
+     * this method provides some logic to calculate similarity of two sentences by count the contain word in each other very simple! <br>
+     * example for matches<br>
+     * {@code "Juli 2004, aktualisiert Mai 200520"; } <br>
+     * {@code "Juni 2004, aktualisiert Mai 200514"; } <br>
+     * {@code "49 Juli 2004, aktualisiert Mai 2005"; } <br>
+     * this
+     *
+     * @param left
+     * @param right
+     * @return
+     */
+    private int getSimilarityByContainsWords(String left, String right) {
+
+        String large = left;
+        String small = right;
+
+        if (left.length() < right.length()) {
+            large = right;
+            small = left;
+        }
+        String partsLarge[] = large.toLowerCase().split(" ");
+        String partsSmall[] = small.toLowerCase().split(" ");
+        int countContainParts = 0;
+        for (int index = 0; index < partsSmall.length; ++index) {
+            if (large.toLowerCase().contains(partsSmall[index])) {
+                countContainParts++;
+            }
+        }
+        if (countContainParts == 0)
+            return 0;
+        return (int)Math.ceil((float)countContainParts / (float)partsLarge.length * 100.0f);
+    }
+
+    /**
+     * this method provides some logic to remove hyphens of text corpus and concatenate these sentences
+     *
+     * @param textCorpus
+     * @return
+     */
+    private String try2RemoveHyphenOnTextCorpus(String textCorpus) {
+        String[] textParts = textCorpus.split("\n");
+        if (textParts.length <= 2) {
+            return textCorpus;
+        }
+        StringBuilder stringBuilder = new StringBuilder();
+
+        List<String> partOfTextCorpus = new ArrayList<String>();
+
+        for (int index = 0; index < textParts.length; ++index) {
+            if (endsWithHyphen(textParts[index])) {
+                partOfTextCorpus.add(textParts[index]);
+
+            } else {
+                String temp = "";
+                for (String partOfTextCorpu : partOfTextCorpus) {
+                    temp += partOfTextCorpu.trim().substring(0, partOfTextCorpu.trim().length() - 1);
+                }
+                stringBuilder.append(temp + textParts[index]);
+                stringBuilder.append("\n");
+                partOfTextCorpus.clear();
+            }
+
+        }
+
+        return stringBuilder.toString();
+    }
+
+    /**
+     * this method count digits in a String ("123" = 3 not equal "123" = 1 )
+     *
+     * @param sentence
+     * @return
+     */
+    private boolean containsOnlyDigits(String sentence) {
+        char[] charcaters = sentence.trim().toCharArray();
+        for (char c : charcaters) {
+            if (!Character.isDigit(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * this method checks whether a String ends with a hyphen ...
+     *
+     * @param sentence
+     * @return
+     */
+    private boolean endsWithHyphen(String sentence) {
+
+        String trimed = sentence.trim();
+        if (trimed.length() == 0)
+            return false;
+        String lastCharacter = trimed.substring(trimed.length() - 1, trimed.length());
+        return lastCharacter.matches("[\\u2013\\u002D­]");
+    }
+
+    /**
+     * this method return a term (simple whitespace tokenizer)
+     *
+     * @param sentence
+     * @return
+     */
+    private int getTermCount(String sentence) {
+        String temp = sentence.trim();
+        int count = 0;
+        String[] parts = temp.split("[\\s]");
+        for (String part : parts) {
+            if (part.matches("[a-zA-ZwäÄüÜöÖß()/-\\u2013\\u002D]*") && part.trim().length() > this.minTermLength)
+                count++;
+        }
+        return count;
+
+    }
+
+    private String test = "Lassen Sie uns Berlin gemeinsam gestalten.\r\n"
+            + "\r\n"
+            + "Berlin zieht Menschen und Unternehmen an. Unsere Stadt wächst und verändert sich. Angesichts \r\n"
+            + "dieses Wandels brauchen wir eine klare Vorstellung über unsere Zukunft und unsere Ziele. Mit \r\n"
+            + "der BerlinStrategie | Stadtentwicklungskonzept Berlin 2030 verfügt unsere Stadt erstmals seit \r\n"
+            + "der Wende über ein ressortübergreifendes Leitbild für die langfristige, zukunftsfähige Entwick­\r\n"
+            + "lung der Hauptstadt. \r\n"
+            + "\r\n"
+            + "Wir haben in einem konzentrierten Prozess interdisziplinär gearbeitet und diskutiert. Die Öffent­\r\n"
+            + "lichkeit und die institutionellen Akteure der Berliner Stadtgesellschaft, Wirtschaft, Wissenschaft \r\n"
+            + "und Politik waren eingeladen, sich in die Zukunftsentwicklung einzubringen. Das hat in den \r\n"
+            + "Stadtforen und ihren Werkstätten eine große und lebhafte Resonanz erzeugt. Es freut mich, dass \r\n"
+            + "sich so viele aktiv eingebracht haben. Berlin, unsere Heimat, berührt uns alle. Dies zeigt sich in \r\n"
+            + "den täglichen Gesprächen vor Ort ebenso wie in den Debatten über die großen und langfristigen \r\n"
+            + "Themen, das Wohnen, das Klima, die Wirtschaft und die freien Räume. Allen Beteiligten danke \r\n"
+            + "ich herzlich für ihr vielfältiges, konstruktives und bereicherndes Engagement.";
 
 }
