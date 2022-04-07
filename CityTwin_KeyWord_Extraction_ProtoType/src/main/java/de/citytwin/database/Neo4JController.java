@@ -1,7 +1,5 @@
 package de.citytwin.database;
 
-import com.beust.jcommander.internal.Nullable;
-
 import de.citytwin.catalog.CatalogEntryHasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.model.ALKIS;
@@ -54,7 +52,7 @@ public class Neo4JController implements AutoCloseable {
         Properties properties = new Properties();
         properties.setProperty(ApplicationConfiguration.NEO4J_URI, "bolt://localhost:7687");
         properties.setProperty(ApplicationConfiguration.NEO4J_USER, "neo4j");
-        properties.setProperty(ApplicationConfiguration.NEO4J_PASSWORD, "C1tyTw1n!");
+        properties.setProperty(ApplicationConfiguration.NEO4J_PASSWORD, "password");
         // optional properties
         properties.setProperty(Neo4JController.NODE_ALKIS, "ALKIS");
         properties.setProperty(Neo4JController.NODE_DOCUMENT, "Document");
@@ -172,7 +170,7 @@ public class Neo4JController implements AutoCloseable {
      * @param catalogEntry
      * @param weigth
      */
-    public void buildGraph(Metadata metadata, String keyword, @Nullable CatalogEntryHasName catalogEntry, Double weigth) {
+    public void buildGraph(Metadata metadata, String keyword, @javax.annotation.Nullable CatalogEntryHasName catalogEntry, Double weigth) {
 
         try(Session session = driver.session()) {
 
@@ -982,8 +980,9 @@ public class Neo4JController implements AutoCloseable {
      * @param weight
      * @return
      */
-    private Void linkCypher(Transaction transaction, String leftLabel, String leftName, String thereEdgeName, @Nullable String returnEdgeName, String rightName,
-            String rightLabel, @Nullable Double weight) {
+    private Void linkCypher(Transaction transaction, String leftLabel, String leftName, String thereEdgeName, @javax.annotation.Nullable String returnEdgeName,
+            String rightName,
+            String rightLabel, @javax.annotation.Nullable Double weight) {
 
         Map<String, Object> parameters = new HashMap<String, Object>();
 
@@ -1017,7 +1016,23 @@ public class Neo4JController implements AutoCloseable {
         try(Session session = driver.session()) {
 
             Transaction transaction = session.beginTransaction();
-            transaction.run("MATCH (n) DETACH DELETE n");
+            // transaction.run("MATCH (n) DETACH DELETE n");
+            transaction.commit();
+            transaction.close();
+
+        } catch (Exception exception) {
+            LOGGER.error(exception.getMessage(), exception);
+        }
+    }
+
+    public void getBPLANNodes() {
+        try(Session session = driver.session()) {
+
+            Transaction transaction = session.beginTransaction();
+            Result result = transaction.run("MATCH (source:BPLAN) RETURN source");
+            if (result.hasNext()) {
+                System.out.println(result.keys());
+            }
             transaction.commit();
             transaction.close();
 
@@ -1047,25 +1062,25 @@ public class Neo4JController implements AutoCloseable {
     }
 
     /**
-     * checks passed properties and set them
+     * validate passed properties and set them
      *
      * @param properties
      * @return
      * @throws IllegalArgumentException
      */
-    private Boolean validateProperties(Properties properties) throws IllegalArgumentException {
+    public Boolean validateProperties(Properties properties) throws IllegalArgumentException {
 
         uri = properties.getProperty(ApplicationConfiguration.NEO4J_URI);
         if (uri == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.NEO4J_URI);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.NEO4J_URI");
         }
         user = properties.getProperty(ApplicationConfiguration.NEO4J_USER);
         if (user == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.NEO4J_USER);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.NEO4J_USER");
         }
         password = properties.getProperty(ApplicationConfiguration.NEO4J_PASSWORD);
         if (password == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.NEO4J_PASSWORD);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.NEO4J_PASSWORD");
         }
         return true;
     }
