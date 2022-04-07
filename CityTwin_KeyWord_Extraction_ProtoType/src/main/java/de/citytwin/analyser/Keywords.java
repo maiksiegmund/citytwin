@@ -4,7 +4,7 @@ import de.citytwin.catalog.Catalog;
 import de.citytwin.catalog.CatalogEntryHasName;
 import de.citytwin.keywords.KeywordExtractor;
 
-import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Map;
 
@@ -28,10 +28,12 @@ public interface Keywords {
     /**
      * this method extract keywords from a file
      *
-     * @param file
+     * @param byteArrayInputStream
+     * @param fileName
      * @param keywordExtractor
      * @return
      * @throws Exception
      */
-    public Map<String, Double> getKeywords(File file, KeywordExtractor keywordExtractor) throws Exception;
+    public Map<String, Double> getKeywords(final ByteArrayInputStream byteArrayInputStream, final String fileName, KeywordExtractor keywordExtractor)
+            throws Exception;
 }
