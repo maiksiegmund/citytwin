@@ -38,7 +38,9 @@ public class ApplicationConfiguration {
     /** maximum new lines sequences in a line */
     public static final String MAX_NEW_LINES = "max.newlines";
     /** which signs will be remove of term */
-    public static final String CLEANING_PATTERN = "cleaning.pattern";
+    public static final String CLEANING_REGEX = "cleaning.regex";
+    /** structure of an (german) address patter (streetname digit(additional house number like A, B, ...)) (range information digit(s)-digit(s) */
+    public static final String ADDRESS_REGEX = "address.regex";
     /** minimum of term length */
     public static final String MIN_TERM_LENGTH = "min.term.length";
     /** threshold in percent */
@@ -49,8 +51,10 @@ public class ApplicationConfiguration {
     public static final String PATH_2_POS_TAGGER_FILE = "path.2.pos-tagger.file";
     /** path to pretrained location finding model {@link Tokenizer} */
     public static final String PATH_2_SENTENCE_TOKENIZER_FILE = "path.2.sentence.tokenizer.file";
-    /** path to stopwordlist */
+    /** path to stop word list */
     public static final String PATH_2_STOPWORDS_FILE = "path.2.stopwords.file";
+    /** path to keep word list */
+    public static final String PATH_2_KEEPWORDS_FILE = "path.2.keepwords.file";
     /** path to postaglist (german) */
     public static final String PATH_2_POSTAGS_FILE = "path.2.postags.file";
     /** algorithm e.g tf-idf, textRank, full package / class name {@link TextRankKeywordExtractor} */
@@ -63,22 +67,22 @@ public class ApplicationConfiguration {
     public static final String DOCUMENTS_FOLDER = "documents.folder";
     /** path to output folder */
     public static final String OUTPUT_FOLDER = "output.folder";
+    /** path to working folder folder */
+    public static final String WORKING_FOLDER = "working.folder";
 
     /** database */
     public static final String NEO4J_URI = "neo4j.uri";
     public static final String NEO4J_USER = "neo4j.user";
     public static final String NEO4J_PASSWORD = "neo4j.password";
 
-    public static final String POSTGRESQL_URL = "postgreSQL.url";
+    public static final String POSTGRESQL_URI = "postgreSQL.uri";
     public static final String PATH_2_POSTGRESQL_PROPERTY_FILE = "path.2.postgreSQL.propertiy.file";
 
     /** result stored in neo4j, json, postgresql */
-    public static final String RESULT_2_JSON = "result.2.json";
     public static final String RESULT_2_NEO4J = "result.2.neo4j";
-
     public static final String RESULT_2_POSTGRESQL = "result.2.postgreSQL";
 
-    public static final String GEONAMES_WEBSERVICE = "geonames.api";
+    public static final String GEONAMES_URI = "geonames.uri";
     public static final String GEONAMES_URL_2_DUMP_FILE = "geonames.url.2.dump.file";
     public static final String GEONAMES_ZIP_ENTRY = "geonames.zip.entry";
 
@@ -94,6 +98,11 @@ public class ApplicationConfiguration {
     public static final String MAX_STREET_COUNT = "max.street.count";
     public static final String MIN_NAMED_ENTITY_LENGTH = "min.named.entity.length";
     public static final String MAX_SECTION_COUNT = "max.section.count";
+
+    public static final String EVERY_SINGLE_SENTENCE = "every.single.sentence";
+    public static final String KEYWORD_ANALYSE = "keyword.analyse";
+    public static final String NAMED_ENTITY_ANALYSE = "named.entity.analyse";
+    public static final String CONTAINS_IN_SYNONYMS = "contains.in.synonyms";
 
     /**
      * this methods return a properties with all keys, and empty (String) value
@@ -111,6 +120,26 @@ public class ApplicationConfiguration {
                 properties.setProperty(field.get(fields).toString(), "");
             }
         }
+        return properties;
+    }
+
+    public static Properties getDefaultProperties() {
+
+        Properties properties = new Properties();
+
+        properties.setProperty(ApplicationConfiguration.DOCUMENTS_FOLDER, "D:\\documents");
+        properties.setProperty(ApplicationConfiguration.OUTPUT_FOLDER, "D:\\documents");
+        properties.setProperty(ApplicationConfiguration.CONTAINS_IN_SYNONYMS, "false");
+        properties.setProperty(ApplicationConfiguration.EVERY_SINGLE_SENTENCE, "false");
+        properties.setProperty(ApplicationConfiguration.KEYWORD_ANALYSE, "true");
+        properties.setProperty(ApplicationConfiguration.NAMED_ENTITY_ANALYSE, "true");
+        properties.setProperty(ApplicationConfiguration.KEYWORD_EXTRACTOR_ALGORITHMS,
+                "de.citytwin.algorithm.keywords.TFIDFKeywordExtractor,de.citytwin.algorithm.keywords.TextRankKeywordExtractor");
+        properties.setProperty(ApplicationConfiguration.KEYWORD_FILTER_CATALOGS, "de.citytwin.model.ALKIS,de.citytwin.model.Term");
+        properties.setProperty(ApplicationConfiguration.RESULT_2_NEO4J, "true");
+        properties.setProperty(ApplicationConfiguration.RESULT_2_POSTGRESQL, "true");
+        properties.setProperty(ApplicationConfiguration.WORKING_FOLDER, "D:\\documents\\working");
+
         return properties;
     }
 
