@@ -1,7 +1,5 @@
 package de.citytwin.database;
 
-import com.beust.jcommander.internal.Nullable;
-
 import de.citytwin.catalog.CatalogEntryHasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.model.ALKIS;
@@ -54,6 +52,9 @@ public class PostgreSQLController implements AutoCloseable {
     public static final String TABLE_TERMS = "nlp_terms";
     public static final String TABLE_LOCATIONS = "nlp_locations";
     public static final String TABLE_ADDRESSES = "fis_s_wfs_adressenberlin";
+    // todo add to application config
+    public static final String TABLE_SECTIONS = "fis_s_wfs_alkis_bezirk";
+    public static final String TABLE_DISTRICTS = "fis_s_wfs_alkis_ortsteile";
     public static final String MAPPING_TABLE_DOCUMENTS_ALKIS = "nlp_documents_alkis";
     public static final String MAPPING_TABLE_DOCUMENTS_KEYWORDS = "nlp_documents_keywords";
     public static final String MAPPING_TABLE_DOCUMENTS_TERMS = "nlp_documents_terms";
@@ -63,11 +64,12 @@ public class PostgreSQLController implements AutoCloseable {
     public static final String MAPPING_TABLE_DOCUMENTS_ADDRESSES = "nlp_documents_addresses";
     public static final String MAPPING_TABLE_TERMS_ONTOLOGIES = "nlp_terms_ontologies";
     public static final String SCHEMA = "public";
+    public static final String VIEW_LOCATION = "vnlp_locations_berlin";
 
     public static Properties getDefaultProperties() {
         Properties properties = new Properties();
-        properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "jdbc:postgresql://localhost/test");
         properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "postgreSQL.properties");
+        properties.setProperty(ApplicationConfiguration.POSTGRESQL_URI, "jdbc:postgresql://localhost/database");
         return properties;
     }
 
@@ -441,7 +443,7 @@ public class PostgreSQLController implements AutoCloseable {
             setHnrCondition = true;
             indexHnrCondition = ++index;
             additionalCondition = "and hnr = ?";
-            if (address.getHnr_zusatz() != null) {
+            if (address.getHnr_zusatz() != null && address.getHnr_zusatz().length() != 0) {
                 setHnr_zusatzCondition = true;
                 indexHnr_zusatzCondition = ++index;
                 additionalCondition = "and hnr = ? and hnr_zusatz ilike ?";
@@ -624,7 +626,7 @@ public class PostgreSQLController implements AutoCloseable {
     }
 
     /**
-     * this method get a ids from location by name and distance
+     * this method get ids from location by name and distance
      *
      * @param origin
      * @param to
@@ -644,6 +646,48 @@ public class PostgreSQLController implements AutoCloseable {
             ids.add(resultSet.getLong(1));
         }
         return ids;
+    }
+
+    /**
+     * this method get ids form a location and there synonyms on a specific view <br>
+     * bounding box of berlin
+     *
+     * @param to
+     * @return
+     * @throws SQLException
+     */
+    public List<Long> getIds(Location to, boolean containsInSynonyms) throws SQLException {
+        String sqlStatement = MessageFormat
+                .format("select id from {0}.{1} where name ilike ?",
+                        PostgreSQLController.SCHEMA,
+                        PostgreSQLController.VIEW_LOCATION);
+
+        List<Long> ids = new ArrayList<Long>();
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        preparedStatement.setString(1, to.getName());
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            ids.add(resultSet.getLong(1));
+        }
+        if (!containsInSynonyms) {
+            return ids;
+        }
+        // check synonym
+        sqlStatement = MessageFormat
+                .format("select id from {0}.{1} where synonyms ilike ?",
+                        PostgreSQLController.SCHEMA,
+                        PostgreSQLController.VIEW_LOCATION);
+        for (String synonym : to.getSynonyms()) {
+            preparedStatement = connection.prepareStatement(sqlStatement);
+            preparedStatement.setString(1, "%" + synonym + "%");
+            resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                ids.add(resultSet.getLong(1));
+            }
+        }
+
+        return ids;
+
     }
 
     /**
@@ -667,6 +711,47 @@ public class PostgreSQLController implements AutoCloseable {
         }
         return ids;
 
+    }
+
+    /**
+     * this method return all ids of documents they are not analyzed
+     *
+     * @return new reference {@code  List<Long>}
+     * @throws SQLException
+     */
+    public List<Long> getUnanalyzeDocumentIDs() throws SQLException {
+
+        List<Long> ids = new ArrayList<Long>();
+        String sqlStatement = MessageFormat.format("SELECT id from {0}.{1} where not isAnalysed",
+                PostgreSQLController.SCHEMA,
+                PostgreSQLController.TABLE_DOCUMENTS);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            ids.add(resultSet.getLong(1));
+        }
+        return ids;
+
+    }
+
+    /**
+     * set a document state to analyzed with timestamp
+     *
+     * @param id
+     * @return
+     * @throws SQLException
+     */
+    public int setDocumentIsAnalysed(long id) throws SQLException {
+        String sqlStatement = MessageFormat
+                .format("UPDATE {0}.{1} SET isAnalysed = ?, AnalysedOn = now()"
+                        + " where id = ?",
+                        PostgreSQLController.SCHEMA,
+                        PostgreSQLController.TABLE_DOCUMENTS);
+
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        preparedStatement.setBoolean(1, true);
+        preparedStatement.setLong(2, id);
+        return preparedStatement.executeUpdate();
     }
 
     /**
@@ -874,8 +959,10 @@ public class PostgreSQLController implements AutoCloseable {
             case PostgreSQLController.TABLE_DOCUMENTS:
                 parameters.add("ID BIGSERIAL PRIMARY KEY");
                 parameters.add("Name VARCHAR UNIQUE NOT NULL");
-                parameters.add("Author VARCHAR");
-                parameters.add("Url VARCHAR");
+                parameters.add("Author VARCHAR NOT NULL");
+                parameters.add("Uri VARCHAR NOT NULL");
+                parameters.add("IsAnalysed boolean NOT NULL DEFAULT false");
+                parameters.add("AnalysedOn timestamptz");
                 break;
             case PostgreSQLController.TABLE_ONTOLOGIES:
                 parameters.add("ID BIGSERIAL PRIMARY KEY");
@@ -967,21 +1054,36 @@ public class PostgreSQLController implements AutoCloseable {
      * @throws SQLException
      */
     public long insert(CatalogEntryHasName catalogEntry) throws SQLException {
-        String tabel = "";
+        String table = "";
         Map<String, Object> parameters = new HashMap<String, Object>();
         if (catalogEntry instanceof Term) {
-            tabel = PostgreSQLController.TABLE_TERMS;
+            table = PostgreSQLController.TABLE_TERMS;
             parameters.put("name", catalogEntry.getName());
             parameters.put("morphem", ((Term)catalogEntry).getMorphem());
             parameters.put("isCore", ((Term)catalogEntry).getIsCore());
+
+            long idCatalogEntryHasName = insertStatement(table, parameters);
+
+            for (String ontology : ((Term)catalogEntry).getOntologies()) {
+                long idOntology = getId(ontology, PostgreSQLController.TABLE_ONTOLOGIES);
+                if (idOntology == 0) {
+                    idOntology = insert(ontology, PostgreSQLController.TABLE_ONTOLOGIES);
+                }
+                if (!isMapped(MAPPING_TABLE_TERMS_ONTOLOGIES, idCatalogEntryHasName, idOntology)) {
+                    map(MAPPING_TABLE_TERMS_ONTOLOGIES, idCatalogEntryHasName, idOntology, null);
+                }
+
+            }
+            return idCatalogEntryHasName;
+
         }
         if (catalogEntry instanceof ALKIS) {
-            tabel = PostgreSQLController.TABLE_ALKIS;
+            table = PostgreSQLController.TABLE_ALKIS;
             parameters.put("name", catalogEntry.getName());
             parameters.put("categorie", ((ALKIS)catalogEntry).getCategorie());
             parameters.put("code", ((ALKIS)catalogEntry).getCode());
         }
-        return insertStatement(tabel, parameters);
+        return insertStatement(table, parameters);
     }
 
     /**
@@ -1011,14 +1113,19 @@ public class PostgreSQLController implements AutoCloseable {
      * @param metadata
      * @return id
      * @throws SQLException
+     * @throws IllegalArgumentException
      */
-    public long insert(Metadata metadata) throws SQLException {
+
+    public long insert(Metadata metadata) throws SQLException, IllegalArgumentException {
+        if (metadata.get("Uri") == null)
+            throw new IllegalArgumentException("parameter: \"Uri\" in metadata is null or missing");
         Map<String, Object> parameters = new HashMap<String, Object>();
         String author = (metadata.get("Author") == null) ? "unknown" : metadata.get("Author");
-        String uri = (metadata.get("Uri") == null) ? "unknown" : metadata.get("Uri");
+        String uri = metadata.get("Uri");
         parameters.put("name", metadata.get("name"));
         parameters.put("Author", author);
         parameters.put("Uri", uri);
+        parameters.put("IsAnalysed", false);
         return insertStatement(PostgreSQLController.TABLE_DOCUMENTS, parameters);
     }
 
@@ -1110,7 +1217,8 @@ public class PostgreSQLController implements AutoCloseable {
      * @return true or false
      * @throws SQLException
      */
-    private Boolean isMapped(String mappingTable, long leftId, long rightId) throws SQLException {
+    // todo switch back to private
+    public Boolean isMapped(String mappingTable, long leftId, long rightId) throws SQLException {
         String sqlStatement = getIsMappedStatement(mappingTable);
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
         preparedStatement.setLong(1, leftId);
@@ -1176,14 +1284,6 @@ public class PostgreSQLController implements AutoCloseable {
         if (idCatalogEntryHasName == 0) {
             idCatalogEntryHasName = insert(catalogEntryHasName);
         }
-
-        for (String ontology : ((Term)catalogEntryHasName).getOntologies()) {
-            long idOntology = getId(ontology, PostgreSQLController.TABLE_ONTOLOGIES);
-            if (!isMapped(PostgreSQLController.MAPPING_TABLE_TERMS_ONTOLOGIES, idCatalogEntryHasName, idOntology)) {
-                map(PostgreSQLController.MAPPING_TABLE_TERMS_ONTOLOGIES, idCatalogEntryHasName, idOntology, null);
-            }
-        }
-
         if (!isMapped(mappingTabelName, idDocument, idCatalogEntryHasName)) {
             map(mappingTabelName, idDocument, idCatalogEntryHasName, 0.0d);
         }
@@ -1252,7 +1352,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @param weigth
      * @throws SQLException
      */
-    public void map(Metadata metadata, String keyword, @Nullable Double weigth) throws SQLException {
+    public void map(Metadata metadata, String keyword, @javax.annotation.Nullable Double weigth) throws SQLException {
 
         long idDocument = getId(metadata);
         long idKeyword = getId(keyword, PostgreSQLController.TABLE_KEYWORDS);
@@ -1277,7 +1377,8 @@ public class PostgreSQLController implements AutoCloseable {
      * @param weight
      * @throws SQLException
      */
-    private void map(String mappingTable, long leftId, long rightId, @javax.annotation.Nullable Double weight)
+    // todo switch back to private
+    public void map(String mappingTable, long leftId, long rightId, @javax.annotation.Nullable Double weight)
             throws SQLException {
 
         String sqlStatement = getTableMappingStatement(mappingTable);
@@ -1325,7 +1426,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @throws ClassNotFoundException
      * @throws SQLException
      */
-    public void persist(Metadata metadata, String keyword, @Nullable CatalogEntryHasName catalogEntry, Double weigth)
+    public void persist(Metadata metadata, String keyword, @javax.annotation.Nullable CatalogEntryHasName catalogEntry, Double weigth)
             throws ClassNotFoundException, SQLException {
 
         map(metadata, keyword, weigth);
@@ -1338,7 +1439,29 @@ public class PostgreSQLController implements AutoCloseable {
                 map(metadata, ontology);
             }
         }
+    }
 
+    public Set<String> getStreetNames() throws SQLException {
+        return getNames(TABLE_ADDRESSES, "str_name");
+    }
+
+    public Set<String> getDistrictsNames() throws SQLException {
+        return getNames(TABLE_DISTRICTS, "nam");
+    }
+
+    public Set<String> getSectionsNames() throws SQLException {
+        return getNames(TABLE_SECTIONS, "\"NAMGEM\"");
+    }
+
+    private Set<String> getNames(String table, String column) throws SQLException {
+        String sqlStatement = MessageFormat.format("select {0} from {1}.{2} group by {0} order by {0}", column, PostgreSQLController.SCHEMA, table);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        Set<String> streetNames = new HashSet<String>();
+        while (resultSet.next()) {
+            streetNames.add(resultSet.getString(1));
+        }
+        return streetNames;
     }
 
     /**
@@ -1347,11 +1470,11 @@ public class PostgreSQLController implements AutoCloseable {
      * @param properties
      * @return
      */
-    private Boolean validateProperties(final Properties properties) {
+    public Boolean validateProperties(final Properties properties) {
 
-        postgreUrl = properties.getProperty(ApplicationConfiguration.POSTGRESQL_URL);
+        postgreUrl = properties.getProperty(ApplicationConfiguration.POSTGRESQL_URI);
         if (postgreUrl == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.POSTGRESQL_URL);
+            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.POSTGRESQL_URI);
         }
         path2PostgrePropertieFile = properties.getProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE);
         if (path2PostgrePropertieFile == null) {
