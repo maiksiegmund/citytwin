@@ -458,18 +458,18 @@ public class TFIDFKeywordExtractor implements KeywordExtractor, AutoCloseable {
         String property = null;
         property = properties.getProperty(ApplicationConfiguration.WITH_STOPWORDFILTER);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.WITH_STOPWORDFILTER);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.WITH_STOPWORDFILTER");
         }
         withStopwordFilter = Boolean.parseBoolean(property);
 
         property = properties.getProperty(ApplicationConfiguration.WITH_STEMMING);
         if (property == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.WITH_STEMMING);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.WITH_STEMMING");
         }
         withStemming = Boolean.parseBoolean(property);
         normalizationType = properties.getProperty(ApplicationConfiguration.NORMALIZATION_TYPE);
         if (normalizationType == null) {
-            throw new IllegalArgumentException("set property --> " + ApplicationConfiguration.NORMALIZATION_TYPE);
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.NORMALIZATION_TYPE");
         }
         return true;
     }
