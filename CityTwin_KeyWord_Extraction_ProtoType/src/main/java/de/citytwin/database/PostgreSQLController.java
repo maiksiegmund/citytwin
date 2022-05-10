@@ -550,13 +550,17 @@ public class PostgreSQLController implements AutoCloseable {
      */
     public long getId(Metadata metadata) throws SQLException {
 
+        if (metadata.get("Uri") == null)
+            throw new IllegalArgumentException("parameter: \"Uri\" in metadata is null or missing");
+
         String sqlStatement = MessageFormat
-                .format("SELECT ID FROM {0}.{1} WHERE Lower(Name) = ?",
+                .format("SELECT ID FROM {0}.{1} WHERE name ilike ? and uri ilike ?",
                         PostgreSQLController.SCHEMA,
                         PostgreSQLController.TABLE_DOCUMENTS);
 
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
         preparedStatement.setString(1, metadata.get("name").toLowerCase());
+        preparedStatement.setString(2, metadata.get("Uri").toLowerCase());
         ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
             return resultSet.getLong(1);
@@ -958,11 +962,12 @@ public class PostgreSQLController implements AutoCloseable {
                 break;
             case PostgreSQLController.TABLE_DOCUMENTS:
                 parameters.add("ID BIGSERIAL PRIMARY KEY");
-                parameters.add("Name VARCHAR UNIQUE NOT NULL");
+                parameters.add("Name VARCHAR NOT NULL");
                 parameters.add("Author VARCHAR NOT NULL");
                 parameters.add("Uri VARCHAR NOT NULL");
                 parameters.add("IsAnalysed boolean NOT NULL DEFAULT false");
                 parameters.add("AnalysedOn timestamptz");
+                parameters.add("UNIQUE (Name, Uri)");
                 break;
             case PostgreSQLController.TABLE_ONTOLOGIES:
                 parameters.add("ID BIGSERIAL PRIMARY KEY");
@@ -1130,6 +1135,23 @@ public class PostgreSQLController implements AutoCloseable {
     }
 
     /**
+     * this method update author field of metadata/document
+     *
+     * @param id
+     * @param author
+     * @return
+     * @throws SQLException
+     */
+    public long updateDocumentAuthor(long id, String author) throws SQLException {
+        String sqlStatement = MessageFormat
+                .format("update {0}.{1} SET Author = ? where id = ?", PostgreSQLController.SCHEMA, PostgreSQLController.TABLE_DOCUMENTS);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        preparedStatement.setString(1, author);
+        preparedStatement.setLong(2, id);
+        return preparedStatement.executeUpdate();
+    }
+
+    /**
      * this method insert specific name in a specific table
      *
      * @param name
@@ -1217,8 +1239,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @return true or false
      * @throws SQLException
      */
-    // todo switch back to private
-    public Boolean isMapped(String mappingTable, long leftId, long rightId) throws SQLException {
+    private Boolean isMapped(String mappingTable, long leftId, long rightId) throws SQLException {
         String sqlStatement = getIsMappedStatement(mappingTable);
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
         preparedStatement.setLong(1, leftId);
@@ -1377,8 +1398,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @param weight
      * @throws SQLException
      */
-    // todo switch back to private
-    public void map(String mappingTable, long leftId, long rightId, @javax.annotation.Nullable Double weight)
+    private void map(String mappingTable, long leftId, long rightId, @javax.annotation.Nullable Double weight)
             throws SQLException {
 
         String sqlStatement = getTableMappingStatement(mappingTable);
