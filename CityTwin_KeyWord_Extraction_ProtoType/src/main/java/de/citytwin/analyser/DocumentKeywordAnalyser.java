@@ -70,7 +70,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
 
         Map<String, Double> filteredKeywords = new HashMap<String, Double>();
         double currentSimilarity = 0.0f;
-
+        int count = 1;
         for (String keyword : keywords.keySet()) {
             for (String name : catalog.getNames()) {
                 currentSimilarity = word2vec.similarity(keyword, name);
@@ -81,6 +81,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
             if (catalog.contains(keyword)) {
                 filteredKeywords.put(keyword, keywords.get(keyword));
             }
+            LOGGER.info(MessageFormat.format("keyword {0} | {1} of {2}", keyword, count++, keywords.size()));
 
         }
 
