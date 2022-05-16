@@ -321,9 +321,13 @@ public class DocumentConverter implements AutoCloseable {
      */
     private ParseContext prepareParserContext(String fileName) {
         int indexOfDot = fileName.lastIndexOf(".");
+        if (indexOfDot == -1) {
+            return new ParseContext();
+        }
         String fileType = "";
         fileType = fileName.substring(indexOfDot);
         ParseContext parseContext = new ParseContext();
+
         if (fileType.contains("xls")) {
             parseContext.set(OfficeParserConfig.class, getOfficeParserConfig());
         }
