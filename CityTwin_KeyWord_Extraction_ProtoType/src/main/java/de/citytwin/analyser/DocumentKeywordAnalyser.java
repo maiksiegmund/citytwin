@@ -11,6 +11,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     private Double similarity = null;
     private Integer maxNearest = null;
     private Boolean everySingleSentence = null;
+    private Map<String, List<String>> keyWordTextSections;
 
     /**
      * constructor.
@@ -102,10 +104,23 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     @Override
     public Map<String, Double> getKeywords(final ByteArrayInputStream byteArrayInputStream, final String fileName, KeywordExtractor keywordExtractor)
             throws Exception {
+        Map<String, Double> keywords = null;
         BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(byteArrayInputStream, fileName);
         List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, everySingleSentence);
-        return keywordExtractor.getKeywords(textcorpus);
+        keywords = keywordExtractor.getKeywords(textcorpus);
+        setKeyWordTextSections(bodyContentHandler, keywords);
+        return keywords;
 
+    }
+
+    /**
+     * this method return all sentence, where occur the keywords or an empty container
+     * 
+     * @param keyword
+     * @return new reference of {@code List<String>}
+     */
+    public List<String> getKeyWordTextSections(String keyword) {
+        return (keyWordTextSections.get(keyword) == null) ? new ArrayList<String>() : keyWordTextSections.get(keyword);
     }
 
     /**
@@ -120,10 +135,30 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
         for (String keyword : keywords) {
             List<String> nearestWords = word2vec.wordsNearest(keyword, maxNearest);
             result.put(keyword, nearestWords);
-
         }
         return result;
 
+    }
+
+    /**
+     * this method set text sections (hole sentence) of a given keyword
+     * 
+     * @param bodyContentHandler
+     * @param keywords
+     * @throws IOException
+     */
+    private void setKeyWordTextSections(BodyContentHandler bodyContentHandler, Map<String, Double> keywords) throws IOException {
+        keyWordTextSections = new HashMap<String, List<String>>();
+        List<List<String>> textCorpus = documentConverter.getTextCorpus(bodyContentHandler);
+        for (List<String> sentence : textCorpus) {
+            for (String term : sentence) {
+                if (keywords.get(term) != null) {
+                    List<String> textSection = new ArrayList<String>();
+                    textSection.add(sentence.toString());
+                    keyWordTextSections.put(term, textSection);
+                }
+            }
+        }
     }
 
     /**
@@ -150,7 +185,6 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
             throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.EVERY_SINGLE_SENTENCE");
         }
         everySingleSentence = Boolean.parseBoolean(property);
-
         return true;
     }
 
