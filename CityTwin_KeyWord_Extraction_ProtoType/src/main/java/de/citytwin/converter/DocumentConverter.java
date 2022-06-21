@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 
@@ -423,4 +424,31 @@ public class DocumentConverter implements AutoCloseable {
     public TextProcessing getTextProcessing() {
         return this.textProcessing;
     }
+
+    public HashMap<String, List<String>> getTextSections(BodyContentHandler bodyContentHandler, List<String> seekingWords) throws IOException {
+        HashMap<String, List<String>> results = new HashMap<String, List<String>>();
+        List<List<String>> textCorpus = getTextCorpus(bodyContentHandler);
+        for (List<String> sentence : textCorpus) {
+            List<String> textSection = null;
+            String concatSentence = textProcessing.concat(sentence);
+            for (String word : seekingWords) {
+                if (concatSentence.contains(word)) {
+                    if (!results.containsKey(word)) {
+                        textSection = new ArrayList<String>();
+                        textSection.add(concatSentence);
+                        results.put(word, textSection);
+                    } else {
+                        textSection = results.get(word);
+                        if (textSection.contains(word)) {
+                            continue;
+                        }
+                        textSection.add(concatSentence);
+                        results.put(word, textSection);
+                    }
+                }
+            }
+        }
+        return results;
+    }
+
 }

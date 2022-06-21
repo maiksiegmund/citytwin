@@ -1,6 +1,6 @@
 package de.citytwin.database;
 
-import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.catalog.HasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.model.ALKIS;
 import de.citytwin.model.Address;
@@ -170,7 +170,7 @@ public class Neo4JController implements AutoCloseable {
      * @param catalogEntry
      * @param weigth
      */
-    public void buildGraph(Metadata metadata, String keyword, @javax.annotation.Nullable CatalogEntryHasName catalogEntry, Double weigth) {
+    public void buildGraph(Metadata metadata, String keyword, @javax.annotation.Nullable HasName catalogEntry, Double weigth) {
 
         try(Session session = driver.session()) {
 
@@ -275,7 +275,7 @@ public class Neo4JController implements AutoCloseable {
      * @param catalogEntry
      * @return
      */
-    private TransactionWork<Void> createNode(CatalogEntryHasName catalogEntry) {
+    private TransactionWork<Void> createNode(HasName catalogEntry) {
         return new TransactionWork<Void>() {
 
             @Override
@@ -443,7 +443,7 @@ public class Neo4JController implements AutoCloseable {
      * @return
      * @throws Exception
      */
-    private TransactionWork<Boolean> existNode(CatalogEntryHasName catalogEntry) throws Exception {
+    private TransactionWork<Boolean> existNode(HasName catalogEntry) throws Exception {
         if (catalogEntry instanceof Term) {
             return existNode(catalogEntry.getName(), nodeTerm);
         }
@@ -557,7 +557,7 @@ public class Neo4JController implements AutoCloseable {
      * @param catalogEntry
      * @return
      */
-    private TransactionWork<Boolean> isLinked(final Metadata metaData, final CatalogEntryHasName catalogEntry) {
+    private TransactionWork<Boolean> isLinked(final Metadata metaData, final HasName catalogEntry) {
 
         return new TransactionWork<Boolean>() {
 
@@ -620,7 +620,7 @@ public class Neo4JController implements AutoCloseable {
      * @param catalogEntry
      * @return
      */
-    private TransactionWork<Boolean> isLinked(final String keyword, final CatalogEntryHasName catalogEntry) {
+    private TransactionWork<Boolean> isLinked(final String keyword, final HasName catalogEntry) {
 
         return new TransactionWork<Boolean>() {
 
@@ -772,7 +772,7 @@ public class Neo4JController implements AutoCloseable {
      * @param catalogEntry
      * @return
      */
-    private TransactionWork<Void> link(final Metadata metaData, final CatalogEntryHasName catalogEntry) {
+    private TransactionWork<Void> link(final Metadata metaData, final HasName catalogEntry) {
 
         return new TransactionWork<Void>() {
 
@@ -865,7 +865,7 @@ public class Neo4JController implements AutoCloseable {
      * @param catalogEntry
      * @return
      */
-    private TransactionWork<Void> link(final String keyword, final CatalogEntryHasName catalogEntry) {
+    private TransactionWork<Void> link(final String keyword, final HasName catalogEntry) {
 
         return new TransactionWork<Void>() {
 

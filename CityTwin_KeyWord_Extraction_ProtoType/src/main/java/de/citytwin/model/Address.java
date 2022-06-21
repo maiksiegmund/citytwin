@@ -1,6 +1,13 @@
 package de.citytwin.model;
 
-public class Address {
+import de.citytwin.catalog.HasName;
+
+/**
+ *
+ * @author Maik Siegmund, FH Erfurt
+ *
+ */
+public class Address implements HasName {
 
     public Address(String str_name, double hnr, String hnr_zusatz) {
         super();
@@ -45,6 +52,7 @@ public class Address {
         this.fid = fid;
     }
 
+    @Override
     public String getName() {
         return str_name;
     }

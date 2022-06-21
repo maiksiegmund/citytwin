@@ -1,6 +1,6 @@
 package de.citytwin.database;
 
-import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.catalog.HasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.model.ALKIS;
 import de.citytwin.model.Address;
@@ -503,7 +503,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @return id or 0
      * @throws SQLException
      */
-    public long getId(CatalogEntryHasName catalogEntryHasName) throws SQLException {
+    public long getId(HasName catalogEntryHasName) throws SQLException {
         String table = "";
         String name = "";
         if (catalogEntryHasName instanceof Term) {
@@ -1058,7 +1058,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @return id
      * @throws SQLException
      */
-    public long insert(CatalogEntryHasName catalogEntry) throws SQLException {
+    public long insert(HasName catalogEntry) throws SQLException {
         String table = "";
         Map<String, Object> parameters = new HashMap<String, Object>();
         if (catalogEntry instanceof Term) {
@@ -1287,7 +1287,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @param catalogEntryHasName
      * @throws SQLException
      */
-    public void map(Metadata metadata, CatalogEntryHasName catalogEntryHasName) throws SQLException {
+    public void map(Metadata metadata, HasName catalogEntryHasName) throws SQLException {
         long idCatalogEntryHasName = 0;
         String mappingTabelName = "";
         if (catalogEntryHasName instanceof ALKIS) {
@@ -1437,7 +1437,7 @@ public class PostgreSQLController implements AutoCloseable {
     }
 
     /**
-     * this method save analysis result to db (documents) {@link Metadata}, keyword (weight is optional), and {@link CatalogEntryHasName}
+     * this method save analysis result to db (documents) {@link Metadata}, keyword (weight is optional), and {@link HasName}
      *
      * @param metadata
      * @param keyword
@@ -1446,7 +1446,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @throws ClassNotFoundException
      * @throws SQLException
      */
-    public void persist(Metadata metadata, String keyword, @javax.annotation.Nullable CatalogEntryHasName catalogEntry, Double weigth)
+    public void persist(Metadata metadata, String keyword, @javax.annotation.Nullable HasName catalogEntry, Double weigth)
             throws ClassNotFoundException, SQLException {
 
         map(metadata, keyword, weigth);

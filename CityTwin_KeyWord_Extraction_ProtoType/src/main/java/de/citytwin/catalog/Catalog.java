@@ -20,7 +20,7 @@ import java.util.Set;
  * @author Maik Siegmund, FH Erfurt
  * @param <T>
  */
-public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
+public class Catalog<T extends HasName> implements AutoCloseable {
 
     private static final String classSimpleName = "Term";
 
@@ -88,7 +88,7 @@ public class Catalog<T extends CatalogEntryHasName> implements AutoCloseable {
      * @param name
      * @return
      */
-    public CatalogEntryHasName getEntry(String name) {
+    public HasName getEntry(String name) {
         return catalog.get(name);
     }
 

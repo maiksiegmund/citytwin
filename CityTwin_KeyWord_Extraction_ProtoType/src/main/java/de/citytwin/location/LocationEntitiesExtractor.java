@@ -88,6 +88,7 @@ public class LocationEntitiesExtractor implements NamedEntitiesExtractor, AutoCl
         }
         nameFinder.clearAdaptiveData();
         LOGGER.info(MessageFormat.format("locations found:    {0}", results.size()));
+
         return results;
     }
 

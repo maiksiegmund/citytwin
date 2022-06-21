@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonSubTypes({
     @Type(value = ALKIS.class, name = "ALKIS"),
     @Type(value = Term.class, name = "Term") })
-public interface CatalogEntryHasName {
+public interface HasName {
 
     public String getName();
 

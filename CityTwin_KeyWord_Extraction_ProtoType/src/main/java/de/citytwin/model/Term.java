@@ -1,6 +1,6 @@
 package de.citytwin.model;
 
-import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.catalog.HasName;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +13,7 @@ import java.util.List;
  * @since CityTwin_KeyWord_Extraction_ProtoType 1.0
  */
 
-public class Term implements CatalogEntryHasName {
+public class Term implements HasName {
 
     private Boolean isCore = false;
     private String morphem = "";

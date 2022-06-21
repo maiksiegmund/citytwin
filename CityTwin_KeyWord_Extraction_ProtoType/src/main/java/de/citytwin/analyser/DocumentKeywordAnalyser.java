@@ -2,7 +2,7 @@ package de.citytwin.analyser;
 
 import de.citytwin.algorithm.word2vec.Word2Vec;
 import de.citytwin.catalog.Catalog;
-import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.catalog.HasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
 import de.citytwin.keywords.KeywordExtractor;
@@ -68,7 +68,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     }
 
     @Override
-    public Map<String, Double> filterKeywords(Map<String, Double> keywords, Catalog<? extends CatalogEntryHasName> catalog) throws IOException {
+    public Map<String, Double> filterKeywords(Map<String, Double> keywords, Catalog<? extends HasName> catalog) throws IOException {
 
         Map<String, Double> filteredKeywords = new HashMap<String, Double>();
         double currentSimilarity = 0.0f;
@@ -115,11 +115,11 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
 
     /**
      * this method return all sentence, where occur the keywords or an empty container
-     * 
+     *
      * @param keyword
      * @return new reference of {@code List<String>}
      */
-    public List<String> getKeyWordTextSections(String keyword) {
+    public List<String> getTextSections(String keyword) {
         return (keyWordTextSections.get(keyword) == null) ? new ArrayList<String>() : keyWordTextSections.get(keyword);
     }
 
@@ -142,23 +142,14 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
 
     /**
      * this method set text sections (hole sentence) of a given keyword
-     * 
+     *
      * @param bodyContentHandler
      * @param keywords
      * @throws IOException
      */
     private void setKeyWordTextSections(BodyContentHandler bodyContentHandler, Map<String, Double> keywords) throws IOException {
-        keyWordTextSections = new HashMap<String, List<String>>();
-        List<List<String>> textCorpus = documentConverter.getTextCorpus(bodyContentHandler);
-        for (List<String> sentence : textCorpus) {
-            for (String term : sentence) {
-                if (keywords.get(term) != null) {
-                    List<String> textSection = new ArrayList<String>();
-                    textSection.add(sentence.toString());
-                    keyWordTextSections.put(term, textSection);
-                }
-            }
-        }
+        List<String> temps = new ArrayList<String>(keywords.keySet());
+        keyWordTextSections = documentConverter.getTextSections(bodyContentHandler, temps);
     }
 
     /**
