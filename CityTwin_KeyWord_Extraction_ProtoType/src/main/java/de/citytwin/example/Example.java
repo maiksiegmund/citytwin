@@ -18,7 +18,6 @@ import de.citytwin.location.LocationEntitiesExtractor;
 import de.citytwin.model.ALKIS;
 import de.citytwin.model.Address;
 import de.citytwin.model.Location;
-import de.citytwin.model.Term;
 import de.citytwin.model.WikiArticle;
 import de.citytwin.text.TextProcessing;
 
@@ -143,40 +142,17 @@ public class Example {
      */
     public static void createPartOfCityGraph(String[] args) throws Exception {
 
-        // check application property file
         String propertiesPath = validateProgramArgumentOrExit(args);
+
+        InputStream inputStream = new FileInputStream(propertiesPath);
         Properties properties = new Properties();
-
-        try(InputStream inputStream = new FileInputStream(propertiesPath)) {
-            properties.load(inputStream);
-
-        }
-        properties.setProperty(ApplicationConfiguration.PATH_2_NER_LOCATION_FILE, "D:\\VMS\\trained_model\\de-ner-location_naivebayes.bin");
-
-        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "D:\\VMS\\trained_model\\de-sent.bin");
-        properties.setProperty(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "D:\\VMS\\trained_model\\de-pos-maxent.bin");
-        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "D:\\VMS\\trained_model\\de-token.bin");
-        properties.setProperty(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\Stopwords\\de-stopswords.txt");
-        properties.setProperty(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "D:\\VMS\\postags\\de-posTags.txt");
-
-        properties.setProperty(ApplicationConfiguration.GEONAMES_USER, "demo");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_COUNTRYCODE, "de");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_MAXROWS, "10");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_URI, "api.geonames.org");
-        properties.setProperty(ApplicationConfiguration.MAX_DISTANCE_IN_METERS, "1000.0d");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_URL_2_DUMP_FILE, "https://download.geonames.org/export/dump/DE.zip");
-        properties.setProperty(ApplicationConfiguration.GEONAMES_ZIP_ENTRY, "DE.txt");
-        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_NAME, "Berlin");
-        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LATITUDE, "52.530644d");
-        properties.setProperty(ApplicationConfiguration.ORIGIN_LOCATION_LONGITUDE, "13.383068d");
-
-        properties.setProperty(ApplicationConfiguration.POSTGRESQL_URI, "jdbc:postgresql://83.135.47.253/citytwin");
-        properties.setProperty(ApplicationConfiguration.PATH_2_POSTGRESQL_PROPERTY_FILE, "postgreSQL.properties");
+        properties.load(inputStream);
 
         // reading documents
         String documentsFolder = properties.getProperty(ApplicationConfiguration.DOCUMENTS_FOLDER);
         List<File> files = new ArrayList<File>();
-        getFiles(documentsFolder, files, false);
+        // getFiles(documentsFolder, files, false);
+        files.add(new File("D:\\VMS\\documents\\wohnungsmarktbericht_wohnungsbaupotenziale_pr__sentation.pdf"));
 
         // run keyword extraction
         try(
@@ -229,8 +205,8 @@ public class Example {
      */
     public static Map<String, Double> doDocumentAnalyse(String[] args) throws IOException, Exception {
 
-        Map<String, Double> filteredKeywords = null;
-
+        Map<String, Double> filteredKeywords = new HashMap<String, Double>();
+        Map<String, Double> keywords = new HashMap<String, Double>();
         String propertiesPath = validateProgramArgumentOrExit(args);
 
         InputStream inputStream = new FileInputStream(propertiesPath);
@@ -244,21 +220,24 @@ public class Example {
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
                 DocumentKeywordAnalyser documentKeywordAnalyser = new DocumentKeywordAnalyser(properties, documentConverter, word2Vec);
-                Catalog<Term> catalog = new Catalog<Term>(properties, Term.class);
                 ByteArrayInputStream byteArrayInputStream = Example.getByteArrayInputStream(file);) {
 
-            KeywordExtractor keywordExtractor = new TextRankKeywordExtractor(properties, textProcessing);
-            String fileName = file.getName();
-            Map<String, Double> temp = documentKeywordAnalyser.getKeywords(byteArrayInputStream, fileName, keywordExtractor);
-            filteredKeywords = documentKeywordAnalyser.filterKeywords(temp, catalog);
+            List<KeywordExtractor> keywordExtractors = createKeywordExtractor(properties, textProcessing);
 
-            documentKeywordAnalyser.getTextSections("Stichstraße").forEach(System.out::println);
-            documentKeywordAnalyser.getTextSections("Artenschutzprogramm").forEach(System.out::println);
-            documentKeywordAnalyser.getTextSections("adasd").forEach(System.out::println);
+            for (KeywordExtractor keywordExtractor : keywordExtractors) {
+                Map<String, Double> temp = documentKeywordAnalyser.getKeywords(byteArrayInputStream, file.getName(), keywordExtractor);
+                keywords.putAll(temp);
+            }
+
+            List<Catalog<HasName>> catalogs = Example.createCatalogs(properties);
+            for (Catalog<HasName> catalog : catalogs) {
+                filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(keywords, catalog));
+            }
+
         }
         LOGGER.info("document analysed");
         for (String key : filteredKeywords.keySet()) {
-            System.out.println(MessageFormat.format("keyword {0} \t\t\t  score:{1} ", key, filteredKeywords.get(key)));
+            System.out.println(MessageFormat.format("keyword {0} \t\t\t\t score:{1} ", key, filteredKeywords.get(key)));
         }
         System.out.println(MessageFormat.format("founded keywords {0}", filteredKeywords.size()));
 
@@ -359,27 +338,16 @@ public class Example {
      * @return
      * @throws Exception
      */
-    public static Map<String, Double> runTextRank() throws Exception {
+    public static Map<String, Double> runTextRank(String[] args) throws Exception {
 
         Map<String, Double> keywords = new HashMap<String, Double>();
+        File file = new File("D:\\VMS\\documents\\wohnungsmarktbericht_wohnungsbaupotenziale_pr__sentation.pdf");
+
+        String propertiesPath = validateProgramArgumentOrExit(args);
+
+        InputStream inputStream = new FileInputStream(propertiesPath);
         Properties properties = new Properties();
-        File file = new File("D:\\VMS\\documents\\auswertung\\2_begruendung-9-11-ve.pdf");
-
-        properties.putAll(TextProcessing.getDefaultProperties());
-        properties.putAll(DocumentConverter.getDefaultProperties());
-        properties.putAll(TextRankKeywordExtractor.getDefaultProperties());
-
-        properties.setProperty(ApplicationConfiguration.PATH_2_NER_LOCATION_FILE, "D:\\VMS\\trained_model\\de-ner-location_naivebayes.bin");
-
-        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_DETECTOR_FILE, "D:\\VMS\\trained_model\\de-sent.bin");
-        properties.setProperty(ApplicationConfiguration.PATH_2_POS_TAGGER_FILE, "D:\\VMS\\trained_model\\de-pos-maxent.bin");
-        properties.setProperty(ApplicationConfiguration.PATH_2_SENTENCE_TOKENIZER_FILE, "D:\\VMS\\trained_model\\de-token.bin");
-        properties.setProperty(ApplicationConfiguration.PATH_2_STOPWORDS_FILE, "D:\\VMS\\Stopwords\\de-stopswords.txt");
-        properties.setProperty(ApplicationConfiguration.PATH_2_KEEPWORDS_FILE, "D:\\VMS\\keepwords\\de-keepwords.txt");
-        properties.setProperty(ApplicationConfiguration.PATH_2_POSTAGS_FILE, "D:\\VMS\\postags\\de-posTags.txt");
-        properties.setProperty(ApplicationConfiguration.MIN_TERM_LENGTH, "2");
-        properties.setProperty(ApplicationConfiguration.MIN_TERM_COUNT, "3");
-        properties.setProperty(ApplicationConfiguration.MIN_TABLE_OF_CONTENT, "80");
+        properties.load(inputStream);
 
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
@@ -387,9 +355,13 @@ public class Example {
                 TextRankKeywordExtractor textRankKeywordExtractor = new TextRankKeywordExtractor(properties, textProcessing);
                 ByteArrayInputStream byteArrayInputStream = Example.getByteArrayInputStream(file);) {
 
+            Boolean everySingleSentenc = false;
+            properties.getProperty(ApplicationConfiguration.EVERY_SINGLE_SENTENCE);
+
             BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(byteArrayInputStream, file.getName());
-            List<List<String>> textCorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, false);
+            List<List<String>> textCorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, everySingleSentenc);
             keywords = textRankKeywordExtractor.getKeywords(textCorpus);
+            keywords.forEach((key, value) -> System.out.println(key + ":" + value));
             LOGGER.info("textRank finish");
         }
 
@@ -402,15 +374,16 @@ public class Example {
      * @return
      * @throws Exception
      */
-    public static Map<String, Double> runTFIDF() throws Exception {
+    public static Map<String, Double> runTFIDF(String[] args) throws Exception {
 
         Map<String, Double> keywords = new HashMap<String, Double>();
-        Properties properties = new Properties();
-        File file = new File("D:\\vms\\sharedFolder\\dokumente\\2_begruendung-9-11-ve.pdf");
+        File file = new File("D:\\VMS\\documents\\wohnungsmarktbericht_wohnungsbaupotenziale_pr__sentation.pdf");
 
-        properties.putAll(TextProcessing.getDefaultProperties());
-        properties.putAll(DocumentConverter.getDefaultProperties());
-        properties.putAll(TFIDFKeywordExtractor.getDefaultProperties());
+        String propertiesPath = validateProgramArgumentOrExit(args);
+
+        InputStream inputStream = new FileInputStream(propertiesPath);
+        Properties properties = new Properties();
+        properties.load(inputStream);
 
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
@@ -420,11 +393,10 @@ public class Example {
 
             String fileName = file.getName();
             BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(byteArrayInputStream, fileName);
-
             List<List<String>> textCorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, true);
 
             keywords = tfidfKeywordExtractor.getKeywords(textCorpus);
-
+            keywords.forEach((key, value) -> System.out.println(key + ":" + value));
             LOGGER.info("TFIDF finish");
         }
 
@@ -665,6 +637,24 @@ public class Example {
     public static ByteArrayInputStream getByteArrayInputStream(File file) throws IOException {
         byte[] bytes = file.toURI().toURL().openStream().readAllBytes();
         return new ByteArrayInputStream(bytes);
+    }
+
+    public static void getNearest(String[] args) throws Exception {
+
+        Map<String, Double> filteredKeywords = new HashMap<String, Double>();
+        Map<String, Double> keywords = new HashMap<String, Double>();
+        String propertiesPath = validateProgramArgumentOrExit(args);
+
+        InputStream inputStream = new FileInputStream(propertiesPath);
+        Properties properties = new Properties();
+        properties.load(inputStream);
+
+        try(Word2Vec word2Vec = new Word2Vec(properties)) {
+            word2Vec.wordsNearest("Wohnungsbau", 50).forEach((item) -> System.out.println(item));
+            word2Vec.similarWordsInVocabTo("Wohnungsbau", 10.d).forEach((item) -> System.out.println(item));
+            System.out.println("finished");
+        }
+
     }
 
 }

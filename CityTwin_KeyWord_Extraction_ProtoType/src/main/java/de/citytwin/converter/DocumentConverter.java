@@ -149,12 +149,12 @@ public class DocumentConverter implements AutoCloseable {
      * this method tokenize bodyContentHandler in sentences and each term and remove footers, table of content
      *
      * @param bodyContentHandler
-     * @param onSingleSentence
+     * @param everySingleSentence
      * @return
      * @throws IOException
      */
-    public List<List<String>> getCleanedTextCorpus(BodyContentHandler bodyContentHandler, boolean onSingleSentence) throws IOException {
-        return (onSingleSentence) ? getCleanedTextCorpusBySentences(bodyContentHandler) : getCleanedTextCorpusOnHoleCorpus(bodyContentHandler);
+    public List<List<String>> getCleanedTextCorpus(BodyContentHandler bodyContentHandler, boolean everySingleSentence) throws IOException {
+        return (everySingleSentence) ? getCleanedTextCorpusBySentences(bodyContentHandler) : getCleanedTextCorpusOnHoleCorpus(bodyContentHandler);
     }
 
     /**
