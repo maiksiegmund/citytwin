@@ -252,6 +252,9 @@ public class Example {
             Map<String, Double> temp = documentKeywordAnalyser.getKeywords(byteArrayInputStream, fileName, keywordExtractor);
             filteredKeywords = documentKeywordAnalyser.filterKeywords(temp, catalog);
 
+            documentKeywordAnalyser.getTextSections("Stichstraße").forEach(System.out::println);
+            documentKeywordAnalyser.getTextSections("Artenschutzprogramm").forEach(System.out::println);
+            documentKeywordAnalyser.getTextSections("adasd").forEach(System.out::println);
         }
         LOGGER.info("document analysed");
         for (String key : filteredKeywords.keySet()) {
