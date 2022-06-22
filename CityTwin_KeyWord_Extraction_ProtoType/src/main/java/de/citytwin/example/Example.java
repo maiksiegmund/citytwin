@@ -8,7 +8,7 @@ import de.citytwin.algorithm.word2vec.Word2Vec;
 import de.citytwin.analyser.DocumentKeywordAnalyser;
 import de.citytwin.analyser.DocumentNamedEntityAnalyser;
 import de.citytwin.catalog.Catalog;
-import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.catalog.HasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
 import de.citytwin.database.Neo4JController;
@@ -92,15 +92,15 @@ public class Example {
      * @throws IllegalArgumentException
      * @throws InvocationTargetException
      */
-    private static List<Catalog<CatalogEntryHasName>> createCatalogs(Properties properties) throws ClassNotFoundException, NoSuchMethodException,
+    private static List<Catalog<HasName>> createCatalogs(Properties properties) throws ClassNotFoundException, NoSuchMethodException,
             SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
         String temp = properties.getProperty(ApplicationConfiguration.KEYWORD_FILTER_CATALOGS);
-        List<Catalog<CatalogEntryHasName>> catalogs = new ArrayList<Catalog<CatalogEntryHasName>>();
+        List<Catalog<HasName>> catalogs = new ArrayList<Catalog<HasName>>();
         String[] catalogClassNames = temp.split(",");
         for (String catalogClassName : catalogClassNames) {
             Class<?> catalogTypeClass = Class.forName(catalogClassName);
             Constructor<?> catalogConstructor = Catalog.class.getConstructor(Properties.class, catalogTypeClass.getClass());
-            Catalog<CatalogEntryHasName> catalog = (Catalog<CatalogEntryHasName>)catalogConstructor.newInstance(properties, catalogTypeClass);
+            Catalog<HasName> catalog = (Catalog<HasName>)catalogConstructor.newInstance(properties, catalogTypeClass);
             catalogs.add(catalog);
 
         }
@@ -199,8 +199,8 @@ public class Example {
                 }
                 // filtering
                 Map<String, Double> filteredKeywords = new HashMap<String, Double>();
-                List<Catalog<CatalogEntryHasName>> catalogs = Example.createCatalogs(properties);
-                for (Catalog<CatalogEntryHasName> catalog : catalogs) {
+                List<Catalog<HasName>> catalogs = Example.createCatalogs(properties);
+                for (Catalog<HasName> catalog : catalogs) {
                     filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(keywords, catalog));
                 }
                 // persist
@@ -208,8 +208,8 @@ public class Example {
                 metaData.add("Uri", "example");
                 for (String keyword : filteredKeywords.keySet()) {
                     LOGGER.info("running");
-                    for (Catalog<CatalogEntryHasName> catalog : catalogs) {
-                        CatalogEntryHasName catalogEntryHasName = catalog.getEntry(keyword);
+                    for (Catalog<HasName> catalog : catalogs) {
+                        HasName catalogEntryHasName = catalog.getEntry(keyword);
                         // neo4JController.buildGraph(metaData, keyword, catalogEntryHasName, filteredKeywords.get(keyword));
                         postgreSQLController.persist(metaData, keyword, catalogEntryHasName, filteredKeywords.get(keyword));
                     }
@@ -227,18 +227,17 @@ public class Example {
      * @throws IOException
      * @throws Exception
      */
-    public static Map<String, Double> doDocumentAnalyse() throws IOException, Exception {
+    public static Map<String, Double> doDocumentAnalyse(String[] args) throws IOException, Exception {
 
         Map<String, Double> filteredKeywords = null;
-        Properties properties = new Properties();
-        properties.putAll(Word2Vec.getDefaultProperties());
-        properties.putAll(TextProcessing.getDefaultProperties());
-        properties.putAll(DocumentKeywordAnalyser.getDefaultProperties());
-        properties.putAll(DocumentConverter.getDefaultProperties());
-        properties.putAll(TextRankKeywordExtractor.getDefaultProperties());
-        properties.putAll(Catalog.getDefaultProperties(Term.class));
 
-        File file = new File("D:\\vms\\sharedFolder\\dokumente\\2_begruendung-9-11-ve.pdf");
+        String propertiesPath = validateProgramArgumentOrExit(args);
+
+        InputStream inputStream = new FileInputStream(propertiesPath);
+        Properties properties = new Properties();
+        properties.load(inputStream);
+
+        File file = new File("D:\\vms\\documents\\wohnungsmarktbericht_wohnungsbaupotenziale_pr__sentation.pdf");
 
         try(
                 Word2Vec word2Vec = new Word2Vec(properties);
@@ -594,7 +593,7 @@ public class Example {
                 Map<String, Double> keywords = new HashMap<String, Double>();
                 Map<String, Double> filteredKeywords = new HashMap<String, Double>();
                 List<KeywordExtractor> keywordExtractors = createKeywordExtractor(properties, textProcessing);
-                List<Catalog<CatalogEntryHasName>> catalogs = Example.createCatalogs(properties);
+                List<Catalog<HasName>> catalogs = Example.createCatalogs(properties);
                 for (Long documentId : unanalyzedDocuments.keySet()) {
                     try {
                         Metadata metaData = unanalyzedDocuments.get(documentId);
@@ -604,7 +603,7 @@ public class Example {
                             keywords.putAll(documentKeywordAnalyser.getKeywords(byteArrayInputStream, metaData.get("name"), keywordExtractor));
                         }
                         // filtering
-                        for (Catalog<CatalogEntryHasName> catalog : catalogs) {
+                        for (Catalog<HasName> catalog : catalogs) {
                             filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(filteredKeywords, catalog));
                             // persist
                             for (String filteredKeyword : filteredKeywords.keySet()) {
