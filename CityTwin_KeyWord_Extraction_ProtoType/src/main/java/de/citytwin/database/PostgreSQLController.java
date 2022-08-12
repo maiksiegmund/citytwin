@@ -11,6 +11,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.DriverManager;
@@ -123,6 +124,7 @@ public class PostgreSQLController implements AutoCloseable {
         List<String> parameters = createMappingTableParameters(tableLeft, tableRight);
         if (PostgreSQLController.MAPPING_TABLE_DOCUMENTS_KEYWORDS.equals(mappingTableName)) {
             parameters.add("WEIGHT DOUBLE PRECISION DEFAULT 0.0::double precision");
+            parameters.add("textpassage text[]");
         }
         return createTable(mappingTableName, parameters);
     }
@@ -504,16 +506,13 @@ public class PostgreSQLController implements AutoCloseable {
      * @throws SQLException
      */
     public long getId(HasName catalogEntryHasName) throws SQLException {
-        String table = "";
-        String name = "";
+
         if (catalogEntryHasName instanceof Term) {
-            table = PostgreSQLController.TABLE_TERMS;
+            return getId((Term)catalogEntryHasName);
         }
-        if (catalogEntryHasName instanceof ALKIS) {
-            table = PostgreSQLController.TABLE_ALKIS;
-        }
-        name = catalogEntryHasName.getName();
-        return getId("id", name, table);
+        // otherwise catalogEntryHasName is instanceof ALKIS
+        return getId((ALKIS)catalogEntryHasName);
+
     }
 
     /**
@@ -956,9 +955,10 @@ public class PostgreSQLController implements AutoCloseable {
                 break;
             case PostgreSQLController.TABLE_TERMS:
                 parameters.add("ID BIGSERIAL PRIMARY KEY");
-                parameters.add("Name VARCHAR UNIQUE NOT NULL");
+                parameters.add("Name VARCHAR NOT NULL");
                 parameters.add("IsCore BOOLEAN");
                 parameters.add("Morphem VARCHAR");
+                parameters.add("UNIQUE (Name, IsCore, Morphem)");
                 break;
             case PostgreSQLController.TABLE_DOCUMENTS:
                 parameters.add("ID BIGSERIAL PRIMARY KEY");
@@ -1262,7 +1262,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @param idAddress
      * @throws SQLException
      */
-    public void map(Metadata metadata, Address address) throws SQLException {
+    private void map(Metadata metadata, Address address) throws SQLException {
 
         if (address.getFid() == null && address.getFid() == 0) {
             throw new SQLException("id of address is null or 0");
@@ -1284,18 +1284,31 @@ public class PostgreSQLController implements AutoCloseable {
      * and mapped the both
      *
      * @param metadata
-     * @param catalogEntryHasName
+     * @param hasName
      * @throws SQLException
      */
-    public void map(Metadata metadata, HasName catalogEntryHasName) throws SQLException {
+    public void map(Metadata metadata, HasName hasName) throws SQLException {
         long idCatalogEntryHasName = 0;
         String mappingTabelName = "";
-        if (catalogEntryHasName instanceof ALKIS) {
-            idCatalogEntryHasName = getId(catalogEntryHasName);
+
+        if (hasName instanceof Address) {
+            Address address = (Address)hasName;
+            map(metadata, address);
+            return;
+        }
+
+        if (hasName instanceof Location) {
+            Location location = (Location)hasName;
+            map(metadata, location);
+            return;
+        }
+
+        if (hasName instanceof ALKIS) {
+            idCatalogEntryHasName = getId(hasName);
             mappingTabelName = PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ALKIS;
         }
-        if (catalogEntryHasName instanceof Term) {
-            idCatalogEntryHasName = getId((Term)catalogEntryHasName);
+        if (hasName instanceof Term) {
+            idCatalogEntryHasName = getId((Term)hasName);
             mappingTabelName = PostgreSQLController.MAPPING_TABLE_DOCUMENTS_TERMS;
         }
         long idDocument = getId(metadata);
@@ -1303,7 +1316,7 @@ public class PostgreSQLController implements AutoCloseable {
             idDocument = insert(metadata);
         }
         if (idCatalogEntryHasName == 0) {
-            idCatalogEntryHasName = insert(catalogEntryHasName);
+            idCatalogEntryHasName = insert(hasName);
         }
         if (!isMapped(mappingTabelName, idDocument, idCatalogEntryHasName)) {
             map(mappingTabelName, idDocument, idCatalogEntryHasName, 0.0d);
@@ -1321,7 +1334,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @param catalogEntryHasName
      * @throws SQLException
      */
-    public void map(Metadata metadata, Location location) throws SQLException {
+    private void map(Metadata metadata, Location location) throws SQLException {
         long idDocument = getId(metadata);
         long idLocation = getId(location);
         if (idDocument == 0) {
@@ -1416,24 +1429,12 @@ public class PostgreSQLController implements AutoCloseable {
      * this method analysis result to db (documents) {@link Metadata} and {@link Address}
      *
      * @param metadata
-     * @param address
+     * @param HasName
      * @throws ClassNotFoundException
      * @throws SQLException
      */
-    public void persist(Metadata metadata, Address address) throws ClassNotFoundException, SQLException {
-        map(metadata, address);
-    }
-
-    /**
-     * this method save analysis result to db (documents) {@link Metadata} and {@link Location}
-     *
-     * @param metadata
-     * @param location
-     * @throws ClassNotFoundException
-     * @throws SQLException
-     */
-    public void persist(Metadata metadata, Location location) throws ClassNotFoundException, SQLException {
-        map(metadata, location);
+    public void persist(Metadata metadata, HasName hasName) throws ClassNotFoundException, SQLException {
+        map(metadata, hasName);
     }
 
     /**
@@ -1459,6 +1460,10 @@ public class PostgreSQLController implements AutoCloseable {
                 map(metadata, ontology);
             }
         }
+    }
+
+    public void persist(Metadata metadata, Object object, Set<String> textPassages) throws SQLException {
+        update(metadata, object, textPassages);
     }
 
     public Set<String> getStreetNames() throws SQLException {
@@ -1502,5 +1507,55 @@ public class PostgreSQLController implements AutoCloseable {
         }
 
         return true;
+    }
+
+    /**
+     * this method update hole text passages column of a given document and keyword
+     *
+     * @param idKeyword
+     * @param textpassages
+     * @throws SQLException
+     */
+    private void update(Metadata metadata, Object object, Set<String> textpassages) throws SQLException {
+
+        long idDocument = getId(metadata);
+        long idObject = getId(object);
+        Array array = connection.createArrayOf("text", textpassages.toArray());
+        String sqlStatement = getUpdateTextPassagesSQLStatement(object);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        preparedStatement.setArray(1, array);
+        preparedStatement.setLong(2, idDocument);
+        preparedStatement.setLong(3, idObject);
+        preparedStatement.executeUpdate();
+    }
+
+    private String getUpdateTextPassagesSQLStatement(Object object) throws SQLException {
+
+        if (object instanceof Location)
+            return MessageFormat.format("update {0}.{1} SET textpassage = ? where nlp_documents_id = ? and  nlp_locations_id = ?",
+                    PostgreSQLController.SCHEMA,
+                    PostgreSQLController.MAPPING_TABLE_DOCUMENTS_LOCATIONS);
+        if (object instanceof Address)
+            return MessageFormat.format("update {0}.{1} SET textpassage = ? where nlp_documents_id = ? and  fis_s_wfs_adressenberlin_fid = ?",
+                    PostgreSQLController.SCHEMA,
+                    PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ADDRESSES);
+        if (object instanceof String) {
+            return MessageFormat.format("update {0}.{1} SET textpassage = ? where nlp_documents_id = ? and  nlp_keywords_id = ?",
+                    PostgreSQLController.SCHEMA,
+                    PostgreSQLController.MAPPING_TABLE_DOCUMENTS_KEYWORDS);
+        }
+        throw new SQLException(object.getClass().getName() + " no mapping table available");
+    }
+
+    private Long getId(Object object) throws SQLException {
+
+        if (object instanceof Location)
+            return getId((Location)object);
+        if (object instanceof Address)
+            return getId((Address)object);
+        if (object instanceof String) {
+            return getId((String)object, PostgreSQLController.TABLE_KEYWORDS);
+        }
+        throw new SQLException(object.getClass().getName() + " no method getid(...) available");
     }
 }

@@ -18,6 +18,7 @@ import de.citytwin.location.LocationEntitiesExtractor;
 import de.citytwin.model.ALKIS;
 import de.citytwin.model.Address;
 import de.citytwin.model.Location;
+import de.citytwin.model.Term;
 import de.citytwin.model.WikiArticle;
 import de.citytwin.text.TextProcessing;
 
@@ -76,6 +77,40 @@ public class Example {
             System.out.println(alkis.toString());
         }
 
+    }
+
+    public static void persitTermCatalog(String[] args) throws IOException, Exception {
+
+        String propertiesPath = validateProgramArgumentOrExit(args);
+        InputStream inputStream = new FileInputStream(propertiesPath);
+        Properties appProperties = new Properties();
+        appProperties.load(inputStream);
+        Properties termCatalogProperties = new Properties();
+        termCatalogProperties.put(ApplicationConfiguration.PATH_2_Term_CATALOG_FILE,
+                appProperties.getProperty(ApplicationConfiguration.PATH_2_Term_CATALOG_FILE));
+
+        List<Term> added = new ArrayList<Term>();
+
+        try(
+                Catalog<Term> catalog = new Catalog<Term>(termCatalogProperties, Term.class);
+                PostgreSQLController postgreSQLController = new PostgreSQLController(appProperties)) {
+            int count = 1;
+
+            for (String name : catalog.getNames()) {
+
+                System.out.println(count++ + " of " + catalog.getNames().size() + " --> " + name);
+                // Term term = (Term)catalog.getEntry(name);
+                Term term = (Term)catalog.getEntry(name);
+                long id = postgreSQLController.getId(term);
+                if (id == 0) {
+                    postgreSQLController.insert(term);
+                    added.add(term);
+                }
+
+            }
+
+            System.out.println("added: " + added.size() + " new terms");
+        }
     }
 
     /**
@@ -565,14 +600,19 @@ public class Example {
                             filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(filteredKeywords, catalog));
                             // persist
                             for (String filteredKeyword : filteredKeywords.keySet()) {
-                                if (toPostGreSQL)
+                                if (toPostGreSQL) {
                                     postgreSQLController
                                             .persist(metaData, filteredKeyword, catalog.getEntry(filteredKeyword), filteredKeywords.get(filteredKeyword));
+                                    postgreSQLController
+                                            .persist(metaData, filteredKeyword, documentKeywordAnalyser.getTextPassages(filteredKeyword));
+                                }
+
                                 if (toNeo4J) {
                                     neo4JController.buildGraph(metaData,
                                             filteredKeyword,
                                             catalog.getEntry(filteredKeyword),
-                                            filteredKeywords.get(filteredKeyword));
+                                            filteredKeywords.get(filteredKeyword),
+                                            documentKeywordAnalyser.getTextPassages(filteredKeyword));
                                 }
                             }
                         }
@@ -601,15 +641,19 @@ public class Example {
                                 .validateLocations(extractedLocations, postgreSQLController, containsInSynoyms);
                         if (toPostGreSQL) {
                             for (Location location : validatedLocations) {
-                                postgreSQLController.map(metaData, location);
+                                postgreSQLController.persist(metaData, location);
+                                postgreSQLController.persist(metaData, location, documentNamedEntityAnalyser.getTextPassages(location));
                             }
                             for (Address address : validatedAddresses) {
-                                postgreSQLController.map(metaData, address);
+                                postgreSQLController.persist(metaData, address);
+                                postgreSQLController.persist(metaData, address, documentNamedEntityAnalyser.getTextPassages(address));
                             }
                         }
                         if (toNeo4J) {
-                            validatedAddresses.forEach(address -> neo4JController.buildGraph(metaData, address));
-                            validatedLocations.forEach(location -> neo4JController.buildGraph(metaData, location));
+                            validatedAddresses
+                                    .forEach(address -> neo4JController.buildGraph(metaData, address, documentNamedEntityAnalyser.getTextPassages(address)));
+                            validatedLocations
+                                    .forEach(location -> neo4JController.buildGraph(metaData, location, documentNamedEntityAnalyser.getTextPassages(location)));
                         }
                         postgreSQLController.setDocumentIsAnalysed(documentId);
                         byteArrayInputStream.close();

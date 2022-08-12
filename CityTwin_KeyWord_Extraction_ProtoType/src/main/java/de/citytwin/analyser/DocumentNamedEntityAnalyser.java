@@ -99,7 +99,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, everySingleSentence);
         namedEntities.addAll(namedEntitiesExtractor.getNamedEntities(textcorpus));
         namedEntities.addAll(namedEntitiesExtractor.getNamedEntities(bodyContentHandler.toString(), addressRegex));
-        setTextSections(bodyContentHandler, namedEntities);
+        setTextPassages(bodyContentHandler, namedEntities);
         return namedEntities;
 
     }
@@ -643,18 +643,17 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
 
     }
 
-    public List<String> getTextSections(HasName hasName) {
+    public Set<String> getTextPassages(HasName hasName) {
         if (hasName instanceof Address) {
             List<String> addresses = getPossibleKeyMatches((Address)hasName);
             // return first match
             for (String address : addresses) {
-                List<String> foundeds = textSections.get(address);
+                List<String> foundeds = textPassages.get(address);
                 if (foundeds != null)
-                    return foundeds;
+                    return new HashSet(foundeds);
             }
         }
-
-        return (textSections.get(hasName.getName()) == null) ? new ArrayList<String>() : textSections.get(hasName.getName());
+        return (textPassages.get(hasName.getName()) == null) ? new HashSet<String>() : new HashSet<String>(textPassages.get(hasName.getName()));
     }
 
     private List<String> getPossibleKeyMatches(Address address) {
@@ -675,11 +674,11 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         return results;
     }
 
-    private HashMap<String, List<String>> textSections = null;
+    private HashMap<String, List<String>> textPassages = null;
 
-    private void setTextSections(BodyContentHandler bodyContentHandler, Set<String> namedEntities) throws IOException {
+    private void setTextPassages(BodyContentHandler bodyContentHandler, Set<String> namedEntities) throws IOException {
         List<String> temps = new ArrayList<String>(namedEntities);
-        textSections = documentConverter.getTextSections(bodyContentHandler, temps);
+        textPassages = documentConverter.getTextPassages(bodyContentHandler, temps);
     }
 
 }

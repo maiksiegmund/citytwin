@@ -13,9 +13,11 @@ import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.tika.sax.BodyContentHandler;
 import org.slf4j.Logger;
@@ -44,7 +46,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     private Double similarity = null;
     private Integer maxNearest = null;
     private Boolean everySingleSentence = null;
-    private Map<String, List<String>> keyWordTextSections;
+    private Map<String, List<String>> keyWordTextPassages;
 
     /**
      * constructor.
@@ -108,7 +110,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
         BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(byteArrayInputStream, fileName);
         List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, everySingleSentence);
         keywords = keywordExtractor.getKeywords(textcorpus);
-        setKeyWordTextSections(bodyContentHandler, keywords);
+        setKeyWordTextPassages(bodyContentHandler, keywords);
         return keywords;
 
     }
@@ -119,8 +121,8 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
      * @param keyword
      * @return new reference of {@code List<String>}
      */
-    public List<String> getTextSections(String keyword) {
-        return (keyWordTextSections.get(keyword) == null) ? new ArrayList<String>() : keyWordTextSections.get(keyword);
+    public Set<String> getTextPassages(String keyword) {
+        return (keyWordTextPassages.get(keyword) == null) ? new HashSet<String>() : new HashSet<String>(keyWordTextPassages.get(keyword));
     }
 
     /**
@@ -147,9 +149,9 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
      * @param keywords
      * @throws IOException
      */
-    private void setKeyWordTextSections(BodyContentHandler bodyContentHandler, Map<String, Double> keywords) throws IOException {
+    private void setKeyWordTextPassages(BodyContentHandler bodyContentHandler, Map<String, Double> keywords) throws IOException {
         List<String> temps = new ArrayList<String>(keywords.keySet());
-        keyWordTextSections = documentConverter.getTextSections(bodyContentHandler, temps);
+        keyWordTextPassages = documentConverter.getTextPassages(bodyContentHandler, temps);
     }
 
     /**

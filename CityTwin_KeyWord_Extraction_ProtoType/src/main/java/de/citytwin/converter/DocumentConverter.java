@@ -425,25 +425,25 @@ public class DocumentConverter implements AutoCloseable {
         return this.textProcessing;
     }
 
-    public HashMap<String, List<String>> getTextSections(BodyContentHandler bodyContentHandler, List<String> seekingWords) throws IOException {
+    public HashMap<String, List<String>> getTextPassages(BodyContentHandler bodyContentHandler, List<String> seekingWords) throws IOException {
         HashMap<String, List<String>> results = new HashMap<String, List<String>>();
         List<List<String>> textCorpus = getTextCorpus(bodyContentHandler);
         for (List<String> sentence : textCorpus) {
-            List<String> textSection = null;
+            List<String> textPassage = null;
             String concatSentence = textProcessing.concat(sentence);
             for (String word : seekingWords) {
                 if (concatSentence.contains(word)) {
                     if (!results.containsKey(word)) {
-                        textSection = new ArrayList<String>();
-                        textSection.add(concatSentence);
-                        results.put(word, textSection);
+                        textPassage = new ArrayList<String>();
+                        textPassage.add(concatSentence);
+                        results.put(word, textPassage);
                     } else {
-                        textSection = results.get(word);
-                        if (textSection.contains(word)) {
+                        textPassage = results.get(word);
+                        if (textPassage.contains(word)) {
                             continue;
                         }
-                        textSection.add(concatSentence);
-                        results.put(word, textSection);
+                        textPassage.add(concatSentence);
+                        results.put(word, textPassage);
                     }
                 }
             }

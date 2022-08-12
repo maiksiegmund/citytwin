@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.tika.metadata.Metadata;
 import org.neo4j.driver.AuthTokens;
@@ -110,7 +111,7 @@ public class Neo4JController implements AutoCloseable {
      * @param metadata
      * @param location
      */
-    public void buildGraph(Metadata metadata, Address address) {
+    public void buildGraph(Metadata metadata, Address address, Set<String> textPassages) {
         try(Session session = driver.session()) {
             boolean exist = false;
             boolean linked = false;
@@ -127,7 +128,7 @@ public class Neo4JController implements AutoCloseable {
             }
             linked = session.readTransaction(isLinked(metadata, address));
             if (!linked) {
-                session.writeTransaction(link(metadata, address));
+                session.writeTransaction(link(metadata, address, textPassages));
             }
 
         }
@@ -139,7 +140,7 @@ public class Neo4JController implements AutoCloseable {
      * @param metadata
      * @param location
      */
-    public void buildGraph(Metadata metadata, Location location) {
+    public void buildGraph(Metadata metadata, Location location, Set<String> textPassages) {
         try(Session session = driver.session()) {
             boolean exist = false;
             boolean linked = false;
@@ -170,7 +171,7 @@ public class Neo4JController implements AutoCloseable {
      * @param catalogEntry
      * @param weigth
      */
-    public void buildGraph(Metadata metadata, String keyword, @javax.annotation.Nullable HasName catalogEntry, Double weigth) {
+    public void buildGraph(Metadata metadata, String keyword, @javax.annotation.Nullable HasName catalogEntry, Double weigth, Set<String> textPassages) {
 
         try(Session session = driver.session()) {
 
@@ -190,7 +191,7 @@ public class Neo4JController implements AutoCloseable {
             // link keyword and document
             isLinked = session.readTransaction(isLinked(metadata, edgeContains, keyword, nodeKeyword));
             if (!isLinked) {
-                session.writeTransaction(link(metadata, keyword, weigth));
+                session.writeTransaction(link(metadata, keyword, weigth, textPassages));
             }
             if (catalogEntry == null) {
                 return;
@@ -755,12 +756,12 @@ public class Neo4JController implements AutoCloseable {
      * @param address
      * @return
      */
-    private TransactionWork<Void> link(final Metadata metadata, final Address address) {
+    private TransactionWork<Void> link(final Metadata metadata, final Address address, final Set<String> textPassages) {
         return new TransactionWork<Void>() {
 
             @Override
             public Void execute(Transaction transaction) {
-                return linkCypher(transaction, metadata, address);
+                return linkCypher(transaction, metadata, address, textPassages);
             }
         };
     }
@@ -798,12 +799,12 @@ public class Neo4JController implements AutoCloseable {
      * @param location
      * @return
      */
-    private TransactionWork<Void> link(final Metadata metadata, final Location location) {
+    private TransactionWork<Void> link(final Metadata metadata, final Location location, Set<String> textPassages) {
         return new TransactionWork<Void>() {
 
             @Override
             public Void execute(Transaction transaction) {
-                return linkCypher(transaction, metadata, location);
+                return linkCypher(transaction, metadata, location, textPassages);
             }
         };
     }
@@ -841,19 +842,14 @@ public class Neo4JController implements AutoCloseable {
      * @param weight
      * @return
      */
-    private TransactionWork<Void> link(final Metadata metaData, final String keyword, final double weight) {
+    private TransactionWork<Void> link(final Metadata metaData, final String keyword, final Double weight, Set<String> textPassages) {
 
         return new TransactionWork<Void>() {
 
             @Override
             public Void execute(Transaction transaction) {
-                String leftLabel = nodeDocument;
-                String leftName = metaData.get("name");
-                String thereEdgeName = edgeContains;
-                String returnEdgeName = edgeAffect;
-                String rightName = keyword;
-                String rightLabel = nodeKeyword;
-                return linkCypher(transaction, leftLabel, leftName, thereEdgeName, returnEdgeName, rightName, rightLabel, weight);
+                String documentName = metaData.get("name");
+                return linkCypher(transaction, documentName, keyword, weight, textPassages);
             }
         };
     }
@@ -890,7 +886,7 @@ public class Neo4JController implements AutoCloseable {
      * @param location
      * @return
      */
-    private Void linkCypher(Transaction transaction, Metadata metadata, Address address) {
+    private Void linkCypher(Transaction transaction, Metadata metadata, Address address, Set<String> textPassages) {
 
         String leftLabel = nodeDocument;
         String rightLabel = nodeAddress;
@@ -925,8 +921,9 @@ public class Neo4JController implements AutoCloseable {
                         rightLabel,
                         additionalCondition);
 
-        String thereEdgeNameQuery = MessageFormat.format(" Create (leftNode)-[:{0}] ->(rightNode)", thereEdgeName);
-        String returnEdgeNameQuery = MessageFormat.format(" Create (rightNode)-[:{0}] ->(leftNode)", returnEdgeName);
+        String thereEdgeNameQuery = MessageFormat
+                .format("Create (leftNode)-[:{0}'{'{1}'}']->(rightNode)", thereEdgeName, getTextPassagesProperty(textPassages));
+        String returnEdgeNameQuery = MessageFormat.format("Create (rightNode)-[:{0}] ->(leftNode)", returnEdgeName);
         String query = nodeQuery + thereEdgeNameQuery + returnEdgeNameQuery;
 
         transaction.run(query, parameters);
@@ -941,7 +938,7 @@ public class Neo4JController implements AutoCloseable {
      * @param location
      * @return
      */
-    private Void linkCypher(Transaction transaction, Metadata metadata, Location location) {
+    private Void linkCypher(Transaction transaction, Metadata metadata, Location location, Set<String> textPassages) {
 
         String leftLabel = nodeDocument;
         String rightLabel = nodeLocation;
@@ -959,8 +956,9 @@ public class Neo4JController implements AutoCloseable {
                         leftLabel,
                         rightLabel);
 
-        String thereEdgeNameQuery = MessageFormat.format(" Create (leftNode)-[:{0}] ->(rightNode)", thereEdgeName);
-        String returnEdgeNameQuery = MessageFormat.format(" Create (rightNode)-[:{0}] ->(leftNode)", returnEdgeName);
+        String thereEdgeNameQuery = MessageFormat
+                .format("Create (leftNode)-[:{0}'{'{1}'}'] ->(rightNode)", thereEdgeName, getTextPassagesProperty(textPassages));
+        String returnEdgeNameQuery = MessageFormat.format("Create (rightNode)-[:{0}] ->(leftNode)", returnEdgeName);
         String query = nodeQuery + thereEdgeNameQuery + returnEdgeNameQuery;
 
         transaction.run(query, parameters);
@@ -980,9 +978,58 @@ public class Neo4JController implements AutoCloseable {
      * @param weight
      * @return
      */
-    private Void linkCypher(Transaction transaction, String leftLabel, String leftName, String thereEdgeName, @javax.annotation.Nullable String returnEdgeName,
+    private Void linkCypher(
+            Transaction transaction,
+            String documentName,
+            String keyword,
+            @javax.annotation.Nullable Double weight,
+            Set<String> textPassages) {
+
+        Map<String, Object> parameters = new HashMap<String, Object>();
+
+        parameters.put("documentName", documentName);
+        parameters.put("keywordName", keyword);
+
+        String weightProperty = (weight == null) ? "" : "weight:$weight";
+
+        String nodeQuery = "Match (document:{Document}), (keyword:{Keyword}) where document.name = $documentName and keyword.name = $keywordName";
+
+        String thereEdgeNameQuery = MessageFormat
+                .format("Create(document)-[:{0}{'{1}'}]->(keyword)", Neo4JController.EDGE_CONTAINS, getTextPassagesProperty(textPassages));
+        if (weight != null) {
+            thereEdgeNameQuery = MessageFormat.format("Create(document)-[:{0}'{'{1},{2}'}'] ->(keyword)",
+                    Neo4JController.EDGE_CONTAINS,
+                    weightProperty,
+                    getTextPassagesProperty(textPassages));
+            parameters.put("weight", weight);
+        }
+        String returnEdgeNameQuery = MessageFormat.format("Create (keyword)-[:{0}]->(document)", Neo4JController.EDGE_AFFECT);
+        String query = nodeQuery + thereEdgeNameQuery + returnEdgeNameQuery;
+        transaction.run(query, parameters);
+        return null;
+    }
+
+    /**
+     * this method link two nodes
+     *
+     * @param transaction
+     * @param leftLabel
+     * @param leftName
+     * @param thereEdgeName
+     * @param returnEdgeName
+     * @param rightName
+     * @param rightLabel
+     * @param weight
+     * @return
+     */
+    private Void linkCypher(
+            Transaction transaction,
+            String leftLabel, String leftName,
+            String thereEdgeName,
+            @javax.annotation.Nullable String returnEdgeName,
             String rightName,
-            String rightLabel, @javax.annotation.Nullable Double weight) {
+            String rightLabel,
+            @javax.annotation.Nullable Double weight) {
 
         Map<String, Object> parameters = new HashMap<String, Object>();
 
@@ -1017,22 +1064,6 @@ public class Neo4JController implements AutoCloseable {
 
             Transaction transaction = session.beginTransaction();
             // transaction.run("MATCH (n) DETACH DELETE n");
-            transaction.commit();
-            transaction.close();
-
-        } catch (Exception exception) {
-            LOGGER.error(exception.getMessage(), exception);
-        }
-    }
-
-    public void getBPLANNodes() {
-        try(Session session = driver.session()) {
-
-            Transaction transaction = session.beginTransaction();
-            Result result = transaction.run("MATCH (source:BPLAN) RETURN source");
-            if (result.hasNext()) {
-                System.out.println(result.keys());
-            }
             transaction.commit();
             transaction.close();
 
@@ -1083,6 +1114,25 @@ public class Neo4JController implements AutoCloseable {
             throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.NEO4J_PASSWORD");
         }
         return true;
+    }
+
+    /**
+     * this method return String named property(textpassages) with a array of strings
+     *
+     * @param transaction
+     * @param metadata
+     * @param location
+     * @return
+     */
+    private String getTextPassagesProperty(Set<String> textPassages) {
+
+        if (textPassages.size() == 0)
+            return "textPassages = []";
+        StringBuilder stringBuilder = new StringBuilder();
+        textPassages.forEach(key -> stringBuilder.append(MessageFormat.format("'{0}',", key)));
+        // remove last comma
+        String textPassagesArrayCypher = stringBuilder.substring(0, stringBuilder.length() - 1);
+        return "textPassages = [" + textPassagesArrayCypher + "]";
     }
 
 }
