@@ -79,7 +79,7 @@ public class Example {
 
     }
 
-    public static void persitTermCatalog(String[] args) throws IOException, Exception {
+    public static void persistTermCatalog(String[] args) throws IOException, Exception {
 
         String propertiesPath = validateProgramArgumentOrExit(args);
         InputStream inputStream = new FileInputStream(propertiesPath);
@@ -268,6 +268,18 @@ public class Example {
             for (Catalog<HasName> catalog : catalogs) {
                 filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(keywords, catalog));
             }
+
+            filteredKeywords.forEach((keyword, value) -> {
+
+                Set<String> texts = documentKeywordAnalyser.getTextPassages(keyword);
+                if (texts.size() == 0) {
+                    System.out.println("no entry for " + keyword);
+                } else {
+                    System.out.println(texts.size() + " entries for " + keyword);
+                    texts.forEach(System.out::println);
+                }
+
+            });
 
         }
         LOGGER.info("document analysed");
@@ -551,6 +563,10 @@ public class Example {
      */
     public static void run(String[] args) throws Exception {
 
+        int size = 0;
+        int batchSize = 5000;
+        List<String> succeedDocuments = new ArrayList<String>();
+
         String propertiesPath = validateProgramArgumentOrExit(args);
 
         InputStream inputStream = new FileInputStream(propertiesPath);
@@ -577,8 +593,12 @@ public class Example {
             // fetch all unanalyzed documents
             Map<Long, Metadata> unanalyzedDocuments = new HashMap<Long, Metadata>();
             for (Long documentId : postgreSQLController.getUnanalyzeDocumentIDs()) {
+                if (size == batchSize)
+                    break;
                 unanalyzedDocuments.put(documentId, postgreSQLController.getMetadata(documentId));
+                size++;
             }
+            LOGGER.info("analyse " + unanalyzedDocuments.size() + " documents");
             // init only when needed
             if (keywordAnalyse) {
                 word2Vec = new Word2Vec(properties);
@@ -590,7 +610,14 @@ public class Example {
                 for (Long documentId : unanalyzedDocuments.keySet()) {
                     try {
                         Metadata metaData = unanalyzedDocuments.get(documentId);
+                        LOGGER.info("keywordanalyse for document:\n" + metaData.get("name"));
                         ByteArrayInputStream byteArrayInputStream = Example.getByteArrayInputStream(metaData);
+                        if (byteArrayInputStream == null) {
+                            postgreSQLController.deleteDocument(documentId);
+                            succeedDocuments.add("documentid:" + documentId.toString() + "not available: " + metaData.get("Uri"));
+                            LOGGER.info("document not available :\n" + metaData.get("Uri"));
+                            continue;
+                        }
                         // get keywords
                         for (KeywordExtractor keywordExtractor : keywordExtractors) {
                             keywords.putAll(documentKeywordAnalyser.getKeywords(byteArrayInputStream, metaData.get("name"), keywordExtractor));
@@ -601,6 +628,8 @@ public class Example {
                             // persist
                             for (String filteredKeyword : filteredKeywords.keySet()) {
                                 if (toPostGreSQL) {
+                                    LOGGER.info("store in postgre");
+                                    succeedDocuments.add("documentid:" + documentId.toString() + " keywords store in postgree: " + metaData.get("Uri"));
                                     postgreSQLController
                                             .persist(metaData, filteredKeyword, catalog.getEntry(filteredKeyword), filteredKeywords.get(filteredKeyword));
                                     postgreSQLController
@@ -608,6 +637,8 @@ public class Example {
                                 }
 
                                 if (toNeo4J) {
+                                    LOGGER.info("store in neo4j");
+                                    succeedDocuments.add("documentid:" + documentId.toString() + " keywords store in neo4j: " + metaData.get("Uri"));
                                     neo4JController.buildGraph(metaData,
                                             filteredKeyword,
                                             catalog.getEntry(filteredKeyword),
@@ -618,6 +649,7 @@ public class Example {
                         }
                         byteArrayInputStream.close();
                         postgreSQLController.setDocumentIsAnalysed(documentId);
+                        LOGGER.info("keyordanalyse for document:\n" + metaData.get("name") + " finished");
                     } catch (Exception exception) {
                         String errorMessage = "error keyword analyze by document \n "
                                 + "id:      {0} \n "
@@ -633,7 +665,14 @@ public class Example {
                 for (Long documentId : unanalyzedDocuments.keySet()) {
                     try {
                         Metadata metaData = unanalyzedDocuments.get(documentId);
+                        LOGGER.info("named entity analyse for document:\n" + metaData.get("name"));
                         ByteArrayInputStream byteArrayInputStream = Example.getByteArrayInputStream(metaData);
+                        if (byteArrayInputStream == null) {
+                            postgreSQLController.deleteDocument(documentId);
+                            LOGGER.info("document not available :\n" + metaData.get("Uri"));
+                            succeedDocuments.add("documentid:" + documentId.toString() + " not available: " + metaData.get("Uri"));
+                            continue;
+                        }
                         Set<String> extractedLocations = documentNamedEntityAnalyser
                                 .getNamedEntities(byteArrayInputStream, metaData.get("name"), locationEntitiesExtractor);
                         Set<Address> validatedAddresses = documentNamedEntityAnalyser.validateAddresses(extractedLocations, postgreSQLController);
@@ -641,22 +680,33 @@ public class Example {
                                 .validateLocations(extractedLocations, postgreSQLController, containsInSynoyms);
                         if (toPostGreSQL) {
                             for (Location location : validatedLocations) {
+                                LOGGER.info("store in postgre");
+                                succeedDocuments.add("documentid:" + documentId.toString() + " POIs store in postgree: " + metaData.get("Uri"));
                                 postgreSQLController.persist(metaData, location);
                                 postgreSQLController.persist(metaData, location, documentNamedEntityAnalyser.getTextPassages(location));
                             }
                             for (Address address : validatedAddresses) {
+                                LOGGER.info("store in postgre");
+                                succeedDocuments.add("documentid:" + documentId.toString() + " Addresses store in postgree: " + metaData.get("Uri"));
                                 postgreSQLController.persist(metaData, address);
                                 postgreSQLController.persist(metaData, address, documentNamedEntityAnalyser.getTextPassages(address));
                             }
                         }
                         if (toNeo4J) {
                             validatedAddresses
-                                    .forEach(address -> neo4JController.buildGraph(metaData, address, documentNamedEntityAnalyser.getTextPassages(address)));
+                                    .forEach(address -> {
+                                        neo4JController.buildGraph(metaData, address, documentNamedEntityAnalyser.getTextPassages(address));
+                                        succeedDocuments.add("documentid:" + documentId.toString() + " Adresses store in Neo4j: " + metaData.get("Uri"));
+                                    });
                             validatedLocations
-                                    .forEach(location -> neo4JController.buildGraph(metaData, location, documentNamedEntityAnalyser.getTextPassages(location)));
+                                    .forEach(location -> {
+                                        neo4JController.buildGraph(metaData, location, documentNamedEntityAnalyser.getTextPassages(location));
+                                        succeedDocuments.add("documentid:" + documentId.toString() + " POIs store in Neo4j: " + metaData.get("Uri"));
+                                    });
                         }
                         postgreSQLController.setDocumentIsAnalysed(documentId);
                         byteArrayInputStream.close();
+                        LOGGER.info("named entity analyse for document:\n" + metaData.get("name") + " finished");
                     } catch (Exception exception) {
 
                         String errorMessage = "error named entitiy analyse by document \n "
@@ -667,15 +717,22 @@ public class Example {
 
                 }
             }
-
+            LOGGER.info("processed " + unanalyzedDocuments.size() + " documents");
+            LOGGER.info("process finished");
         }
 
+        succeedDocuments.forEach(System.out::println);
     }
 
+    // ToDo Errorhandling!
     public static ByteArrayInputStream getByteArrayInputStream(Metadata metaData) throws IOException {
-        URL url = new URL(metaData.get("Uri"));
-        byte[] bytes = url.openStream().readAllBytes();
-        return new ByteArrayInputStream(bytes);
+        try {
+            URL url = new URL(metaData.get("Uri"));
+            byte[] bytes = url.openStream().readAllBytes();
+            return new ByteArrayInputStream(bytes);
+        } catch (Exception exception) {
+            return null;
+        }
     }
 
     public static ByteArrayInputStream getByteArrayInputStream(File file) throws IOException {

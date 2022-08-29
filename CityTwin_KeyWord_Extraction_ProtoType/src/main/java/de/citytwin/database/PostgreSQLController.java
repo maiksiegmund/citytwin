@@ -510,8 +510,19 @@ public class PostgreSQLController implements AutoCloseable {
         if (catalogEntryHasName instanceof Term) {
             return getId((Term)catalogEntryHasName);
         }
-        // otherwise catalogEntryHasName is instanceof ALKIS
-        return getId((ALKIS)catalogEntryHasName);
+        if (catalogEntryHasName instanceof ALKIS) {
+            return getId((ALKIS)catalogEntryHasName);
+        }
+        if (catalogEntryHasName instanceof Location) {
+            return getId((Location)catalogEntryHasName);
+        }
+        if (catalogEntryHasName instanceof Address) {
+            List<Long> ids = getIds((Address)catalogEntryHasName);
+            if (ids.size() > 0)
+                return ids.get(0);
+            return 0;
+        }
+        throw new IllegalArgumentException("wrong type " + catalogEntryHasName.getClass().toString());
 
     }
 
@@ -1134,6 +1145,14 @@ public class PostgreSQLController implements AutoCloseable {
         return insertStatement(PostgreSQLController.TABLE_DOCUMENTS, parameters);
     }
 
+    public void deleteDocument(long id) throws SQLException {
+
+        String sqlStatement = MessageFormat.format("DELETE FROM {0}.{1} WHERE id = ?", PostgreSQLController.SCHEMA, PostgreSQLController.TABLE_DOCUMENTS);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        preparedStatement.setLong(1, id);
+        preparedStatement.executeUpdate();
+    }
+
     /**
      * this method update author field of metadata/document
      *
@@ -1512,7 +1531,8 @@ public class PostgreSQLController implements AutoCloseable {
     /**
      * this method update hole text passages column of a given document and keyword
      *
-     * @param idKeyword
+     * @param metadata
+     * @param object
      * @param textpassages
      * @throws SQLException
      */
@@ -1532,15 +1552,15 @@ public class PostgreSQLController implements AutoCloseable {
     private String getUpdateTextPassagesSQLStatement(Object object) throws SQLException {
 
         if (object instanceof Location)
-            return MessageFormat.format("update {0}.{1} SET textpassage = ? where nlp_documents_id = ? and  nlp_locations_id = ?",
+            return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and  nlp_locations_id = ?",
                     PostgreSQLController.SCHEMA,
                     PostgreSQLController.MAPPING_TABLE_DOCUMENTS_LOCATIONS);
         if (object instanceof Address)
-            return MessageFormat.format("update {0}.{1} SET textpassage = ? where nlp_documents_id = ? and  fis_s_wfs_adressenberlin_fid = ?",
+            return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and  fis_s_wfs_adressenberlin_fid = ?",
                     PostgreSQLController.SCHEMA,
                     PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ADDRESSES);
         if (object instanceof String) {
-            return MessageFormat.format("update {0}.{1} SET textpassage = ? where nlp_documents_id = ? and  nlp_keywords_id = ?",
+            return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and  nlp_keywords_id = ?",
                     PostgreSQLController.SCHEMA,
                     PostgreSQLController.MAPPING_TABLE_DOCUMENTS_KEYWORDS);
         }
