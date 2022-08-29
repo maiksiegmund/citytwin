@@ -422,6 +422,15 @@ public class PostgreSQLController implements AutoCloseable {
      * @throws SQLException
      */
     private PreparedStatement addressPreparedStatement(Address address, String what) throws SQLException {
+
+        if (address.getFid() != null && address.getFid() != 0L) {
+            PreparedStatement preparedStatement = connection.prepareStatement(MessageFormat.format("SELECT fid FROM {0}.{1} WHERE fid = ? ",
+                    PostgreSQLController.SCHEMA,
+                    PostgreSQLController.TABLE_ADDRESSES));
+            preparedStatement.setLong(1, address.getFid());
+            return preparedStatement;
+        }
+
         boolean setBez_nameCondition = false;
         boolean setHnrCondition = false;
         boolean setHnr_zusatzCondition = false;
