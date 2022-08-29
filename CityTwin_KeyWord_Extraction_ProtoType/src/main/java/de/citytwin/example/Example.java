@@ -33,10 +33,12 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -624,7 +626,7 @@ public class Example {
                         }
                         // filtering
                         for (Catalog<HasName> catalog : catalogs) {
-                            filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(filteredKeywords, catalog));
+                            filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(keywords, catalog));
                             // persist
                             for (String filteredKeyword : filteredKeywords.keySet()) {
                                 if (toPostGreSQL) {
@@ -754,6 +756,50 @@ public class Example {
             word2Vec.wordsNearest("Wohnungsbau", 50).forEach((item) -> System.out.println(item));
             word2Vec.similarWordsInVocabTo("Wohnungsbau", 10.d).forEach((item) -> System.out.println(item));
             System.out.println("finished");
+        }
+
+    }
+
+    public static void updateDocumentsAndKeywordsTextpassages(String[] args) throws ClassNotFoundException, SQLException, Exception {
+
+        String propertiesPath = validateProgramArgumentOrExit(args);
+
+        InputStream inputStream = new FileInputStream(propertiesPath);
+        Properties properties = new Properties();
+        properties.load(inputStream);
+
+        try(
+                TextProcessing textProcessing = new TextProcessing(properties);
+                DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
+                PostgreSQLController postgreSQLController = new PostgreSQLController(properties);) {
+
+            Map<Long, Set<Long>> mappedDocumentIdsAndKeywordIds = postgreSQLController.getDocumentIdsAndMappedKeywordIds();
+            int current = 1;
+            for (Map.Entry<Long, Set<Long>> entry : mappedDocumentIdsAndKeywordIds.entrySet()) {
+                Long metaDataId = entry.getKey();
+                Set<Long> keywordIds = entry.getValue();
+                List<String> keywords = new ArrayList<String>();
+                Metadata metadata = postgreSQLController.getMetadata(metaDataId);
+                for (Long keywordId : keywordIds) {
+                    String keyword = postgreSQLController.getKeyword(keywordId);
+                    keywords.add(keyword);
+                }
+
+                BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(getByteArrayInputStream(metadata), metadata.get("name"));
+                Map<String, List<String>> textPassages = documentConverter.getTextPassages(bodyContentHandler, keywords);
+                for (Map.Entry<String, List<String>> textPassage : textPassages.entrySet()) {
+                    String keyword = textPassage.getKey();
+                    List<String> texts = textPassage.getValue();
+                    postgreSQLController.persist(metadata, keyword, new HashSet<String>(texts));
+
+                }
+                keywords.clear();
+                if (current == 3)
+                    return;
+                System.out.println(current +" of "+ mappedDocumentIdsAndKeywordIds.size());
+                current++;
+            }
+
         }
 
     }
