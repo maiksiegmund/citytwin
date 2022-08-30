@@ -1,5 +1,7 @@
 package de.citytwin.model;
 
+import de.citytwin.catalog.HasName;
+
 import java.util.Set;
 
 import javax.annotation.Nonnull;
@@ -7,9 +9,9 @@ import javax.annotation.Nonnull;
 /**
  * this class represent location
  *
- * @author Maik, SRP GmbH, Berlin
+ * @author Maik, FH Erfurt
  */
-public class Location {
+public class Location implements HasName {
 
     /** index in dump */
     public static final int INDEX_NAME = 1;
@@ -24,6 +26,7 @@ public class Location {
     private double longitude;
     private Set<String> synonyms;
 
+    @Override
     public String getName() {
         return name;
     }

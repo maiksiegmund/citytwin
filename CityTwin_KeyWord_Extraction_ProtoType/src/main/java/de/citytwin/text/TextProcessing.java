@@ -560,7 +560,7 @@ public class TextProcessing implements AutoCloseable {
             if (textPart.trim().length() == 0 || containsOnlyDigits(textPart)) {
                 continue;
             }
-            if (getTermCount(textPart.trim()) < this.minTermCount || containsInKeepwords(textPart)) {
+            if (getTermCount(textPart.trim()) < this.minTermCount ^ containsInKeepwords(textPart)) {
                 continue;
             }
             stringBuilder.append(textPart.trim());
@@ -576,11 +576,7 @@ public class TextProcessing implements AutoCloseable {
      * @return
      */
     private boolean containsInKeepwords(String sentence) {
-
-        if (keepwords.stream().filter(keyword -> sentence.toLowerCase().contains(keyword.toLowerCase())).count() > 1)
-            return true;
-        return false;
-
+        return (keepwords.stream().filter(keepword -> sentence.toLowerCase().contains(keepword.toLowerCase())).count() >= 1);
     }
 
     /**
@@ -783,21 +779,24 @@ public class TextProcessing implements AutoCloseable {
 
     }
 
-    private String test = "Lassen Sie uns Berlin gemeinsam gestalten.\r\n"
-            + "\r\n"
-            + "Berlin zieht Menschen und Unternehmen an. Unsere Stadt wächst und verändert sich. Angesichts \r\n"
-            + "dieses Wandels brauchen wir eine klare Vorstellung über unsere Zukunft und unsere Ziele. Mit \r\n"
-            + "der BerlinStrategie | Stadtentwicklungskonzept Berlin 2030 verfügt unsere Stadt erstmals seit \r\n"
-            + "der Wende über ein ressortübergreifendes Leitbild für die langfristige, zukunftsfähige Entwick­\r\n"
-            + "lung der Hauptstadt. \r\n"
-            + "\r\n"
-            + "Wir haben in einem konzentrierten Prozess interdisziplinär gearbeitet und diskutiert. Die Öffent­\r\n"
-            + "lichkeit und die institutionellen Akteure der Berliner Stadtgesellschaft, Wirtschaft, Wissenschaft \r\n"
-            + "und Politik waren eingeladen, sich in die Zukunftsentwicklung einzubringen. Das hat in den \r\n"
-            + "Stadtforen und ihren Werkstätten eine große und lebhafte Resonanz erzeugt. Es freut mich, dass \r\n"
-            + "sich so viele aktiv eingebracht haben. Berlin, unsere Heimat, berührt uns alle. Dies zeigt sich in \r\n"
-            + "den täglichen Gesprächen vor Ort ebenso wie in den Debatten über die großen und langfristigen \r\n"
-            + "Themen, das Wohnen, das Klima, die Wirtschaft und die freien Räume. Allen Beteiligten danke \r\n"
-            + "ich herzlich für ihr vielfältiges, konstruktives und bereicherndes Engagement.";
+    /**
+     * this method concatenate a List<String> and remove blanks between commas
+     *
+     * @param sentence
+     * @return
+     */
+    public String concat(List<String> sentence) {
+        StringBuilder stringBuilder = new StringBuilder();
+        for (String term : sentence) {
+            // remove blank between commas
+            if (term.toCharArray().length == 1 && stringBuilder.length() > 1) {
+                stringBuilder.deleteCharAt(stringBuilder.length() - 1);
+            }
+            stringBuilder.append(term);
+            stringBuilder.append(" ");
+
+        }
+        return stringBuilder.toString().trim();
+    }
 
 }

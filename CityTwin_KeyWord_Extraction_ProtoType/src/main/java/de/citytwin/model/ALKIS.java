@@ -1,13 +1,13 @@
 package de.citytwin.model;
 
-import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.catalog.HasName;
 
 /**
  * this class present a simple data object
  *
  * @author Maik Siegmund, FH Erfurt
  */
-public class ALKIS implements CatalogEntryHasName {
+public class ALKIS implements HasName {
 
     private String name;
     private String categorie;

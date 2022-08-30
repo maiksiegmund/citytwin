@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 
@@ -148,12 +149,12 @@ public class DocumentConverter implements AutoCloseable {
      * this method tokenize bodyContentHandler in sentences and each term and remove footers, table of content
      *
      * @param bodyContentHandler
-     * @param onSingleSentence
+     * @param everySingleSentence
      * @return
      * @throws IOException
      */
-    public List<List<String>> getCleanedTextCorpus(BodyContentHandler bodyContentHandler, boolean onSingleSentence) throws IOException {
-        return (onSingleSentence) ? getCleanedTextCorpusBySentences(bodyContentHandler) : getCleanedTextCorpusOnHoleCorpus(bodyContentHandler);
+    public List<List<String>> getCleanedTextCorpus(BodyContentHandler bodyContentHandler, boolean everySingleSentence) throws IOException {
+        return (everySingleSentence) ? getCleanedTextCorpusBySentences(bodyContentHandler) : getCleanedTextCorpusOnHoleCorpus(bodyContentHandler);
     }
 
     /**
@@ -423,4 +424,31 @@ public class DocumentConverter implements AutoCloseable {
     public TextProcessing getTextProcessing() {
         return this.textProcessing;
     }
+
+    public HashMap<String, List<String>> getTextPassages(BodyContentHandler bodyContentHandler, List<String> seekingWords) throws IOException {
+        HashMap<String, List<String>> results = new HashMap<String, List<String>>();
+        List<List<String>> textCorpus = getTextCorpus(bodyContentHandler);
+        for (List<String> sentence : textCorpus) {
+            List<String> textPassage = null;
+            String concatSentence = textProcessing.concat(sentence);
+            for (String word : seekingWords) {
+                if (concatSentence.contains(word)) {
+                    if (!results.containsKey(word)) {
+                        textPassage = new ArrayList<String>();
+                        textPassage.add(concatSentence);
+                        results.put(word, textPassage);
+                    } else {
+                        textPassage = results.get(word);
+                        if (textPassage.contains(word)) {
+                            continue;
+                        }
+                        textPassage.add(concatSentence);
+                        results.put(word, textPassage);
+                    }
+                }
+            }
+        }
+        return results;
+    }
+
 }

@@ -2,7 +2,7 @@ package de.citytwin.analyser;
 
 import de.citytwin.algorithm.word2vec.Word2Vec;
 import de.citytwin.catalog.Catalog;
-import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.catalog.HasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
 import de.citytwin.keywords.KeywordExtractor;
@@ -11,10 +11,13 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.tika.sax.BodyContentHandler;
 import org.slf4j.Logger;
@@ -43,6 +46,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     private Double similarity = null;
     private Integer maxNearest = null;
     private Boolean everySingleSentence = null;
+    private Map<String, List<String>> keyWordTextPassages;
 
     /**
      * constructor.
@@ -66,7 +70,7 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     }
 
     @Override
-    public Map<String, Double> filterKeywords(Map<String, Double> keywords, Catalog<? extends CatalogEntryHasName> catalog) throws IOException {
+    public Map<String, Double> filterKeywords(Map<String, Double> keywords, Catalog<? extends HasName> catalog) throws IOException {
 
         Map<String, Double> filteredKeywords = new HashMap<String, Double>();
         double currentSimilarity = 0.0f;
@@ -102,10 +106,23 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
     @Override
     public Map<String, Double> getKeywords(final ByteArrayInputStream byteArrayInputStream, final String fileName, KeywordExtractor keywordExtractor)
             throws Exception {
+        Map<String, Double> keywords = null;
         BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(byteArrayInputStream, fileName);
         List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, everySingleSentence);
-        return keywordExtractor.getKeywords(textcorpus);
+        keywords = keywordExtractor.getKeywords(textcorpus);
+        setKeyWordTextPassages(bodyContentHandler, keywords);
+        return keywords;
 
+    }
+
+    /**
+     * this method return all sentence, where occur the keywords or an empty container
+     *
+     * @param keyword
+     * @return new reference of {@code List<String>}
+     */
+    public Set<String> getTextPassages(String keyword) {
+        return (keyWordTextPassages.get(keyword) == null) ? new HashSet<String>() : new HashSet<String>(keyWordTextPassages.get(keyword));
     }
 
     /**
@@ -120,10 +137,21 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
         for (String keyword : keywords) {
             List<String> nearestWords = word2vec.wordsNearest(keyword, maxNearest);
             result.put(keyword, nearestWords);
-
         }
         return result;
 
+    }
+
+    /**
+     * this method set text sections (hole sentence) of a given keyword
+     *
+     * @param bodyContentHandler
+     * @param keywords
+     * @throws IOException
+     */
+    private void setKeyWordTextPassages(BodyContentHandler bodyContentHandler, Map<String, Double> keywords) throws IOException {
+        List<String> temps = new ArrayList<String>(keywords.keySet());
+        keyWordTextPassages = documentConverter.getTextPassages(bodyContentHandler, temps);
     }
 
     /**
@@ -150,7 +178,6 @@ public class DocumentKeywordAnalyser implements Keywords, AutoCloseable {
             throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.EVERY_SINGLE_SENTENCE");
         }
         everySingleSentence = Boolean.parseBoolean(property);
-
         return true;
     }
 

@@ -1,5 +1,6 @@
 package de.citytwin.analyser;
 
+import de.citytwin.catalog.HasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.converter.DocumentConverter;
 import de.citytwin.database.PostgreSQLController;
@@ -64,6 +65,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
     private Integer maxSectionCount = null;
 
     private String addressRegex = "";
+    private Boolean everySingleSentence = null;
 
     public Location getOriginLocation() {
         return originLocation;
@@ -94,9 +96,10 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
             throws Exception {
         Set<String> namedEntities = new HashSet<String>();
         BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(byteArrayInputStream, fileName);
-        List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, false);
+        List<List<String>> textcorpus = documentConverter.getCleanedTextCorpus(bodyContentHandler, everySingleSentence);
         namedEntities.addAll(namedEntitiesExtractor.getNamedEntities(textcorpus));
         namedEntities.addAll(namedEntitiesExtractor.getNamedEntities(bodyContentHandler.toString(), addressRegex));
+        setTextPassages(bodyContentHandler, namedEntities);
         return namedEntities;
 
     }
@@ -105,7 +108,6 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         return filterNamedEntities(extractedLocations, originLocation, maxDistanceInMeters);
     }
 
-    // todo rename in prefilterNamedEnities --> prefilterAddresses
     public Set<String> prefilterAddresses(final Set<String> extractedNamedEnites, PostgreSQLController postgreSQLController) throws Exception {
         Set<String> filterd = new HashSet<String>();
         List<Set<String>> nameSets = new ArrayList<Set<String>>();
@@ -286,6 +288,10 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
                 if (count > 0 && count <= maxStreetCount) {
                     Set<String> sections = controller.getSections(queryAddress);
                     Set<String> foundedSections = sections.stream().filter(section -> extractedLocations.contains(section)).collect(Collectors.toSet());
+                    // only one match
+                    if (sections.size() == 1) {
+                        foundedSections.addAll(sections);
+                    }
                     if (foundedSections.size() <= maxSectionCount) {
                         for (String foundedSection : foundedSections) {
                             Address address = new Address(queryAddress.getName(), queryAddress.getHnr(), queryAddress.getHnr_zusatz(), foundedSection);
@@ -516,7 +522,13 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         if (addressRegex == null) {
             throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.ADDRESS_REGEX");
         }
+        property = properties.getProperty(ApplicationConfiguration.EVERY_SINGLE_SENTENCE);
+        if (property == null) {
+            throw new IllegalArgumentException("set property --> " + "ApplicationConfiguration.EVERY_SINGLE_SENTENCE");
+        }
+        everySingleSentence = Boolean.parseBoolean(property);
         return true;
+
     }
 
     public static Properties getDefaultProperties() {
@@ -629,6 +641,44 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         }
         return locations;
 
+    }
+
+    public Set<String> getTextPassages(HasName hasName) {
+        if (hasName instanceof Address) {
+            List<String> addresses = getPossibleKeyMatches((Address)hasName);
+            // return first match
+            for (String address : addresses) {
+                List<String> foundeds = textPassages.get(address);
+                if (foundeds != null)
+                    return new HashSet(foundeds);
+            }
+        }
+        return (textPassages.get(hasName.getName()) == null) ? new HashSet<String>() : new HashSet<String>(textPassages.get(hasName.getName()));
+    }
+
+    private List<String> getPossibleKeyMatches(Address address) {
+        List<String> results = new ArrayList<String>();
+        String name = address.getName();
+        String hnr = (address.getHnr() == 0.0) ? "" : Integer.toString((int)address.getHnr());
+        String hnrZusatz = address.getHnr_zusatz();
+        if (!hnr.equals("")) {
+            String composedKey = "";
+            if (hnrZusatz != null && !hnrZusatz.equals("")) {
+                composedKey = name + " " + hnr + hnrZusatz.toLowerCase();
+                results.add(composedKey);
+            }
+            composedKey = name + " " + hnr;
+            results.add(composedKey);
+        }
+        results.add(address.getName());
+        return results;
+    }
+
+    private HashMap<String, List<String>> textPassages = null;
+
+    private void setTextPassages(BodyContentHandler bodyContentHandler, Set<String> namedEntities) throws IOException {
+        List<String> temps = new ArrayList<String>(namedEntities);
+        textPassages = documentConverter.getTextPassages(bodyContentHandler, temps);
     }
 
 }

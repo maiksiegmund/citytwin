@@ -1,7 +1,7 @@
 package de.citytwin.analyser;
 
 import de.citytwin.catalog.Catalog;
-import de.citytwin.catalog.CatalogEntryHasName;
+import de.citytwin.catalog.HasName;
 import de.citytwin.keywords.KeywordExtractor;
 
 import java.io.ByteArrayInputStream;
@@ -23,7 +23,7 @@ public interface Keywords {
      * @return
      * @throws IOException
      */
-    public Map<String, Double> filterKeywords(Map<String, Double> keywords, Catalog<? extends CatalogEntryHasName> catalog) throws Exception;
+    public Map<String, Double> filterKeywords(Map<String, Double> keywords, Catalog<? extends HasName> catalog) throws Exception;
 
     /**
      * this method extract keywords from a file
