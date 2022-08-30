@@ -652,6 +652,8 @@ public class Example {
                         byteArrayInputStream.close();
                         postgreSQLController.setDocumentIsAnalysed(documentId);
                         LOGGER.info("keyordanalyse for document:\n" + metaData.get("name") + " finished");
+                        keywords.clear();
+                        filteredKeywords.clear();
                     } catch (Exception exception) {
                         String errorMessage = "error keyword analyze by document \n "
                                 + "id:      {0} \n "
@@ -773,7 +775,8 @@ public class Example {
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
                 PostgreSQLController postgreSQLController = new PostgreSQLController(properties);) {
 
-            Map<Long, Set<Long>> mappedDocumentIdsAndKeywordIds = postgreSQLController.getDocumentIdsAndMappedKeywordIds();
+            Map<Long, Set<Long>> mappedDocumentIdsAndKeywordIds = new HashMap<Long, Set<Long>>(); // = //
+                                                                                                  // postgreSQLController.getDocumentIdsAndMappedKeywordIds();
             int current = 1;
             for (Map.Entry<Long, Set<Long>> entry : mappedDocumentIdsAndKeywordIds.entrySet()) {
                 Long metaDataId = entry.getKey();
@@ -796,7 +799,7 @@ public class Example {
                 keywords.clear();
                 if (current == 3)
                     return;
-                System.out.println(current +" of "+ mappedDocumentIdsAndKeywordIds.size());
+                System.out.println(current + " of " + mappedDocumentIdsAndKeywordIds.size());
                 current++;
             }
 
