@@ -861,7 +861,7 @@ public class PostgreSQLController implements AutoCloseable {
             if (resultSet.getString(5).length() != 0) {
                 synonyms = new HashSet<String>(Arrays.asList(resultSet.getString(5).split(",")));
             }
-            return new Location(name, featureCode, latitude, longitude, synonyms);
+            return new Location(id, name, featureCode, latitude, longitude, synonyms);
         }
         return null;
 
@@ -1042,7 +1042,7 @@ public class PostgreSQLController implements AutoCloseable {
         // all entries
         deleteStatement(PostgreSQLController.TABLE_LOCATIONS, null);
 
-        String sqlStatement = MessageFormat.format("INSERT INTO {0}.{1}(NAME,FEATURE_CODE,LATITUDE,LONGITUDE,SYNONYMS) VALUES(?,?,?,?,?)",
+        String sqlStatement = MessageFormat.format("INSERT INTO {0}.{1}(ID,NAME,FEATURE_CODE,LATITUDE,LONGITUDE,SYNONYMS) VALUES(?,?,?,?,?,?)",
                 PostgreSQLController.SCHEMA,
                 PostgreSQLController.TABLE_LOCATIONS);
 
@@ -1056,11 +1056,12 @@ public class PostgreSQLController implements AutoCloseable {
             }
             // remove last comma
             synonyms = synonyms.substring(0, synonyms.length() - 1);
-            preparedStatement.setString(1, location.getName());
-            preparedStatement.setString(2, location.getFeatureCode());
-            preparedStatement.setDouble(3, location.getLatitude());
-            preparedStatement.setDouble(4, location.getLongitude());
-            preparedStatement.setString(5, synonyms);
+            preparedStatement.setLong(1, location.getId());
+            preparedStatement.setString(2, location.getName());
+            preparedStatement.setString(3, location.getFeatureCode());
+            preparedStatement.setDouble(4, location.getLatitude());
+            preparedStatement.setDouble(5, location.getLongitude());
+            preparedStatement.setString(6, synonyms);
             preparedStatement.addBatch();
             count++;
             if (count % 1000 == 0 || count == locations.size()) {

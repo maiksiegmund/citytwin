@@ -807,4 +807,34 @@ public class Example {
 
     }
 
+
+    /**
+     * this method is an example to run location finding on a single document edit parameters!
+     *
+     * @throws Exception
+     */
+    public static void importLocationsNew(String[] args) throws IOException, Exception {
+
+        String propertiesPath = validateProgramArgumentOrExit(args);
+
+        InputStream inputStream = new FileInputStream(propertiesPath);
+        Properties properties = new Properties();
+        properties.load(inputStream);
+
+
+        try(
+                TextProcessing textProcessing = new TextProcessing(properties);
+                DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
+                DocumentNamedEntityAnalyser documentNamedEntityAnalyser = new DocumentNamedEntityAnalyser(properties, documentConverter);
+                PostgreSQLController postgreSQLController = new PostgreSQLController(properties);) {
+
+            List<Location> locations =  documentNamedEntityAnalyser.getLocationsBasedOnGeoNamesDump();
+            postgreSQLController.importLocationsTabel(locations);
+
+
+        }
+    }
+
+
+
 }

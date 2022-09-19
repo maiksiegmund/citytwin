@@ -632,12 +632,13 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
 
         for (String line : lines) {
             String[] lineParts = line.split("\t");
+            Long id = Long.parseLong(lineParts[Location.INDEX_ID]);
             String name = lineParts[Location.INDEX_NAME];
             Set<String> synonyms = new HashSet<String>(Arrays.asList(lineParts[Location.INDEX_SYNONYMS].split(",")));
             double latitude = Double.parseDouble(lineParts[Location.INDEX_LATITUDE]);
             double longitude = Double.parseDouble(lineParts[Location.INDEX_LONGITUDE]);
             String featureCode = lineParts[Location.INDEX_FEATURECODE];
-            locations.add(new Location(name, featureCode, latitude, longitude, synonyms));
+            locations.add(new Location(id, name, featureCode, latitude, longitude, synonyms));
         }
         return locations;
 

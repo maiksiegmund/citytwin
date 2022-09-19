@@ -14,12 +14,14 @@ import javax.annotation.Nonnull;
 public class Location implements HasName {
 
     /** index in dump */
+    public static final int INDEX_ID = 0;
     public static final int INDEX_NAME = 1;
     public static final int INDEX_SYNONYMS = 3;
     public static final int INDEX_LATITUDE = 4;
     public static final int INDEX_LONGITUDE = 5;
     public static final int INDEX_FEATURECODE = 7;
 
+    private Long id;
     private String name;
     private String featureCode;
     private double latitude;
@@ -46,6 +48,16 @@ public class Location implements HasName {
     private static final double EARTH_RADIUS = 6371.0; // km value;
 
     public Location(String name, String featureCode, double latitude, double longitude, Set<String> synonyms) {
+        this.id = 0L;
+        this.name = name;
+        this.featureCode = featureCode;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.synonyms = synonyms;
+    }
+
+    public Location(Long id, String name, String featureCode, double latitude, double longitude, Set<String> synonyms) {
+        this.id = id;
         this.name = name;
         this.featureCode = featureCode;
         this.latitude = latitude;
@@ -129,6 +141,14 @@ public class Location implements HasName {
 
     public void setSynonyms(@Nonnull Set<String> synonyms) {
         this.synonyms = synonyms;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getId() {
+        return id;
     }
 
 }
