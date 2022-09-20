@@ -281,7 +281,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
         // for (String extractedLocation : extractedLocations) {
         for (String extractedLocation : preFilteredExtractedLocations) {
             // Set<Address> queryAddresses = getAddresses(extractedLocation);
-            Set<Address> queryAddresses = getAddresses(extractedLocation);
+            Set<Address> queryAddresses = getAddresses(extractedLocation); // field feature_id isn't set
             for (Address queryAddress : queryAddresses) {
                 LOGGER.info(queryAddress.toString());
                 Long count = controller.countOfAddresses(queryAddress);
@@ -292,11 +292,12 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
                     if (sections.size() == 1) {
                         foundedSections.addAll(sections);
                     }
+                    // check all section
                     if (foundedSections.size() <= maxSectionCount) {
                         for (String foundedSection : foundedSections) {
-                            Address address = new Address(queryAddress.getName(), queryAddress.getHnr(), queryAddress.getHnr_zusatz(), foundedSection);
-                            for (Long id : controller.getIds(address)) {
-                                addresses.add(controller.getAddress(id));
+                            Address address = new Address(queryAddress.getStrNam(), queryAddress.getHausnr(), queryAddress.getHausnrz(), foundedSection);
+                            for (String featureID : controller.getFeatureIds(address)) {
+                                addresses.add(controller.getAddress(featureID));
                             }
                         }
                     }
@@ -651,7 +652,7 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
             for (String address : addresses) {
                 List<String> foundeds = textPassages.get(address);
                 if (foundeds != null)
-                    return new HashSet(foundeds);
+                    return new HashSet<String>(foundeds);
             }
         }
         return (textPassages.get(hasName.getName()) == null) ? new HashSet<String>() : new HashSet<String>(textPassages.get(hasName.getName()));
@@ -660,8 +661,8 @@ public class DocumentNamedEntityAnalyser implements NamedEntities, AutoCloseable
     private List<String> getPossibleKeyMatches(Address address) {
         List<String> results = new ArrayList<String>();
         String name = address.getName();
-        String hnr = (address.getHnr() == 0.0) ? "" : Integer.toString((int)address.getHnr());
-        String hnrZusatz = address.getHnr_zusatz();
+        String hnr = (address.getHausnr() == 0.0) ? "" : Integer.toString(address.getHausnr().intValue());
+        String hnrZusatz = address.getHausnrz();
         if (!hnr.equals("")) {
             String composedKey = "";
             if (hnrZusatz != null && !hnrZusatz.equals("")) {

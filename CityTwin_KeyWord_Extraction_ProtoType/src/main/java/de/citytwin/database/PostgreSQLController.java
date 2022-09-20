@@ -4,7 +4,9 @@ import de.citytwin.catalog.HasName;
 import de.citytwin.config.ApplicationConfiguration;
 import de.citytwin.model.ALKIS;
 import de.citytwin.model.Address;
+import de.citytwin.model.Keyword;
 import de.citytwin.model.Location;
+import de.citytwin.model.Ontology;
 import de.citytwin.model.Term;
 
 import java.io.FileInputStream;
@@ -52,7 +54,7 @@ public class PostgreSQLController implements AutoCloseable {
     public static final String TABLE_ONTOLOGIES = "nlp_ontologies";
     public static final String TABLE_TERMS = "nlp_terms";
     public static final String TABLE_LOCATIONS = "nlp_locations";
-    public static final String TABLE_ADDRESSES = "fis_s_wfs_adressenberlin";
+    public static final String TABLE_ADDRESSES = "fis_s_rbs_adr";
     // todo add to application config
     public static final String TABLE_SECTIONS = "fis_s_wfs_alkis_bezirk";
     public static final String TABLE_DISTRICTS = "fis_s_wfs_alkis_ortsteile";
@@ -198,43 +200,25 @@ public class PostgreSQLController implements AutoCloseable {
     }
 
     /**
-     * this method return address statemant
+     * this method return address
      *
      * @return
      */
     private String selectAddressStatement() {
 
-        String addressId = "adressId";
-        String bez_name = "bez_name";
-        String bez_nr = "bez_nr";
-        String fid = "fid";
-        String hnr = "hnr";
-        String hnr_zusatz = "hnr_zusatz";
-        String latitude = "ST_Y(ST_Centroid(ST_Transform(geom, 4326))) AS latitude";
-        String longitude = "ST_X(ST_Centroid(ST_Transform(geom, 4326))) AS longitude";
-        String ort_name = "ort_name";
-        String ort_nr = "ort_nr";
-        String plr_name = "plr_name";
-        String plr_nr = "plr_nr";
-        String plz = "plz";
-        String str_name = "str_name";
+        String strName = "strnam";
+        String hausNr = "hausnr";
+        String hausNrZ = "hausnrz";
+        String bez_Name = "bez_name";
+        String featureId = "feature_id"; // origin ID
 
         String sqlStatement = MessageFormat
-                .format("SELECT {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13} from {14}.{15} where fid = ?",
-                        addressId,
-                        bez_name,
-                        bez_nr,
-                        fid,
-                        hnr,
-                        hnr_zusatz,
-                        latitude,
-                        longitude,
-                        ort_name,
-                        ort_nr,
-                        plr_name,
-                        plr_nr,
-                        plz,
-                        str_name,
+                .format("SELECT {0}, {1}, {2}, {3}, {4} from {5}.{6} where feature_id = ?",
+                        strName,
+                        hausNr,
+                        hausNrZ,
+                        bez_Name,
+                        featureId,
                         PostgreSQLController.SCHEMA,
                         PostgreSQLController.TABLE_ADDRESSES);
 
@@ -248,49 +232,31 @@ public class PostgreSQLController implements AutoCloseable {
      * @return
      * @throws SQLException
      */
-    public Address getAddress(long id) throws SQLException {
+    public Address getAddress(String featureId) throws SQLException {
 
         Address address = null;
 
-        String addressId = "adressId";
-        String bez_name = "bez_name";
-        String bez_nr = "bez_nr";
-        String fid = "fid";
-        String hnr = "hnr";
-        String hnr_zusatz = "hnr_zusatz";
-        String latitude = "latitude";
-        String longitude = "longitude";
-        String ort_name = "ort_name";
-        String ort_nr = "ort_nr";
-        String plr_name = "plr_name";
-        String plr_nr = "plr_nr";
-        String plz = "plz";
-        String str_name = "str_name";
+        String strName = "strnam";
+        String hausNr = "hausnr";
+        String hausNrZ = "hausnrz";
+        String bez_Name = "bez_name";
+        String feature_id = "feature_id";
 
         String sqlStatement = selectAddressStatement();
 
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
-        preparedStatement.setLong(1, id);
+        preparedStatement.setString(1, featureId);
 
         ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
 
             address = new Address(
-                    resultSet.getString(str_name),
-                    resultSet.getDouble(hnr),
-                    resultSet.getString(hnr_zusatz));
+                    resultSet.getString(strName),
+                    resultSet.getDouble(hausNr),
+                    resultSet.getString(hausNrZ),
+                    resultSet.getString(bez_Name),
+                    resultSet.getString(feature_id));
 
-            address.setFid(resultSet.getLong(fid));
-            address.setAdressid(resultSet.getString(addressId));
-            address.setBez_name(resultSet.getString(bez_name));
-            address.setBez_nr(resultSet.getString(bez_nr));
-            address.setLatitude(resultSet.getDouble(latitude));
-            address.setLongitude(resultSet.getDouble(longitude));
-            address.setOrt_name(resultSet.getString(ort_name));
-            address.setOrt_nr(resultSet.getString(ort_nr));
-            address.setPlr_name(resultSet.getString(plr_name));
-            address.setPlr_nr(resultSet.getString(plr_nr));
-            address.setPlz(resultSet.getString(plz));
         }
         return address;
     }
@@ -362,21 +328,36 @@ public class PostgreSQLController implements AutoCloseable {
     }
 
     /**
-     * this method get an id of street by name, house number is optional <br>
-     * todo count all results and add district
+     * this method get an featur_ids by strname, optional --> house number, additional house number <br>
      *
-     * @param address (str_name optional bez_name, hnr, hnr_zusatz)
-     * @return new reference of List<Long>
+     * @param address
+     * @return new reference of List<String>
      * @throws SQLException
      */
-    public List<Long> getIds(Address address) throws SQLException {
-        String what = "fid";
-        List<Long> results = new ArrayList<Long>();
+    public List<String> getFeatureIds(Address address) throws SQLException {
+        String what = "feature_id";
+        List<String> results = new ArrayList<String>();
         ResultSet resultSet = addressPreparedStatement(address, what).executeQuery();
         while (resultSet.next()) {
-            results.add(resultSet.getLong(1));
+            results.add(resultSet.getString(1));
         }
         return results;
+    }
+
+    /**
+     * this method return featur_id by strname, optional --> house number, additional house number or empty string<br>
+     *
+     * @param address
+     * @return new reference of List<String>
+     * @throws SQLException
+     */
+    public String getFeatureId(Address address) throws SQLException {
+        String what = "feature_id";
+        ResultSet resultSet = addressPreparedStatement(address, what).executeQuery();
+        while (resultSet.next()) {
+            return resultSet.getString(1);
+        }
+        return "";
     }
 
     /**
@@ -388,7 +369,7 @@ public class PostgreSQLController implements AutoCloseable {
      */
     public Long countOfAddresses(Address address) throws SQLException {
 
-        String what = "Count(fid)";
+        String what = "Count(feature_id)";
         ResultSet resultSet = addressPreparedStatement(address, what).executeQuery();
         while (resultSet.next()) {
             return resultSet.getLong(1);
@@ -423,11 +404,11 @@ public class PostgreSQLController implements AutoCloseable {
      */
     private PreparedStatement addressPreparedStatement(Address address, String what) throws SQLException {
 
-        if (address.getFid() != null && address.getFid() != 0L) {
-            PreparedStatement preparedStatement = connection.prepareStatement(MessageFormat.format("SELECT fid FROM {0}.{1} WHERE fid = ? ",
+        if (address.getFeatureId() != null && address.getFeatureId().trim().length() != 0L) {
+            PreparedStatement preparedStatement = connection.prepareStatement(MessageFormat.format("SELECT feature_id FROM {0}.{1} WHERE feature_id = ?",
                     PostgreSQLController.SCHEMA,
                     PostgreSQLController.TABLE_ADDRESSES));
-            preparedStatement.setLong(1, address.getFid());
+            preparedStatement.setString(1, address.getFeatureId());
             return preparedStatement;
         }
 
@@ -450,18 +431,18 @@ public class PostgreSQLController implements AutoCloseable {
             indexBez_nameCondition = ++index;
         }
 
-        if (address.getHnr() != 0.0d) {
+        if (address.getHausnr() != 0.0d) {
             setHnrCondition = true;
             indexHnrCondition = ++index;
-            additionalCondition = "and hnr = ?";
-            if (address.getHnr_zusatz() != null && address.getHnr_zusatz().length() != 0) {
+            additionalCondition = "and hausnr = ?";
+            if (address.getHausnrz() != null && address.getHausnrz().length() != 0) {
                 setHnr_zusatzCondition = true;
                 indexHnr_zusatzCondition = ++index;
-                additionalCondition = "and hnr = ? and hnr_zusatz ilike ?";
+                additionalCondition = "and hausnr = ? and hausnrz ilike ?";
             }
         }
 
-        String sqlStatement = MessageFormat.format("SELECT {0} FROM {1}.{2} WHERE str_name ilike ? {3} {4}",
+        String sqlStatement = MessageFormat.format("SELECT {0} FROM {1}.{2} WHERE strnam ilike ? {3} {4}",
                 what,
                 PostgreSQLController.SCHEMA,
                 PostgreSQLController.TABLE_ADDRESSES,
@@ -474,9 +455,9 @@ public class PostgreSQLController implements AutoCloseable {
             preparedStatement.setString(indexBez_nameCondition, address.getBez_name());
         }
         if (setHnrCondition) {
-            preparedStatement.setDouble(indexHnrCondition, address.getHnr());
+            preparedStatement.setString(indexHnrCondition, String.valueOf(address.getHausnr().intValue()));
             if (setHnr_zusatzCondition) {
-                preparedStatement.setString(indexHnr_zusatzCondition, address.getHnr_zusatz());
+                preparedStatement.setString(indexHnr_zusatzCondition, address.getHausnrz());
             }
         }
         return preparedStatement;
@@ -510,28 +491,27 @@ public class PostgreSQLController implements AutoCloseable {
     /**
      * this method get an id of CatalogEntryHasName by name
      *
-     * @param catalogEntryHasName
+     * @param hasName
      * @return id or 0
      * @throws SQLException
      */
-    public long getId(HasName catalogEntryHasName) throws SQLException {
-
-        if (catalogEntryHasName instanceof Term) {
-            return getId((Term)catalogEntryHasName);
+    public long getId(HasName hasName) throws SQLException, IllegalArgumentException {
+        if (hasName instanceof Address)
+            throw new IllegalArgumentException("id of an Address is an String, use getFeatureIds(Address address)");
+        if (hasName instanceof Location)
+            return getId((Location)hasName);
+        if (hasName instanceof ALKIS)
+            return getId((ALKIS)hasName);
+        if (hasName instanceof Term) {
+            return getId((Term)hasName);
         }
-        if (catalogEntryHasName instanceof ALKIS) {
-            return getId((ALKIS)catalogEntryHasName);
+        if (hasName instanceof Ontology) {
+            return getId((Ontology)hasName);
         }
-        if (catalogEntryHasName instanceof Location) {
-            return getId((Location)catalogEntryHasName);
+        if (hasName instanceof Keyword) {
+            return getId(hasName.getName(), PostgreSQLController.TABLE_KEYWORDS);
         }
-        if (catalogEntryHasName instanceof Address) {
-            List<Long> ids = getIds((Address)catalogEntryHasName);
-            if (ids.size() > 0)
-                return ids.get(0);
-            return 0;
-        }
-        throw new IllegalArgumentException("wrong type " + catalogEntryHasName.getClass().toString());
+        throw new IllegalArgumentException("wrong type " + hasName.getClass().toString());
 
     }
 
@@ -596,7 +576,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @return id or 0
      * @throws SQLException
      */
-    public long getId(@Nonnull String name, @Nonnull String table) throws SQLException {
+    private long getId(@Nonnull String name, @Nonnull String table) throws SQLException {
         return getId("id", name, table);
     }
 
@@ -641,6 +621,29 @@ public class PostgreSQLController implements AutoCloseable {
         preparedStatement.setString(1, term.getName().toLowerCase());
         preparedStatement.setString(2, term.getMorphem().toLowerCase());
         preparedStatement.setBoolean(3, term.getIsCore());
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            return resultSet.getLong(1);
+        }
+        return 0;
+    }
+
+    /**
+     * this method get a id from ontology by name
+     *
+     * @param term
+     * @return id or 0
+     * @throws SQLException
+     */
+    public long getId(Ontology ontology) throws SQLException {
+
+        String sqlStatement = MessageFormat
+                .format("SELECT id FROM {0}.{1} WHERE Name ilike ? ",
+                        PostgreSQLController.SCHEMA,
+                        PostgreSQLController.TABLE_ONTOLOGIES);
+
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        preparedStatement.setString(1, ontology.getName().toLowerCase());
         ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
             return resultSet.getLong(1);
@@ -789,7 +792,8 @@ public class PostgreSQLController implements AutoCloseable {
 
         switch(mappingTable) {
             case PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ADDRESSES:
-                right = MessageFormat.format("{0}_fid", PostgreSQLController.TABLE_ADDRESSES);
+                // tabelname: fis_s_rbs_adr | columnname: feature_id
+                right = MessageFormat.format("{0}_feature_id", PostgreSQLController.TABLE_ADDRESSES);
                 break;
             case PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ALKIS:
                 right = MessageFormat.format(right, PostgreSQLController.TABLE_ALKIS);
@@ -821,7 +825,7 @@ public class PostgreSQLController implements AutoCloseable {
      * @return keyword or null
      * @throws SQLException
      */
-    public String getKeyword(long id) throws SQLException {
+    public Keyword getKeyword(long id) throws SQLException {
         String sqlStatement = MessageFormat
                 .format("SELECT Name FROM {0}.{1} WHERE id = ?",
                         PostgreSQLController.SCHEMA,
@@ -831,7 +835,7 @@ public class PostgreSQLController implements AutoCloseable {
         preparedStatement.setLong(1, id);
         ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
-            return resultSet.getString(1);
+            return new Keyword(resultSet.getString(1), 0.0d, id);
         }
         return null;
     }
@@ -901,10 +905,10 @@ public class PostgreSQLController implements AutoCloseable {
      * @return string or null
      * @throws SQLException
      */
-    public String getOntology(long id) throws SQLException {
+    public Ontology getOntology(long id) throws SQLException {
 
         String sqlStatement = MessageFormat
-                .format("SELECT Name  FROM {0}.{1} WHERE id = ?",
+                .format("SELECT Name FROM {0}.{1} WHERE id = ?",
                         PostgreSQLController.SCHEMA,
                         PostgreSQLController.TABLE_ONTOLOGIES);
 
@@ -912,7 +916,7 @@ public class PostgreSQLController implements AutoCloseable {
         preparedStatement.setLong(1, id);
         ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
-            return resultSet.getString(1);
+            return new Ontology(resultSet.getString(1));
         }
         return null;
     }
@@ -929,7 +933,7 @@ public class PostgreSQLController implements AutoCloseable {
 
         switch(mappingTable) {
             case PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ADDRESSES:
-                columnNames = MessageFormat.format("{0}_id, {1}_fid", PostgreSQLController.TABLE_DOCUMENTS, PostgreSQLController.TABLE_ADDRESSES);
+                columnNames = MessageFormat.format("{0}_id, {1}_feature_id", PostgreSQLController.TABLE_DOCUMENTS, PostgreSQLController.TABLE_ADDRESSES);
                 break;
             case PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ALKIS:
                 columnNames = MessageFormat.format(columnNames, PostgreSQLController.TABLE_DOCUMENTS, PostgreSQLController.TABLE_ALKIS);
@@ -1075,25 +1079,28 @@ public class PostgreSQLController implements AutoCloseable {
     /**
      * this method insert CatalogEntryHasName in db
      *
-     * @param catalogEntry
+     * @param hasName
      * @return id
      * @throws SQLException
      */
-    public long insert(HasName catalogEntry) throws SQLException {
+    public long insert(HasName hasName) throws SQLException {
+        if (hasName instanceof Address)
+            throw new IllegalArgumentException("insert of Type " + hasName.getClass().toString() + " not allowed");
+
         String table = "";
         Map<String, Object> parameters = new HashMap<String, Object>();
-        if (catalogEntry instanceof Term) {
+        if (hasName instanceof Term) {
             table = PostgreSQLController.TABLE_TERMS;
-            parameters.put("name", catalogEntry.getName());
-            parameters.put("morphem", ((Term)catalogEntry).getMorphem());
-            parameters.put("isCore", ((Term)catalogEntry).getIsCore());
+            parameters.put("name", hasName.getName());
+            parameters.put("morphem", ((Term)hasName).getMorphem());
+            parameters.put("isCore", ((Term)hasName).getIsCore());
 
             long idCatalogEntryHasName = insertStatement(table, parameters);
 
-            for (String ontology : ((Term)catalogEntry).getOntologies()) {
-                long idOntology = getId(ontology, PostgreSQLController.TABLE_ONTOLOGIES);
+            for (Ontology ontology : ((Term)hasName).getOntologies()) {
+                long idOntology = getId(ontology);
                 if (idOntology == 0) {
-                    idOntology = insert(ontology, PostgreSQLController.TABLE_ONTOLOGIES);
+                    idOntology = insert(ontology);
                 }
                 if (!isMapped(MAPPING_TABLE_TERMS_ONTOLOGIES, idCatalogEntryHasName, idOntology)) {
                     map(MAPPING_TABLE_TERMS_ONTOLOGIES, idCatalogEntryHasName, idOntology, null);
@@ -1103,12 +1110,23 @@ public class PostgreSQLController implements AutoCloseable {
             return idCatalogEntryHasName;
 
         }
-        if (catalogEntry instanceof ALKIS) {
+        if (hasName instanceof ALKIS) {
             table = PostgreSQLController.TABLE_ALKIS;
-            parameters.put("name", catalogEntry.getName());
-            parameters.put("categorie", ((ALKIS)catalogEntry).getCategorie());
-            parameters.put("code", ((ALKIS)catalogEntry).getCode());
+            parameters.put("name", hasName.getName());
+            parameters.put("categorie", ((ALKIS)hasName).getCategorie());
+            parameters.put("code", ((ALKIS)hasName).getCode());
         }
+        if (hasName instanceof Keyword) {
+            table = PostgreSQLController.TABLE_KEYWORDS;
+            parameters.put("name", hasName.getName());
+            // only in mapping table
+            // parameters.put("weight", ((Keyword)hasName).getWeight());
+        }
+        if (hasName instanceof Ontology) {
+            table = PostgreSQLController.TABLE_ONTOLOGIES;
+            parameters.put("name", hasName.getName());
+        }
+
         return insertStatement(table, parameters);
     }
 
@@ -1122,6 +1140,7 @@ public class PostgreSQLController implements AutoCloseable {
     public long insert(Location location) throws SQLException {
         Map<String, Object> parameters = new HashMap<String, Object>();
         String synonyms = "";
+        parameters.put("ID", location.getId());
         parameters.put("NAME", location.getName());
         parameters.put("FEATURE_CODE", location.getFeatureCode());
         parameters.put("LATITUDE", location.getLatitude());
@@ -1131,6 +1150,19 @@ public class PostgreSQLController implements AutoCloseable {
         }
         parameters.put("SYNONYMS", synonyms);
         return insertStatement(PostgreSQLController.TABLE_LOCATIONS, parameters);
+    }
+
+    /**
+     * this method insert location in db
+     *
+     * @param location
+     * @return id
+     * @throws SQLException
+     */
+    public long insert(Ontology ontology) throws SQLException {
+        Map<String, Object> parameters = new HashMap<String, Object>();
+        parameters.put("NAME", ontology.getName());
+        return insertStatement(PostgreSQLController.TABLE_ONTOLOGIES, parameters);
     }
 
     /**
@@ -1231,6 +1263,10 @@ public class PostgreSQLController implements AutoCloseable {
                 preparedStatement.setInt(index++, (Integer)data);
                 continue;
             }
+            if (data instanceof Long) {
+                preparedStatement.setLong(index++, (Long)data);
+                continue;
+            }
             if (data instanceof Double) {
                 preparedStatement.setDouble(index++, (Double)data);
                 continue;
@@ -1281,6 +1317,27 @@ public class PostgreSQLController implements AutoCloseable {
 
     }
 
+    // ToDO test
+    /**
+     * @param mappingTable
+     * @param docId
+     * @param feature_id
+     * @return
+     * @throws SQLException
+     */
+    private Boolean isMapped(String mappingTable, long docId, String feature_id) throws SQLException {
+        String sqlStatement = getIsMappedStatement(mappingTable);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        preparedStatement.setLong(1, docId);
+        preparedStatement.setString(2, feature_id);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            return true;
+        }
+        return false;
+
+    }
+
     /**
      * this method provide some logic to map metadata/documents and address <br>
      * checks whether metadata/documents exist, if not insert <br>
@@ -1293,15 +1350,15 @@ public class PostgreSQLController implements AutoCloseable {
      */
     private void map(Metadata metadata, Address address) throws SQLException {
 
-        if (address.getFid() == null && address.getFid() == 0) {
+        if (address.getFeatureId() == null && address.getFeatureId().trim().length() == 0) {
             throw new SQLException("id of address is null or 0");
         }
         long idDocument = getId(metadata);
         if (idDocument == 0) {
             idDocument = insert(metadata);
         }
-        if (!isMapped(PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ADDRESSES, idDocument, address.getFid())) {
-            map(PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ADDRESSES, idDocument, address.getFid(), null);
+        if (!isMapped(PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ADDRESSES, idDocument, address.getFeatureId())) {
+            map(PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ADDRESSES, idDocument, address.getFeatureId());
         }
 
     }
@@ -1340,6 +1397,12 @@ public class PostgreSQLController implements AutoCloseable {
             idCatalogEntryHasName = getId((Term)hasName);
             mappingTabelName = PostgreSQLController.MAPPING_TABLE_DOCUMENTS_TERMS;
         }
+
+        if (hasName instanceof Ontology) {
+            idCatalogEntryHasName = getId((Ontology)hasName);
+            mappingTabelName = PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ONTOLOGIES;
+        }
+
         long idDocument = getId(metadata);
         if (idDocument == 0) {
             idDocument = insert(metadata);
@@ -1387,16 +1450,16 @@ public class PostgreSQLController implements AutoCloseable {
      * @param ontology
      * @throws SQLException
      */
-    public void map(Metadata metadata, String ontology) throws SQLException {
+    public void map(Metadata metadata, Ontology ontology) throws SQLException {
 
         long idDocument = getId(metadata);
-        long idOntology = getId(ontology, PostgreSQLController.TABLE_ONTOLOGIES);
+        long idOntology = getId(ontology);
 
         if (idDocument == 0) {
             idDocument = insert(metadata);
         }
         if (idOntology == 0) {
-            idOntology = insert(ontology, PostgreSQLController.TABLE_ONTOLOGIES);
+            idOntology = insert(ontology);
         }
 
         if (!isMapped(PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ONTOLOGIES, idDocument, idOntology)) {
@@ -1415,19 +1478,19 @@ public class PostgreSQLController implements AutoCloseable {
      * @param weigth
      * @throws SQLException
      */
-    public void map(Metadata metadata, String keyword, @javax.annotation.Nullable Double weigth) throws SQLException {
+    public void map(Metadata metadata, Keyword keyword) throws SQLException {
 
         long idDocument = getId(metadata);
-        long idKeyword = getId(keyword, PostgreSQLController.TABLE_KEYWORDS);
+        long idKeyword = getId(keyword);
 
         if (idDocument == 0) {
             idDocument = insert(metadata);
         }
         if (idKeyword == 0) {
-            idKeyword = insert(keyword, PostgreSQLController.TABLE_KEYWORDS);
+            idKeyword = insert(keyword);
         }
         if (!isMapped(PostgreSQLController.MAPPING_TABLE_DOCUMENTS_KEYWORDS, idDocument, idKeyword)) {
-            map(PostgreSQLController.MAPPING_TABLE_DOCUMENTS_KEYWORDS, idDocument, idKeyword, weigth);
+            map(PostgreSQLController.MAPPING_TABLE_DOCUMENTS_KEYWORDS, idDocument, idKeyword, keyword.getWeight());
         }
     }
 
@@ -1455,48 +1518,77 @@ public class PostgreSQLController implements AutoCloseable {
     }
 
     /**
-     * this method analysis result to db (documents) {@link Metadata} and {@link Address}
+     * this method maps document and address by ids
      *
-     * @param metadata
-     * @param HasName
-     * @throws ClassNotFoundException
+     * @param mappingTable
+     * @param docId
+     * @param featureId
      * @throws SQLException
      */
-    public void persist(Metadata metadata, HasName hasName) throws ClassNotFoundException, SQLException {
-        map(metadata, hasName);
+    private void map(String mappingTable, long docId, String featureId)
+            throws SQLException {
+
+        String sqlStatement = getTableMappingStatement(mappingTable);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        preparedStatement.setLong(1, docId);
+        preparedStatement.setString(2, featureId);
+        preparedStatement.executeUpdate();
+
     }
 
     /**
-     * this method save analysis result to db (documents) {@link Metadata}, keyword (weight is optional), and {@link HasName}
+     * this method analysis result to db (documents) {@link Metadata} and {@link Address}
      *
      * @param metadata
-     * @param keyword
-     * @param catalogEntry
-     * @param weigth
+     * @param HasName (Location or Address)
      * @throws ClassNotFoundException
      * @throws SQLException
      */
-    public void persist(Metadata metadata, String keyword, @javax.annotation.Nullable HasName catalogEntry, Double weigth)
+    public void persist(Metadata metadata, HasName hasName, @javax.annotation.Nullable Set<String> textPassages) throws ClassNotFoundException, SQLException {
+        if (hasName instanceof Location || hasName instanceof Address) {
+            map(metadata, hasName);
+            if (textPassages != null && textPassages.size() > 0)
+                update(metadata, hasName, textPassages);
+        } else {
+            throw new IllegalArgumentException("Type not allowed " + hasName.getClass().getSimpleName() + " \n only " +
+                    Location.class.getName() + "and \n " +
+                    Address.class.getName());
+
+        }
+
+    }
+
+    /**
+     * this method save result to db (documents) {@link Metadata}, keyword (weight is optional), and {@link HasName}
+     *
+     * @param metadata (document)
+     * @param keyword (keyword)
+     * @param hasName (catalog entry ALKIS or Term)
+     * @param textPassages (Set<String>)
+     * @throws ClassNotFoundException
+     * @throws SQLException
+     */
+
+    public void persist(Metadata metadata, Keyword keyword, @javax.annotation.Nullable HasName hasName, @javax.annotation.Nullable Set<String> textPassages)
             throws ClassNotFoundException, SQLException {
 
-        map(metadata, keyword, weigth);
-        if (catalogEntry == null) {
-            return;
-        }
-        map(metadata, catalogEntry);
-        if (catalogEntry instanceof Term) {
-            for (String ontology : ((Term)catalogEntry).getOntologies()) {
-                map(metadata, ontology);
+        map(metadata, keyword);
+        if (textPassages != null && textPassages.size() > 0)
+            update(metadata, keyword, textPassages);
+
+        if (hasName != null) {
+            map(metadata, hasName);
+            update(metadata, hasName, textPassages);
+            if (hasName instanceof Term) {
+                for (Ontology ontology : ((Term)hasName).getOntologies()) {
+                    map(metadata, ontology);
+                }
             }
         }
     }
 
-    public void persist(Metadata metadata, Object object, Set<String> textPassages) throws SQLException {
-        update(metadata, object, textPassages);
-    }
-
     public Set<String> getStreetNames() throws SQLException {
-        return getNames(TABLE_ADDRESSES, "str_name");
+        return getNames(TABLE_ADDRESSES, "strnam");
     }
 
     public Set<String> getDistrictsNames() throws SQLException {
@@ -1546,46 +1638,44 @@ public class PostgreSQLController implements AutoCloseable {
      * @param textpassages
      * @throws SQLException
      */
-    private void update(Metadata metadata, Object object, Set<String> textpassages) throws SQLException {
+    private void update(Metadata metadata, HasName hasName, Set<String> textpassages) throws SQLException {
 
         long idDocument = getId(metadata);
-        long idObject = getId(object);
+        long idObject = 0L;
+        String featureId = "";
+        if (hasName instanceof Address)
+            featureId = getFeatureId((Address)hasName);
+        else
+            idObject = getId(hasName);
+
         Array array = connection.createArrayOf("text", textpassages.toArray());
-        String sqlStatement = getUpdateTextPassagesSQLStatement(object);
+        String sqlStatement = getUpdateTextPassagesSQLStatement(hasName);
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
         preparedStatement.setArray(1, array);
         preparedStatement.setLong(2, idDocument);
-        preparedStatement.setLong(3, idObject);
+        if (idObject != 0) // switch to another id type
+            preparedStatement.setLong(3, idObject);
+        else
+            preparedStatement.setString(3, featureId);
         preparedStatement.executeUpdate();
     }
 
-    private String getUpdateTextPassagesSQLStatement(Object object) throws SQLException {
+    private String getUpdateTextPassagesSQLStatement(HasName hasName) throws SQLException {
 
-        if (object instanceof Location)
-            return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and  nlp_locations_id = ?",
+        if (hasName instanceof Location)
+            return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and nlp_locations_id = ?",
                     PostgreSQLController.SCHEMA,
                     PostgreSQLController.MAPPING_TABLE_DOCUMENTS_LOCATIONS);
-        if (object instanceof Address)
-            return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and  fis_s_wfs_adressenberlin_fid = ?",
+        if (hasName instanceof Address)
+            return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and fis_s_rbs_adr_feature_id = ?",
                     PostgreSQLController.SCHEMA,
                     PostgreSQLController.MAPPING_TABLE_DOCUMENTS_ADDRESSES);
-        if (object instanceof String) {
-            return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and  nlp_keywords_id = ?",
+        if (hasName instanceof Keyword) {
+            return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and nlp_keywords_id = ?",
                     PostgreSQLController.SCHEMA,
                     PostgreSQLController.MAPPING_TABLE_DOCUMENTS_KEYWORDS);
         }
-        throw new SQLException(object.getClass().getName() + " no mapping table available");
+        throw new SQLException(hasName.getClass().getName() + " no mapping table available");
     }
 
-    private Long getId(Object object) throws SQLException {
-
-        if (object instanceof Location)
-            return getId((Location)object);
-        if (object instanceof Address)
-            return getId((Address)object);
-        if (object instanceof String) {
-            return getId((String)object, PostgreSQLController.TABLE_KEYWORDS);
-        }
-        throw new SQLException(object.getClass().getName() + " no method getid(...) available");
-    }
 }

@@ -17,6 +17,7 @@ import de.citytwin.keywords.KeywordExtractor;
 import de.citytwin.location.LocationEntitiesExtractor;
 import de.citytwin.model.ALKIS;
 import de.citytwin.model.Address;
+import de.citytwin.model.Keyword;
 import de.citytwin.model.Location;
 import de.citytwin.model.Term;
 import de.citytwin.model.WikiArticle;
@@ -33,12 +34,10 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
-import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -219,12 +218,13 @@ public class Example {
                 // persist
                 Metadata metaData = documentConverter.getMetaData(byteArrayInputStream, fileName);
                 metaData.add("Uri", "example");
-                for (String keyword : filteredKeywords.keySet()) {
+                Set<Keyword> filteredKeywordsAndWeights = Keyword.toSet(filteredKeywords);
+                for (Keyword keyword : filteredKeywordsAndWeights) {
                     LOGGER.info("running");
                     for (Catalog<HasName> catalog : catalogs) {
-                        HasName catalogEntryHasName = catalog.getEntry(keyword);
+                        HasName catalogEntryHasName = catalog.getEntry(keyword.getName());
                         // neo4JController.buildGraph(metaData, keyword, catalogEntryHasName, filteredKeywords.get(keyword));
-                        postgreSQLController.persist(metaData, keyword, catalogEntryHasName, filteredKeywords.get(keyword));
+                        postgreSQLController.persist(metaData, keyword, catalogEntryHasName, null);
                     }
                 }
                 byteArrayInputStream.close();
@@ -627,25 +627,26 @@ public class Example {
                         // filtering
                         for (Catalog<HasName> catalog : catalogs) {
                             filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(keywords, catalog));
-                            // persist
-                            for (String filteredKeyword : filteredKeywords.keySet()) {
+                            Set<Keyword> filterKeywordsAndWeight = Keyword.toSet(filteredKeywords);
+                            for (Keyword keyword : filterKeywordsAndWeight) {
                                 if (toPostGreSQL) {
-                                    LOGGER.info("store in postgre");
+                                    LOGGER.info("store " + keyword.toString() + " in postgre");
                                     succeedDocuments.add("documentid:" + documentId.toString() + " keywords store in postgree: " + metaData.get("Uri"));
                                     postgreSQLController
-                                            .persist(metaData, filteredKeyword, catalog.getEntry(filteredKeyword), filteredKeywords.get(filteredKeyword));
-                                    postgreSQLController
-                                            .persist(metaData, filteredKeyword, documentKeywordAnalyser.getTextPassages(filteredKeyword));
+                                            .persist(metaData,
+                                                    keyword,
+                                                    catalog.getEntry(keyword.getName()),
+                                                    documentKeywordAnalyser.getTextPassages(keyword.getName()));
+
                                 }
 
                                 if (toNeo4J) {
-                                    LOGGER.info("store in neo4j");
+                                    LOGGER.info("store " + keyword.toString() + " in neo4j");
                                     succeedDocuments.add("documentid:" + documentId.toString() + " keywords store in neo4j: " + metaData.get("Uri"));
                                     neo4JController.buildGraph(metaData,
-                                            filteredKeyword,
-                                            catalog.getEntry(filteredKeyword),
-                                            filteredKeywords.get(filteredKeyword),
-                                            documentKeywordAnalyser.getTextPassages(filteredKeyword));
+                                            keyword,
+                                            catalog.getEntry(keyword.getName()),
+                                            documentKeywordAnalyser.getTextPassages(keyword.getName()));
                                 }
                             }
                         }
@@ -686,13 +687,11 @@ public class Example {
                             for (Location location : validatedLocations) {
                                 LOGGER.info("store in postgre");
                                 succeedDocuments.add("documentid:" + documentId.toString() + " POIs store in postgree: " + metaData.get("Uri"));
-                                postgreSQLController.persist(metaData, location);
                                 postgreSQLController.persist(metaData, location, documentNamedEntityAnalyser.getTextPassages(location));
                             }
                             for (Address address : validatedAddresses) {
                                 LOGGER.info("store in postgre");
                                 succeedDocuments.add("documentid:" + documentId.toString() + " Addresses store in postgree: " + metaData.get("Uri"));
-                                postgreSQLController.persist(metaData, address);
                                 postgreSQLController.persist(metaData, address, documentNamedEntityAnalyser.getTextPassages(address));
                             }
                         }
@@ -762,52 +761,6 @@ public class Example {
 
     }
 
-    public static void updateDocumentsAndKeywordsTextpassages(String[] args) throws ClassNotFoundException, SQLException, Exception {
-
-        String propertiesPath = validateProgramArgumentOrExit(args);
-
-        InputStream inputStream = new FileInputStream(propertiesPath);
-        Properties properties = new Properties();
-        properties.load(inputStream);
-
-        try(
-                TextProcessing textProcessing = new TextProcessing(properties);
-                DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
-                PostgreSQLController postgreSQLController = new PostgreSQLController(properties);) {
-
-            Map<Long, Set<Long>> mappedDocumentIdsAndKeywordIds = new HashMap<Long, Set<Long>>(); // = //
-                                                                                                  // postgreSQLController.getDocumentIdsAndMappedKeywordIds();
-            int current = 1;
-            for (Map.Entry<Long, Set<Long>> entry : mappedDocumentIdsAndKeywordIds.entrySet()) {
-                Long metaDataId = entry.getKey();
-                Set<Long> keywordIds = entry.getValue();
-                List<String> keywords = new ArrayList<String>();
-                Metadata metadata = postgreSQLController.getMetadata(metaDataId);
-                for (Long keywordId : keywordIds) {
-                    String keyword = postgreSQLController.getKeyword(keywordId);
-                    keywords.add(keyword);
-                }
-
-                BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(getByteArrayInputStream(metadata), metadata.get("name"));
-                Map<String, List<String>> textPassages = documentConverter.getTextPassages(bodyContentHandler, keywords);
-                for (Map.Entry<String, List<String>> textPassage : textPassages.entrySet()) {
-                    String keyword = textPassage.getKey();
-                    List<String> texts = textPassage.getValue();
-                    postgreSQLController.persist(metadata, keyword, new HashSet<String>(texts));
-
-                }
-                keywords.clear();
-                if (current == 3)
-                    return;
-                System.out.println(current + " of " + mappedDocumentIdsAndKeywordIds.size());
-                current++;
-            }
-
-        }
-
-    }
-
-
     /**
      * this method is an example to run location finding on a single document edit parameters!
      *
@@ -821,20 +774,16 @@ public class Example {
         Properties properties = new Properties();
         properties.load(inputStream);
 
-
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
                 DocumentNamedEntityAnalyser documentNamedEntityAnalyser = new DocumentNamedEntityAnalyser(properties, documentConverter);
                 PostgreSQLController postgreSQLController = new PostgreSQLController(properties);) {
 
-            List<Location> locations =  documentNamedEntityAnalyser.getLocationsBasedOnGeoNamesDump();
+            List<Location> locations = documentNamedEntityAnalyser.getLocationsBasedOnGeoNamesDump();
             postgreSQLController.importLocationsTabel(locations);
-
 
         }
     }
-
-
 
 }
