@@ -1650,6 +1650,8 @@ public class PostgreSQLController implements AutoCloseable {
 
         Array array = connection.createArrayOf("text", textpassages.toArray());
         String sqlStatement = getUpdateTextPassagesSQLStatement(hasName);
+        if (sqlStatement.equals("")) // no mapping available
+            return;
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
         preparedStatement.setArray(1, array);
         preparedStatement.setLong(2, idDocument);
@@ -1660,7 +1662,7 @@ public class PostgreSQLController implements AutoCloseable {
         preparedStatement.executeUpdate();
     }
 
-    private String getUpdateTextPassagesSQLStatement(HasName hasName) throws SQLException {
+    private String getUpdateTextPassagesSQLStatement(HasName hasName) {
 
         if (hasName instanceof Location)
             return MessageFormat.format("update {0}.{1} SET textpassages = ? where nlp_documents_id = ? and nlp_locations_id = ?",
@@ -1675,7 +1677,7 @@ public class PostgreSQLController implements AutoCloseable {
                     PostgreSQLController.SCHEMA,
                     PostgreSQLController.MAPPING_TABLE_DOCUMENTS_KEYWORDS);
         }
-        throw new SQLException(hasName.getClass().getName() + " no mapping table available");
+        return "";
     }
 
 }

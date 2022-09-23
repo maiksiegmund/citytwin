@@ -18,7 +18,7 @@ public class Term implements HasName {
     private Boolean isCore = false;
     private String morphem = "";
     private String term = "";
-    private List<Ontology> ontologies = new ArrayList<Ontology>();
+    private List<String> ontologies = new ArrayList<String>();
     private String type = "";
 
     /**
@@ -28,7 +28,7 @@ public class Term implements HasName {
         isCore = false;
         morphem = "";
         term = "";
-        ontologies = new ArrayList<Ontology>();
+        ontologies = new ArrayList<String>();
         type = "Term";
     }
 
@@ -40,12 +40,12 @@ public class Term implements HasName {
      * @param term
      * @param ontologies
      */
-    public Term(Boolean isCore, String morphem, String term, List<Ontology> ontologies, String type) {
+    public Term(Boolean isCore, String morphem, String term, List<String> ontologies, String type) {
         this.isCore = isCore;
         this.morphem = morphem;
         this.term = term;
-        this.ontologies.addAll(ontologies);
         this.type = type;
+        this.ontologies.addAll(ontologies);
     }
 
     /**
@@ -71,7 +71,9 @@ public class Term implements HasName {
      * @return {@code List<String>}
      */
     public List<Ontology> getOntologies() {
-        return ontologies;
+        List<Ontology> temps = new ArrayList<Ontology>();
+        this.ontologies.forEach(val -> temps.add(new Ontology(val)));
+        return temps;
     }
 
     /**
@@ -105,7 +107,7 @@ public class Term implements HasName {
     /**
      * @param isCore {@code List<String>}
      */
-    public void setOntologies(List<Ontology> ontologies) {
+    public void setOntologies(List<String> ontologies) {
         this.ontologies = ontologies;
     }
 
