@@ -17,6 +17,7 @@ import de.citytwin.keywords.KeywordExtractor;
 import de.citytwin.location.LocationEntitiesExtractor;
 import de.citytwin.model.ALKIS;
 import de.citytwin.model.Address;
+import de.citytwin.model.Keyword;
 import de.citytwin.model.Location;
 import de.citytwin.model.Term;
 import de.citytwin.model.WikiArticle;
@@ -33,12 +34,10 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
-import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -105,8 +104,8 @@ public class Example {
                 Term term = (Term)catalog.getEntry(name);
                 long id = postgreSQLController.getId(term);
                 if (id == 0) {
-                    postgreSQLController.insert(term);
-                    added.add(term);
+                    // postgreSQLController.insert(term);
+                    // added.add(term);
                 }
 
             }
@@ -219,12 +218,13 @@ public class Example {
                 // persist
                 Metadata metaData = documentConverter.getMetaData(byteArrayInputStream, fileName);
                 metaData.add("Uri", "example");
-                for (String keyword : filteredKeywords.keySet()) {
+                Set<Keyword> filteredKeywordsAndWeights = Keyword.toSet(filteredKeywords);
+                for (Keyword keyword : filteredKeywordsAndWeights) {
                     LOGGER.info("running");
                     for (Catalog<HasName> catalog : catalogs) {
-                        HasName catalogEntryHasName = catalog.getEntry(keyword);
+                        HasName catalogEntryHasName = catalog.getEntry(keyword.getName());
                         // neo4JController.buildGraph(metaData, keyword, catalogEntryHasName, filteredKeywords.get(keyword));
-                        postgreSQLController.persist(metaData, keyword, catalogEntryHasName, filteredKeywords.get(keyword));
+                        postgreSQLController.persist(metaData, keyword, catalogEntryHasName, null);
                     }
                 }
                 byteArrayInputStream.close();
@@ -566,8 +566,7 @@ public class Example {
     public static void run(String[] args) throws Exception {
 
         int size = 0;
-        int batchSize = 5000;
-        List<String> succeedDocuments = new ArrayList<String>();
+        int batchSize = 350;
 
         String propertiesPath = validateProgramArgumentOrExit(args);
 
@@ -600,6 +599,12 @@ public class Example {
                 unanalyzedDocuments.put(documentId, postgreSQLController.getMetadata(documentId));
                 size++;
             }
+            // // only test prozess test
+            // unanalyzedDocuments.clear();
+            // unanalyzedDocuments.put(69L, postgreSQLController.getMetadata(69L));
+            // unanalyzedDocuments.put(201L, postgreSQLController.getMetadata(201L));
+            // unanalyzedDocuments.put(113L, postgreSQLController.getMetadata(113L));
+
             LOGGER.info("analyse " + unanalyzedDocuments.size() + " documents");
             // init only when needed
             if (keywordAnalyse) {
@@ -616,7 +621,6 @@ public class Example {
                         ByteArrayInputStream byteArrayInputStream = Example.getByteArrayInputStream(metaData);
                         if (byteArrayInputStream == null) {
                             postgreSQLController.deleteDocument(documentId);
-                            succeedDocuments.add("documentid:" + documentId.toString() + "not available: " + metaData.get("Uri"));
                             LOGGER.info("document not available :\n" + metaData.get("Uri"));
                             continue;
                         }
@@ -627,34 +631,37 @@ public class Example {
                         // filtering
                         for (Catalog<HasName> catalog : catalogs) {
                             filteredKeywords.putAll(documentKeywordAnalyser.filterKeywords(keywords, catalog));
-                            // persist
-                            for (String filteredKeyword : filteredKeywords.keySet()) {
+                            Set<Keyword> filterKeywordsAndWeight = Keyword.toSet(filteredKeywords);
+                            for (Keyword keyword : filterKeywordsAndWeight) {
                                 if (toPostGreSQL) {
-                                    LOGGER.info("store in postgre");
-                                    succeedDocuments.add("documentid:" + documentId.toString() + " keywords store in postgree: " + metaData.get("Uri"));
+                                    LOGGER.info("keyword " + keyword.toString() + " | docid: " + documentId + " in postgre");
                                     postgreSQLController
-                                            .persist(metaData, filteredKeyword, catalog.getEntry(filteredKeyword), filteredKeywords.get(filteredKeyword));
-                                    postgreSQLController
-                                            .persist(metaData, filteredKeyword, documentKeywordAnalyser.getTextPassages(filteredKeyword));
+                                            .persist(metaData,
+                                                    keyword,
+                                                    catalog.getEntry(keyword.getName()),
+                                                    documentKeywordAnalyser.getTextPassages(keyword.getName()));
+
                                 }
 
                                 if (toNeo4J) {
-                                    LOGGER.info("store in neo4j");
-                                    succeedDocuments.add("documentid:" + documentId.toString() + " keywords store in neo4j: " + metaData.get("Uri"));
+                                    LOGGER.info("keyword " + keyword.toString() + " | docid: " + documentId + " in neo4j");
                                     neo4JController.buildGraph(metaData,
-                                            filteredKeyword,
-                                            catalog.getEntry(filteredKeyword),
-                                            filteredKeywords.get(filteredKeyword),
-                                            documentKeywordAnalyser.getTextPassages(filteredKeyword));
+                                            keyword,
+                                            catalog.getEntry(keyword.getName()),
+                                            documentKeywordAnalyser.getTextPassages(keyword.getName()));
                                 }
                             }
                         }
+                        keywords.clear();
+                        filteredKeywords.clear();
                         byteArrayInputStream.close();
                         postgreSQLController.setDocumentIsAnalysed(documentId);
                         LOGGER.info("keyordanalyse for document:\n" + metaData.get("name") + " finished");
+
+                    } catch (Exception exception) {
                         keywords.clear();
                         filteredKeywords.clear();
-                    } catch (Exception exception) {
+                        filteredKeywords.clear();
                         String errorMessage = "error keyword analyze by document \n "
                                 + "id:      {0} \n "
                                 + "message: {1}";
@@ -674,7 +681,6 @@ public class Example {
                         if (byteArrayInputStream == null) {
                             postgreSQLController.deleteDocument(documentId);
                             LOGGER.info("document not available :\n" + metaData.get("Uri"));
-                            succeedDocuments.add("documentid:" + documentId.toString() + " not available: " + metaData.get("Uri"));
                             continue;
                         }
                         Set<String> extractedLocations = documentNamedEntityAnalyser
@@ -684,28 +690,24 @@ public class Example {
                                 .validateLocations(extractedLocations, postgreSQLController, containsInSynoyms);
                         if (toPostGreSQL) {
                             for (Location location : validatedLocations) {
-                                LOGGER.info("store in postgre");
-                                succeedDocuments.add("documentid:" + documentId.toString() + " POIs store in postgree: " + metaData.get("Uri"));
-                                postgreSQLController.persist(metaData, location);
+                                LOGGER.info("POI " + location.getName() + " | docid: " + documentId + " in postgre");
                                 postgreSQLController.persist(metaData, location, documentNamedEntityAnalyser.getTextPassages(location));
                             }
                             for (Address address : validatedAddresses) {
-                                LOGGER.info("store in postgre");
-                                succeedDocuments.add("documentid:" + documentId.toString() + " Addresses store in postgree: " + metaData.get("Uri"));
-                                postgreSQLController.persist(metaData, address);
+                                LOGGER.info("Addressid " + address.getFeatureId() + " | docid: " + documentId + " in postgre");
                                 postgreSQLController.persist(metaData, address, documentNamedEntityAnalyser.getTextPassages(address));
                             }
                         }
                         if (toNeo4J) {
                             validatedAddresses
                                     .forEach(address -> {
+                                        LOGGER.info("Addressid " + address.getFeatureId() + " | docid: " + documentId + " in neo4j");
                                         neo4JController.buildGraph(metaData, address, documentNamedEntityAnalyser.getTextPassages(address));
-                                        succeedDocuments.add("documentid:" + documentId.toString() + " Adresses store in Neo4j: " + metaData.get("Uri"));
                                     });
                             validatedLocations
                                     .forEach(location -> {
+                                        LOGGER.info("POI " + location.getName() + " | docid: " + documentId + " in neo4j");
                                         neo4JController.buildGraph(metaData, location, documentNamedEntityAnalyser.getTextPassages(location));
-                                        succeedDocuments.add("documentid:" + documentId.toString() + " POIs store in Neo4j: " + metaData.get("Uri"));
                                     });
                         }
                         postgreSQLController.setDocumentIsAnalysed(documentId);
@@ -725,7 +727,6 @@ public class Example {
             LOGGER.info("process finished");
         }
 
-        succeedDocuments.forEach(System.out::println);
     }
 
     // ToDo Errorhandling!
@@ -762,7 +763,12 @@ public class Example {
 
     }
 
-    public static void updateDocumentsAndKeywordsTextpassages(String[] args) throws ClassNotFoundException, SQLException, Exception {
+    /**
+     * this method is an example to run location finding on a single document edit parameters!
+     *
+     * @throws Exception
+     */
+    public static void importLocationsNew(String[] args) throws IOException, Exception {
 
         String propertiesPath = validateProgramArgumentOrExit(args);
 
@@ -773,38 +779,13 @@ public class Example {
         try(
                 TextProcessing textProcessing = new TextProcessing(properties);
                 DocumentConverter documentConverter = new DocumentConverter(properties, textProcessing);
+                DocumentNamedEntityAnalyser documentNamedEntityAnalyser = new DocumentNamedEntityAnalyser(properties, documentConverter);
                 PostgreSQLController postgreSQLController = new PostgreSQLController(properties);) {
 
-            Map<Long, Set<Long>> mappedDocumentIdsAndKeywordIds = new HashMap<Long, Set<Long>>(); // = //
-                                                                                                  // postgreSQLController.getDocumentIdsAndMappedKeywordIds();
-            int current = 1;
-            for (Map.Entry<Long, Set<Long>> entry : mappedDocumentIdsAndKeywordIds.entrySet()) {
-                Long metaDataId = entry.getKey();
-                Set<Long> keywordIds = entry.getValue();
-                List<String> keywords = new ArrayList<String>();
-                Metadata metadata = postgreSQLController.getMetadata(metaDataId);
-                for (Long keywordId : keywordIds) {
-                    String keyword = postgreSQLController.getKeyword(keywordId);
-                    keywords.add(keyword);
-                }
-
-                BodyContentHandler bodyContentHandler = documentConverter.getBodyContentHandler(getByteArrayInputStream(metadata), metadata.get("name"));
-                Map<String, List<String>> textPassages = documentConverter.getTextPassages(bodyContentHandler, keywords);
-                for (Map.Entry<String, List<String>> textPassage : textPassages.entrySet()) {
-                    String keyword = textPassage.getKey();
-                    List<String> texts = textPassage.getValue();
-                    postgreSQLController.persist(metadata, keyword, new HashSet<String>(texts));
-
-                }
-                keywords.clear();
-                if (current == 3)
-                    return;
-                System.out.println(current + " of " + mappedDocumentIdsAndKeywordIds.size());
-                current++;
-            }
+            List<Location> locations = documentNamedEntityAnalyser.getLocationsBasedOnGeoNamesDump();
+            postgreSQLController.importLocationsTabel(locations);
 
         }
-
     }
 
 }

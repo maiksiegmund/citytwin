@@ -44,8 +44,8 @@ public class Term implements HasName {
         this.isCore = isCore;
         this.morphem = morphem;
         this.term = term;
-        this.ontologies.addAll(ontologies);
         this.type = type;
+        this.ontologies.addAll(ontologies);
     }
 
     /**
@@ -70,8 +70,10 @@ public class Term implements HasName {
     /**
      * @return {@code List<String>}
      */
-    public List<String> getOntologies() {
-        return ontologies;
+    public List<Ontology> getOntologies() {
+        List<Ontology> temps = new ArrayList<Ontology>();
+        this.ontologies.forEach(val -> temps.add(new Ontology(val)));
+        return temps;
     }
 
     /**
